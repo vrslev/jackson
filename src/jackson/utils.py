@@ -1,3 +1,5 @@
+import contextlib
+import shlex
 from ipaddress import IPv4Address
 from shutil import which
 from typing import IO, Callable
@@ -6,7 +8,7 @@ import anyio
 import asyncer
 import typer
 import yaml
-from anyio.abc import ByteReceiveStream
+from anyio.abc import ByteReceiveStream, Process
 from anyio.streams.text import TextReceiveStream
 from pydantic import BaseModel, BaseSettings
 
@@ -46,37 +48,54 @@ async def _restream_stream(
             handler(line.strip())
 
 
-def _handle_exit(code: int | None, printer: Callable[[str], None]):
-    if code is None:
-        printer(f"Exited")
-    else:
-        printer(f"Exited with code {code}")
-        if code > 0:
-            raise typer.Exit(code)
+async def _close_process(process: Process, printer: Callable[[str], None]):
+    if process.returncode is None:
+        process.terminate()
+    await process.wait()
+    code = process.returncode
+
+    # Otherwise RuntimeError('Event loop is closed') is being called
+    process._process._transport.close()  # type: ignore
+
+    printer(f"Exited with code {code}")
+    if code != 0:
+        raise typer.Exit(code or 0)
+    return code
+
+
+@contextlib.asynccontextmanager
+async def start_process(cmd: list[str]):
+    proc = cmd[0]
+    handler = _generate_stream_handler(proc, get_random_color())
+    handler(f"Starting {proc}... ({shlex.join(cmd)})")
+
+    async with await anyio.open_process(cmd) as process:  # type: ignore
+        async with asyncer.create_task_group() as task_group:
+            task_group.soonify(_restream_stream)(stream=process.stderr, handler=handler)
+            task_group.soonify(_restream_stream)(stream=process.stdout, handler=handler)
+            yield process, handler
 
 
 async def run_process(cmd: list[str]):
-    proc = cmd[0]
-    handler = _generate_stream_handler(proc, get_random_color())
-
-    async with await anyio.open_process(cmd) as process:  # type: ignore
+    async with start_process(cmd) as (process, handler):
         try:
-            async with asyncer.create_task_group() as task_group:
-                task_group.soonify(_restream_stream)(
-                    stream=process.stderr, handler=handler
-                )
-                task_group.soonify(_restream_stream)(
-                    stream=process.stdout, handler=handler
-                )
-            code = await process.wait()
-            _handle_exit(code, handler)
-            return code
+            await process.wait()
+        finally:
+            with anyio.CancelScope(shield=True):
+                return await _close_process(process, handler)
 
+
+async def run_forever(cmd: list[str]):
+    async with start_process(cmd) as (process, handler):
+        try:
+            await process.wait()
         except anyio.get_cancelled_exc_class():
-            if process.returncode is None:
-                process.terminate()
-            _handle_exit(process.returncode, handler)
-            raise
+            with anyio.CancelScope(shield=True):
+                return await _close_process(process, handler)
+        else:
+            code = await _close_process(process, handler)
+            if code == 0:
+                await run_forever(cmd)
 
 
 _SourcePort = str
