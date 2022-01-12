@@ -2,7 +2,8 @@ import asyncer
 import typer
 from typer.params import Option
 
-from jackson.services import channel_connector, jackd, jacktrip
+from jackson.services import jackd, jacktrip
+from jackson.services.channel_connector import ChannelConnector
 from jackson.utils import Settings, check_jack_jacktrip_on_machine
 
 
@@ -11,13 +12,14 @@ async def start_server(settings: Settings):
         task_group.soonify(jackd.start)(
             backend=settings.server.backend, device=settings.server.device
         )
+        channel_connector = ChannelConnector(settings.server.channels)
 
-        cc = channel_connector.ChannelConnector(settings.server.channels)
-        task_group.soonify(cc.init_worker)()  # TODO: Check if port registration works
-        task_group.soonify(jacktrip.start_server)(
-            server_port=settings.server.port,
-            remote_name=settings.server.remote_name,
-        )
+        async with channel_connector.init():
+            task_group.soonify(channel_connector.start)()
+            task_group.soonify(jacktrip.start_server)(
+                server_port=settings.server.port,
+                remote_name=settings.server.remote_name,
+            )
 
 
 async def start_client(settings: Settings):
@@ -25,18 +27,18 @@ async def start_client(settings: Settings):
         task_group.soonify(jackd.start)(
             backend=settings.client.backend, device=settings.client.device
         )
+        channel_connector = ChannelConnector(channels=settings.client.channels)
 
-        cc = channel_connector.ChannelConnector(channels=settings.client.channels)
-
-        task_group.soonify(cc.init_worker)()
-        task_group.soonify(jacktrip.start_client)(
-            server_address=settings.server.address,
-            server_port=settings.server.port,
-            client_port=settings.client.port,
-            receive_channels=16,
-            send_channels=2,
-            remote_name=settings.client.remote_name,
-        )
+        async with channel_connector.init():
+            task_group.soonify(channel_connector.start)()
+            task_group.soonify(jacktrip.start_client)(
+                server_address=settings.server.address,
+                server_port=settings.server.port,
+                client_port=settings.client.port,
+                receive_channels=16,
+                send_channels=2,
+                remote_name=settings.client.remote_name,
+            )
 
 
 app = typer.Typer()

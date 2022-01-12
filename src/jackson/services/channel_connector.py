@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 from typing import Callable
 
 import anyio
@@ -69,7 +70,8 @@ class ChannelConnector:
         source, destination = resp
         self._schedule_channel_connection(source, destination)
 
-    async def init_worker(self):
+    @contextlib.asynccontextmanager
+    async def init(self):
         jack.set_error_function(_print_colored)
         jack.set_info_function(_print_colored)
 
@@ -87,14 +89,12 @@ class ChannelConnector:
 
         self.client.set_port_registration_callback(self.port_registration_callback)
         self.client.activate()
+        yield
+
+    async def start(self):
         try:
             while True:
                 callback = await self.callback_queue.get()
                 callback()
-        except anyio.get_cancelled_exc_class():
+        finally:
             self.client.deactivate()
-
-    async def start_queue(self):
-        while True:
-            callback = await self.callback_queue.get()
-            callback()
