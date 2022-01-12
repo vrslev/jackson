@@ -1,5 +1,4 @@
 import asyncio
-import contextlib
 import functools
 from typing import Callable
 
@@ -64,7 +63,6 @@ class ChannelConnector:
         _print_colored(f"Resolved channels: {source} -> {destination}")
         self._schedule_channel_connection(source, destination)
 
-    @contextlib.asynccontextmanager
     async def init_worker(self):
         jack.set_error_function(_print_colored)
         jack.set_info_function(_print_colored)
@@ -83,7 +81,9 @@ class ChannelConnector:
 
         self.client.set_port_registration_callback(self.port_registration_callback)
         self.client.activate()
-        yield
+        while True:
+            callback = await self.callback_queue.get()
+            callback()
 
     async def start_queue(self):
         while True:

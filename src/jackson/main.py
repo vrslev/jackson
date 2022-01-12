@@ -11,15 +11,13 @@ async def start_server(settings: Settings):
         task_group.soonify(jackd.start)(
             backend=settings.server.backend, device=settings.server.device
         )
-        cc = channel_connector.ChannelConnector(channels=settings.server.channels)
 
-        # Make sure channel registration callback is set_before_ JackTrip is started.
-        async with cc.init_worker():
-            task_group.soonify(cc.start_queue)()
-            task_group.soonify(jacktrip.start_server)(
-                server_port=settings.server.port,
-                remote_name=settings.server.remote_name,
-            )
+        cc = channel_connector.ChannelConnector(settings.server.channels)
+        task_group.soonify(cc.init_worker)()  # TODO: Check if port registration works
+        task_group.soonify(jacktrip.start_server)(
+            server_port=settings.server.port,
+            remote_name=settings.server.remote_name,
+        )
 
 
 async def start_client(settings: Settings):
@@ -27,18 +25,18 @@ async def start_client(settings: Settings):
         task_group.soonify(jackd.start)(
             backend=settings.client.backend, device=settings.client.device
         )
+
         cc = channel_connector.ChannelConnector(channels=settings.client.channels)
 
-        async with cc.init_worker():
-            task_group.soonify(cc.start_queue)()
-            task_group.soonify(jacktrip.start_client)(
-                server_address=settings.server.address,
-                server_port=settings.server.port,
-                client_port=settings.client.port,
-                receive_channels=16,
-                send_channels=2,
-                remote_name=settings.client.remote_name,
-            )
+        task_group.soonify(cc.init_worker)()
+        task_group.soonify(jacktrip.start_client)(
+            server_address=settings.server.address,
+            server_port=settings.server.port,
+            client_port=settings.client.port,
+            receive_channels=16,
+            send_channels=2,
+            remote_name=settings.client.remote_name,
+        )
 
 
 app = typer.Typer()

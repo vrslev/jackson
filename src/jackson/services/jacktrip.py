@@ -1,6 +1,6 @@
 from ipaddress import IPv4Address
 
-from jackson.utils import run_forever
+from jackson.utils import run_process
 
 
 async def start_server(
@@ -31,7 +31,8 @@ async def start_server(
     if udprt:
         cmd.append("--udprt")
 
-    return await run_forever(cmd)
+    while True:
+        await run_process(cmd)
 
 
 async def start_client(
@@ -73,4 +74,5 @@ async def start_client(
     if udprt:
         cmd.append("--udprt")
 
-    return await run_forever(cmd)
+    while True:
+        await run_process(cmd)

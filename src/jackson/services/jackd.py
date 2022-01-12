@@ -1,4 +1,4 @@
-from jackson.utils import run_forever
+from jackson.utils import run_process
 
 
 async def start(*, sync: bool = True, backend: str, device: str, rate: int = 48000):
@@ -7,4 +7,5 @@ async def start(*, sync: bool = True, backend: str, device: str, rate: int = 480
         cmd.append("--sync")
     cmd += ("-d", backend, "--device", device, "--rate", str(rate))
 
-    return await run_forever(cmd)
+    while True:
+        await run_process(cmd)

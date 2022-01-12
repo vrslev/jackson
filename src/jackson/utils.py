@@ -1,11 +1,13 @@
-import asyncio
-import shlex
 from ipaddress import IPv4Address
 from shutil import which
 from typing import IO, Callable
 
+import anyio
+import asyncer
 import typer
 import yaml
+from anyio.abc import ByteReceiveStream
+from anyio.streams.text import TextReceiveStream
 from pydantic import BaseModel, BaseSettings
 
 _available_colors: set[str] = set()
@@ -26,60 +28,55 @@ def get_random_color():
     return _available_colors.pop()
 
 
-async def _read_and_print_stream(
-    stream: asyncio.StreamReader | None, handler: Callable[[str], None]
-):
-    if not stream:
-        return
-
-    while True:
-        if line := await stream.readline():
-            handler(line.decode().strip())
-        else:
-            break
-
-
-def _get_print_handler(proc_name: str, color: str):
+def _generate_stream_handler(proc: str, color: str):
     def printer(message: str):
-        typer.secho(f"[{proc_name}] {message}", fg=color)  # type: ignore
+        typer.secho(f"[{proc}] {message}", fg=color)  # type: ignore
 
     return printer
 
 
-async def execute(cmd: list[str]):
-    process = await asyncio.create_subprocess_exec(
-        *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
-    )
+async def _restream_stream(
+    stream: ByteReceiveStream | None, handler: Callable[[str], None]
+):
+    if not stream:
+        return
 
-    printer = _get_print_handler(proc_name=cmd[0], color=get_random_color())
-    printer(f"Starting {cmd[0]}... [{shlex.join(cmd)}]")
-
-    async def read_streams():
-        await asyncio.gather(
-            _read_and_print_stream(stream=process.stdout, handler=printer),
-            _read_and_print_stream(stream=process.stderr, handler=printer),
-        )
-
-    try:
-        await read_streams()
-        return await process.wait()
-    finally:
-        try:
-            process.terminate()
-        except ProcessLookupError:
-            pass
-
-        if process.returncode is not None:
-            printer(f"Exited with code {process.returncode}")
-        else:
-            printer("Exited")
+    async for text in TextReceiveStream(stream):
+        for line in text.splitlines():
+            handler(line.strip())
 
 
-async def run_forever(cmd: list[str]):
-    while True:
-        code = await execute(cmd)
+def _handle_exit(code: int | None, printer: Callable[[str], None]):
+    if code is None:
+        printer(f"Exited")
+    else:
+        printer(f"Exited with code {code}")
         if code > 0:
             raise typer.Exit(code)
+
+
+async def run_process(cmd: list[str]):
+    proc = cmd[0]
+    handler = _generate_stream_handler(proc, get_random_color())
+
+    async with await anyio.open_process(cmd) as process:  # type: ignore
+        try:
+            async with asyncer.create_task_group() as task_group:
+                task_group.soonify(_restream_stream)(
+                    stream=process.stderr, handler=handler
+                )
+                task_group.soonify(_restream_stream)(
+                    stream=process.stdout, handler=handler
+                )
+            code = await process.wait()
+            _handle_exit(code, handler)
+            return code
+
+        except anyio.get_cancelled_exc_class():
+            if process.returncode is None:
+                process.terminate()
+            _handle_exit(process.returncode, handler)
+            raise
 
 
 _SourcePort = str
