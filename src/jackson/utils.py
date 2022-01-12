@@ -48,54 +48,59 @@ async def _restream_stream(
             handler(line.strip())
 
 
-async def _close_process(process: Process, printer: Callable[[str], None]):
-    if process.returncode is None:
-        process.terminate()
-    await process.wait()
-    code = process.returncode
+class Program:
+    def __init__(self, cmd: list[str]) -> None:
+        self.cmd = cmd
+        self.proc = cmd[0]
 
-    # Otherwise RuntimeError('Event loop is closed') is being called
-    process._process._transport.close()  # type: ignore
+    @contextlib.asynccontextmanager
+    async def _start(self):
+        self.printer = _generate_stream_handler(self.proc, get_random_color())
+        self.printer(f"Starting {self.proc}... ({shlex.join(self.cmd)})")
 
-    printer(f"Exited with code {code}")
-    if code != 0:
-        raise typer.Exit(code or 0)
-    return code
+        async with await anyio.open_process(self.cmd) as process:  # type: ignore
+            async with asyncer.create_task_group() as task_group:
+                task_group.soonify(_restream_stream)(
+                    stream=process.stderr, handler=self.printer
+                )
+                task_group.soonify(_restream_stream)(
+                    stream=process.stdout, handler=self.printer
+                )
+                yield process
 
+    async def _close(self, process: Process):
+        if process.returncode is None:
+            process.terminate()
+        await process.wait()
+        code = process.returncode
 
-@contextlib.asynccontextmanager
-async def start_process(cmd: list[str]):
-    proc = cmd[0]
-    handler = _generate_stream_handler(proc, get_random_color())
-    handler(f"Starting {proc}... ({shlex.join(cmd)})")
+        # Otherwise RuntimeError('Event loop is closed') is being called
+        process._process._transport.close()  # type: ignore
 
-    async with await anyio.open_process(cmd) as process:  # type: ignore
-        async with asyncer.create_task_group() as task_group:
-            task_group.soonify(_restream_stream)(stream=process.stderr, handler=handler)
-            task_group.soonify(_restream_stream)(stream=process.stdout, handler=handler)
-            yield process, handler
+        self.printer(f"Exited with code {code}")
+        if code != 0:
+            raise typer.Exit(code or 0)
+        return code
 
+    async def run_once(self):
+        async with self._start() as process:
+            try:
+                await process.wait()
+            finally:
+                with anyio.CancelScope(shield=True):
+                    return await self._close(process)
 
-async def run_process(cmd: list[str]):
-    async with start_process(cmd) as (process, handler):
-        try:
-            await process.wait()
-        finally:
-            with anyio.CancelScope(shield=True):
-                return await _close_process(process, handler)
-
-
-async def run_forever(cmd: list[str]):
-    async with start_process(cmd) as (process, handler):
-        try:
-            await process.wait()
-        except anyio.get_cancelled_exc_class():
-            with anyio.CancelScope(shield=True):
-                return await _close_process(process, handler)
-        else:
-            code = await _close_process(process, handler)
-            if code == 0:
-                await run_forever(cmd)
+    async def run_forever(self):
+        async with self._start() as process:
+            try:
+                await process.wait()
+            except anyio.get_cancelled_exc_class():
+                with anyio.CancelScope(shield=True):
+                    return await self._close(process)
+            else:
+                code = await self._close(process)
+                if code == 0:
+                    await self.run_forever()
 
 
 _SourcePort = str
