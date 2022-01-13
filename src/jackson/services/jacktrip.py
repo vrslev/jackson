@@ -7,11 +7,13 @@ async def start_server(
     *,
     server_port: int,
     queue: str = "auto",
-    client_name: str = "JackTrip",
-    remote_name: str,
+    client_name: str = "JackTrip",  # TODO: Check if this is required
+    remote_name: str,  # TODO: Check if this is required too
     no_jack_ports_connect: bool = True,
     udprt: bool = True,
 ):
+    """Client name - name that is appears in Jack Server"""
+
     cmd: list[str] = [
         "jacktrip",
         "--jacktripserver",
