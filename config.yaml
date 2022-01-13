@@ -26,6 +26,7 @@ server:
     system:capture_14: Ivan:send_14
     system:capture_15: Ivan:send_15
     system:capture_16: Ivan:send_16
+    Ivan:receive_1: system:playback_1
 
 client:
   remote_name: Ivan
@@ -49,3 +50,4 @@ client:
     JackTrip:receive_14: system:playback_14
     JackTrip:receive_15: system:playback_15
     JackTrip:receive_16: system:playback_16
+    system:capture_1: JackTrip:send_1
