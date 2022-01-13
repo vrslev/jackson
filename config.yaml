@@ -4,7 +4,7 @@
 
 server:
   remote_name: Lev
-  address: 192.168.0.12
+  address: 10.0.1.2
   port: 4464
   backend: coreaudio
   device: AppleUSBAudioEngine:Allen&Heath Ltd:QU-32:131000:2,3
