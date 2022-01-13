@@ -10,22 +10,22 @@ server:
   device: AppleUSBAudioEngine:Allen&Heath Ltd:QU-32:131000:2,3
   channels:
     # TODO: Channel connector doesn't detect local ports because its registration happends when JACK server starts.
-    system:capture_1: iMac:send_1
-    system:capture_2: iMac:send_2
-    system:capture_3: iMac:send_3
-    system:capture_4: iMac:send_4
-    system:capture_5: iMac:send_5
-    system:capture_6: iMac:send_6
-    system:capture_7: iMac:send_7
-    system:capture_8: iMac:send_8
-    system:capture_9: iMac:send_9
-    system:capture_10: iMac:send_10
-    system:capture_11: iMac:send_11
-    system:capture_12: iMac:send_12
-    system:capture_13: iMac:send_13
-    system:capture_14: iMac:send_14
-    system:capture_15: iMac:send_15
-    system:capture_16: iMac:send_16
+    system:capture_1: Ivan:send_1
+    system:capture_2: Ivan:send_2
+    system:capture_3: Ivan:send_3
+    system:capture_4: Ivan:send_4
+    system:capture_5: Ivan:send_5
+    system:capture_6: Ivan:send_6
+    system:capture_7: Ivan:send_7
+    system:capture_8: Ivan:send_8
+    system:capture_9: Ivan:send_9
+    system:capture_10: Ivan:send_10
+    system:capture_11: Ivan:send_11
+    system:capture_12: Ivan:send_12
+    system:capture_13: Ivan:send_13
+    system:capture_14: Ivan:send_14
+    system:capture_15: Ivan:send_15
+    system:capture_16: Ivan:send_16
 
 client:
   remote_name: Ivan

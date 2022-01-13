@@ -11,6 +11,7 @@ async def start_server(
     remote_name: str,  # TODO: Check if this is required too
     no_jack_ports_connect: bool = True,
     udprt: bool = True,
+    local_address: IPv4Address,
 ):
     """Client name - name that is appears in Jack Server"""
 
@@ -25,6 +26,8 @@ async def start_server(
         client_name,
         "--remotename",
         remote_name,
+        "--localaddress",
+        str(local_address),
     ]
 
     if no_jack_ports_connect:
