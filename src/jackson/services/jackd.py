@@ -1,7 +1,7 @@
 from jackson.utils import Program
 
 
-async def start(*, sync: bool = True, backend: str, device: str, rate: int = 44100):
+async def start(*, sync: bool = True, backend: str, device: str, rate: int = 48000):
     cmd: list[str] = ["jackd"]
     if sync:
         cmd.append("--sync")
