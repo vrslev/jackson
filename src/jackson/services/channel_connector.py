@@ -1,18 +1,10 @@
 import asyncio
-import contextlib
+import time
 from typing import Callable
 
-import anyio
 import jack
-import typer
 
-from jackson.utils import ChannelMap, get_random_color
-
-_color = get_random_color()
-
-
-def _print_colored(message: str):
-    typer.secho(f"[channel-connector] {message}", fg=_color)  # type: ignore
+from jackson.utils import ChannelMap, generate_stream_handler
 
 
 def _get_port_name(port: str | jack.Port):
@@ -24,14 +16,16 @@ class ChannelConnector:
         self.channels = channels
         self._destination_ports = set(channels.values())
         self._reverse_channels_map = {v: k for k, v in channels.items()}
+
         self.callback_queue: asyncio.Queue[Callable[[], None]] = asyncio.Queue()
+        self._print = generate_stream_handler("channel-connector")
 
     def _schedule_channel_connection(
         self, source: str | jack.Port, destination: str | jack.Port
     ):
         def _task():
             self.client.connect(source=source, destination=destination)
-            _print_colored(
+            self._print(
                 "Connected ports: "
                 + f"{_get_port_name(source)} -> {_get_port_name(destination)}"
             )
@@ -58,9 +52,9 @@ class ChannelConnector:
 
     def port_registration_callback(self, port: jack.Port, register: bool):
         if register:
-            _print_colored(f"Registered port: {port.name}")
+            self._print(f"Registered port: {port.name}")
         else:
-            _print_colored(f"Unregistered port: {port.name}")
+            self._print(f"Unregistered port: {port.name}")
             return  # We don't want to do anything if port unregistered
 
         resp = self._resolve_source_destination_ports(port)
@@ -70,31 +64,32 @@ class ChannelConnector:
         source, destination = resp
         self._schedule_channel_connection(source, destination)
 
-    @contextlib.asynccontextmanager
-    async def init(self):
-        jack.set_error_function(_print_colored)
-        jack.set_info_function(_print_colored)
+    def init(self):
+        jack.set_error_function(self._print)
+        jack.set_info_function(self._print)
 
         for _ in range(200):
             try:
-                _print_colored("Connecting to Jack...")
+                self._print("Connecting to Jack...")
                 self.client = jack.Client("ChannelConnector", no_start_server=True)
-                _print_colored("Connected to Jack!")
+                self._print("Connected to Jack!")
                 break
             except jack.JackOpenError:
-                await anyio.sleep(0.1)
+                time.sleep(0.1)
 
         else:
             raise RuntimeError("Can't connect to Jack")
 
         self.client.set_port_registration_callback(self.port_registration_callback)
         self.client.activate()
-        yield
 
-    async def start(self):
-        try:
-            while True:
-                callback = await self.callback_queue.get()
-                callback()
-        finally:
-            self.client.deactivate()
+    def deinit(self):
+        self.client.deactivate()
+        _do_nothing: Callable[[str], None] = lambda message: None
+        jack.set_error_function(_do_nothing)
+        jack.set_info_function(_do_nothing)
+
+    async def start_queue(self):
+        while True:
+            callback = await self.callback_queue.get()
+            callback()

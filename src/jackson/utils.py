@@ -15,7 +15,7 @@ from pydantic import BaseModel, BaseSettings
 _available_colors: set[str] = set()
 
 
-def get_random_color():
+def _get_random_color():
     global _available_colors
 
     if not _available_colors:
@@ -30,7 +30,9 @@ def get_random_color():
     return _available_colors.pop()
 
 
-def _generate_stream_handler(proc: str, color: str):
+def generate_stream_handler(proc: str):
+    color = _get_random_color()
+
     def printer(message: str):
         typer.secho(f"[{proc}] {message}", fg=color)  # type: ignore
 
@@ -55,7 +57,7 @@ class Program:
 
     @contextlib.asynccontextmanager
     async def _start(self):
-        self.printer = _generate_stream_handler(self.proc, get_random_color())
+        self.printer = generate_stream_handler(self.proc)
         self.printer(f"Starting {self.proc}... ({shlex.join(self.cmd)})")
 
         async with await anyio.open_process(self.cmd) as process:  # type: ignore

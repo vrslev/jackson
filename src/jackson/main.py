@@ -1,37 +1,63 @@
+import anyio
 import asyncer
 import typer
 from typer.params import Option
 
-from jackson.services import jackd, jacktrip
+import jack_server
+from jackson.services import jacktrip
 from jackson.services.channel_connector import ChannelConnector
-from jackson.utils import Settings, check_jack_jacktrip_on_machine
+from jackson.utils import (
+    Settings,
+    check_jack_jacktrip_on_machine,
+    generate_stream_handler,
+)
 
 
 async def start_server(settings: Settings):
-    async with asyncer.create_task_group() as task_group:
-        task_group.soonify(jackd.start)(
-            backend=settings.server.backend, device=settings.server.device
-        )
-        channel_connector = ChannelConnector(settings.server.channels)
+    jack = jack_server.Server(
+        driver=settings.server.backend,
+        device=settings.server.device,
+        rate=48000,
+        stream_handler=generate_stream_handler("jack"),
+    )
+    channel_connector = ChannelConnector(settings.server.channels)
 
-        async with channel_connector.init():
-            task_group.soonify(channel_connector.start)()
+    async with asyncer.create_task_group() as task_group:
+        try:
+            jack.start()
+            channel_connector.init()
+
+            task_group.soonify(channel_connector.start_queue)()
             task_group.soonify(jacktrip.start_server)(
                 server_port=settings.server.port,
                 remote_name=settings.server.remote_name,
                 local_address=settings.server.address,
             )
 
+            while True:
+                await anyio.sleep(1)
+
+        finally:
+            with anyio.CancelScope(shield=True):
+                channel_connector.deinit()
+                jack.stop()
+
 
 async def start_client(settings: Settings):
-    async with asyncer.create_task_group() as task_group:
-        task_group.soonify(jackd.start)(
-            backend=settings.client.backend, device=settings.client.device
-        )
-        channel_connector = ChannelConnector(channels=settings.client.channels)
+    jack = jack_server.Server(
+        driver=settings.client.backend,
+        device=settings.client.device,
+        rate=48000,
+        stream_handler=generate_stream_handler("jack"),
+    )
+    channel_connector = ChannelConnector(channels=settings.client.channels)
 
-        async with channel_connector.init():
-            task_group.soonify(channel_connector.start)()
+    async with asyncer.create_task_group() as task_group:
+        try:
+            jack.start()
+            channel_connector.init()
+
+            task_group.soonify(channel_connector.start_queue)()
             task_group.soonify(jacktrip.start_client)(
                 server_address=settings.server.address,
                 server_port=settings.server.port,
@@ -40,6 +66,14 @@ async def start_client(settings: Settings):
                 send_channels=2,
                 remote_name=settings.client.remote_name,
             )
+
+            while True:
+                await anyio.sleep(1)
+
+        finally:
+            with anyio.CancelScope(shield=True):
+                channel_connector.deinit()
+                jack.stop()
 
 
 app = typer.Typer()
