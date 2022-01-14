@@ -14,7 +14,7 @@ async def start_server(settings: Settings):
     jack = jack_server.Server(
         driver=settings.server.audio_driver,
         device=settings.server.audio_device,
-        rate=48000,
+        rate=settings.sample_rate,
         stream_handler=generate_stream_handler("jack"),
     )
     port_connector = PortConnector(settings.server.ports)
@@ -42,7 +42,7 @@ async def start_client(settings: Settings):
     jack = jack_server.Server(
         driver=settings.client.audio_driver,
         device=settings.client.audio_device,
-        rate=48000,
+        rate=settings.sample_rate,
         stream_handler=generate_stream_handler("jack"),
     )
     port_connector = PortConnector(ports=settings.client.ports)

@@ -1,6 +1,7 @@
 # Sender           |       network       |  Receiver
 # capture -> send  |||||||||||||||||||||||  receive -> playback
 # It doesn't matter whether server is sender or receiver and vice versa with the client.
+sample_rate: 48000
 
 server:
   address: 10.0.1.2

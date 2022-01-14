@@ -55,6 +55,9 @@ class Parameter:
         _lib.jackctl_parameter_set_value(self.ptr, pointer(param_v))
 
 
+SampleRate = Literal[41000, 48000]
+
+
 class Driver:
     def __init__(self, ptr: Any):
         self.ptr = ptr
@@ -73,7 +76,7 @@ class Driver:
     def set_device(self, name: str):
         self.params[b"device"].value = name.encode()
 
-    def set_rate(self, rate: Literal[44100, 48000]):
+    def set_rate(self, rate: SampleRate):
         self.params[b"rate"].value = rate
 
 
@@ -83,7 +86,7 @@ class Server:
         *,
         driver: str,
         device: str,
-        rate: Literal[44100, 48000],
+        rate: SampleRate,
         stream_handler: Callable[[str], None] | None = None,
     ):
         self.ptr = _lib.jackctl_server_create(
