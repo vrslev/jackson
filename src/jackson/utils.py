@@ -80,29 +80,22 @@ class Program:
         process._process._transport.close()  # type: ignore
 
         self.printer(f"Exited with code {code}")
-        if code != 0:
-            raise typer.Exit(code or 0)
         return code
-
-    async def run_once(self):
-        async with self._start() as process:
-            try:
-                await process.wait()
-            finally:
-                with anyio.CancelScope(shield=True):
-                    return await self._close(process)
 
     async def run_forever(self):
         async with self._start() as process:
             try:
                 await process.wait()
+
             except anyio.get_cancelled_exc_class():
                 with anyio.CancelScope(shield=True):
                     return await self._close(process)
+
             else:
-                code = await self._close(process)
-                if code == 0:
+                if (code := await self._close(process)) == 0:
                     await self.run_forever()
+                else:
+                    raise typer.Exit(code or 0)
 
 
 _SourcePort = str
