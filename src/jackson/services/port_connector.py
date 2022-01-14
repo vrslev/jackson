@@ -4,7 +4,7 @@ from typing import Callable
 
 import jack
 
-from jackson.services.util import generate_stream_handler
+from jackson.services.util import generate_stream_handlers
 from jackson.settings import PortMap
 
 
@@ -19,14 +19,17 @@ class PortConnector:
         self._reverse_port_map = {v: k for k, v in ports.items()}
 
         self.callback_queue: asyncio.Queue[Callable[[], None]] = asyncio.Queue()
-        self._print = generate_stream_handler("port-connector")
+        self._info, self._err = generate_stream_handlers("port-connector")
+        # Attribute exists so we don't call client.deactivate()
+        # on shutdown if it wasn't activated
+        self._client_activated = False
 
     def _connect_ports(
         self, source: str | jack.Port, destination: str | jack.Port, *, enqueue: bool
     ):
         def task():
             self.client.connect(source=source, destination=destination)
-            self._print(
+            self._info(
                 "Connected ports: "
                 + f"{_get_port_name(source)} -> {_get_port_name(destination)}"
             )
@@ -58,9 +61,9 @@ class PortConnector:
 
     def port_registration_callback(self, port: jack.Port, register: bool):
         if register:
-            self._print(f"Registered port: {port.name}")
+            self._info(f"Registered port: {port.name}")
         else:
-            self._print(f"Unregistered port: {port.name}")
+            self._info(f"Unregistered port: {port.name}")
             return  # We don't want to do anything if port unregistered
 
         if resp := self._resolve_source_destination(port):
@@ -85,27 +88,30 @@ class PortConnector:
                 self._connect_ports(*resp, enqueue=False)
 
     def init(self):
-        jack.set_error_function(self._print)
-        jack.set_info_function(self._print)
+        jack.set_error_function(self._info)
+        jack.set_info_function(self._info)
 
         for _ in range(200):
             try:
-                self._print("Connecting to Jack...")
+                self._info("Connecting to Jack...")
                 self.client = jack.Client("PortConnector", no_start_server=True)
-                self._print("Connected to Jack!")
+                self._info("Connected to Jack!")
                 break
             except jack.JackOpenError:
                 time.sleep(0.1)
 
         else:
+            # TODO: Pretty exit
             raise RuntimeError("Can't connect to Jack")
 
         self._connect_initial_ports()
         self.client.set_port_registration_callback(self.port_registration_callback)
         self.client.activate()
+        self._client_activated = True
 
     def deinit(self):
-        self.client.deactivate()
+        if self._client_activated:
+            self.client.deactivate()
 
         _dont_print: Callable[[str], None] = lambda message: None
         jack.set_error_function(_dont_print)
