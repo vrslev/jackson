@@ -9,16 +9,20 @@ _DestinationPort = str
 ChannelMap = dict[_SourcePort, _DestinationPort]
 
 
-class _ClientSettings(BaseModel):
-    remote_name: str
+class _ServerSettings(BaseModel):
+    address: IPv4Address
     port: int
     channels: ChannelMap
     backend: str
     device: str
 
 
-class _ServerSettings(_ClientSettings):
-    address: IPv4Address
+class _ClientSettings(BaseModel):
+    remote_name: str
+    port: int
+    channels: ChannelMap
+    backend: str
+    device: str
 
 
 class Settings(BaseSettings):

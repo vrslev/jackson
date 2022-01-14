@@ -7,14 +7,10 @@ async def start_server(
     *,
     server_port: int,
     queue: str = "auto",
-    client_name: str = "JackTrip",  # TODO: Check if this is required
-    remote_name: str,  # TODO: Check if this is required too
     no_jack_ports_connect: bool = True,
     udprt: bool = True,
     local_address: IPv4Address,
 ):
-    """Client name - name that is appears in Jack Server"""
-
     cmd: list[str] = [
         "jacktrip",
         "--jacktripserver",
@@ -22,10 +18,6 @@ async def start_server(
         queue,
         "--bindport",
         str(server_port),
-        "--clientname",
-        client_name,
-        "--remotename",
-        remote_name,
         "--localaddress",
         str(local_address),
     ]
@@ -52,6 +44,12 @@ async def start_client(
     no_jack_ports_connect: bool = True,
     udprt: bool = True,
 ):
+    """
+    Args:
+
+    client_name — The name of JACK Client
+    remote_name — The name by which a server identifies a client
+    """
     cmd: list[str] = [
         "jacktrip",
         "--pingtoserver",

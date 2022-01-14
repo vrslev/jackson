@@ -3,7 +3,6 @@
 # It doesn't matter whether server is sender or receiver and vice versa with the client.
 
 server:
-  remote_name: Lev
   address: 10.0.1.2
   port: 4464
   backend: coreaudio

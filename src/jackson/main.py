@@ -26,9 +26,7 @@ async def start_server(settings: Settings):
 
             task_group.soonify(channel_connector.start_queue)()
             task_group.soonify(jacktrip.start_server)(
-                server_port=settings.server.port,
-                remote_name=settings.server.remote_name,
-                local_address=settings.server.address,
+                server_port=settings.server.port, local_address=settings.server.address
             )
 
             while True:
