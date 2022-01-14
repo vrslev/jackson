@@ -68,11 +68,21 @@ class PortConnector:
 
     def _connect_initial_ports(self):
         for port in self.client.get_ports():
-            if not self.client.get_all_connections(port):
-                if resp := self._resolve_source_destination(port):
-                    self._connect_ports(*resp, enqueue=False)
-                else:
-                    continue
+            if self.client.get_all_connections(port):
+                continue
+
+            resp = self._resolve_source_destination(port)
+            if not resp:
+                continue
+
+            try:
+                for port in resp:
+                    name = _get_port_name(port)
+                    self.client.get_port_by_name(name)
+            except jack.JackError:
+                pass
+            else:
+                self._connect_ports(*resp, enqueue=False)
 
     def init(self):
         jack.set_error_function(self._print)
