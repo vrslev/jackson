@@ -18,34 +18,6 @@ from typing import Any, Callable, Literal
 _lib_name = find_library("libjackserver")
 _lib = CDLL(_lib_name)
 
-# _lib_jack_name = find_library("libjack")
-# _lib_jack = CDLL(_lib_jack_name)
-
-
-def print_handler(message: bytes):
-    print("CUSTOM", message.decode())
-
-
-PrintFunction = CFUNCTYPE(None, c_char_p)
-
-jack_set_error_function: Callable[
-    [Callable[[bytes], None]], None
-] = _lib.jack_set_error_function
-jack_set_error_function.argtypes = [PrintFunction]
-jack_set_error_function.restype = None
-
-jack_set_info_function: Callable[
-    [Callable[[bytes], None]], None
-] = _lib.jack_set_info_function
-jack_set_info_function.argtypes = [PrintFunction]
-jack_set_info_function.restype = None
-
-
-# jack_set_error_function = _lib.jack_set_error_function
-# jack_set_error_function.argtypes = [PrintFunction]
-# jack_set_error_function.restype = None
-# jack_set_error_function(PrintFunction(lambda s: None))
-
 
 class JSList(Structure):
     pass
@@ -174,3 +146,18 @@ jackctl_server_close.restype = c_bool
 jackctl_server_destroy: Callable[[Any], None] = _lib.jackctl_server_destroy
 jackctl_server_destroy.argtypes = [POINTER(jackctl_server_t)]
 jackctl_server_destroy.restype = c_void_p
+
+
+PrintFunction = CFUNCTYPE(None, c_char_p)
+
+jack_set_error_function: Callable[
+    [Callable[[bytes], None]], None
+] = _lib.jack_set_error_function
+jack_set_error_function.argtypes = [PrintFunction]
+jack_set_error_function.restype = None
+
+jack_set_info_function: Callable[
+    [Callable[[bytes], None]], None
+] = _lib.jack_set_info_function
+jack_set_info_function.argtypes = [PrintFunction]
+jack_set_info_function.restype = None
