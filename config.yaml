@@ -8,7 +8,6 @@ server:
   backend: coreaudio
   device: BlackHole16ch_UID
   channels:
-    # TODO: Channel connector doesn't detect local ports because its registration happends when JACK server starts.
     # system:capture_1: Ivan:send_1
     # system:capture_2: Ivan:send_2
     # system:capture_3: Ivan:send_3
