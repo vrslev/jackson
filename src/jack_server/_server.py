@@ -80,6 +80,14 @@ class Driver:
         self.params[b"rate"].value = rate
 
 
+class ServerNotStartedError(RuntimeError):
+    pass
+
+
+class ServerNotOpenedError(RuntimeError):
+    pass
+
+
 class Server:
     def __init__(
         self,
@@ -87,23 +95,33 @@ class Server:
         driver: str,
         device: str,
         rate: SampleRate,
-        stream_handler: Callable[[str], None] | None = None,
+        info_stream_handler: Callable[[str], None] | None = None,
+        error_stream_handler: Callable[[str], None] | None = None,
     ):
         self.ptr = _lib.jackctl_server_create(
             _lib.DeviceAcquireFunc(),  # type: ignore
             _lib.DeviceReleaseFunc(),  # type: ignore
             _lib.DeviceReservationLoop(),  # type: ignore
         )
+        self._created = True
+        self._opened = False
+        self._started = False
+
         self.driver = self.get_driver_by_name(driver)
         self.driver.set_device(device)
         self.driver.set_rate(rate)
 
-        if stream_handler:
-            self._print = stream_handler
-            set_error_function(self._print)
-            set_info_function(self._print)
+        if info_stream_handler:
+            self._print_info = info_stream_handler
+            set_info_function(self._print_info)
         else:
-            self._print = print
+            self._print_info = print
+
+        if error_stream_handler:
+            self._print_err = error_stream_handler
+            set_error_function(self._print_err)
+        else:
+            self._print_err = print
 
     def get_driver_by_name(self, name: str):
         driver_jslist = _lib.jackctl_server_get_drivers_list(self.ptr)
@@ -116,19 +134,34 @@ class Server:
         raise RuntimeError(f"Driver not found: {name}")
 
     def start(self):
-        self._print("Starting server...")
-        _lib.jackctl_server_open(self.ptr, self.driver.ptr)
-        _lib.jackctl_server_start(self.ptr)
+        self._print_info("Starting server...")
+
+        self._opened = _lib.jackctl_server_open(self.ptr, self.driver.ptr)
+        if not self._opened:
+            raise ServerNotStartedError
+
+        self._started = _lib.jackctl_server_start(self.ptr)
+        if not self._started:
+            raise ServerNotOpenedError
 
     def stop(self):
-        self._print("Stopping server...")
-        _lib.jackctl_server_stop(self.ptr)
-        _lib.jackctl_server_close(self.ptr)
-        _lib.jackctl_server_destroy(self.ptr)
+        if self._started:
+            self._print_info("Stopping server...")
+            _lib.jackctl_server_stop(self.ptr)
+        self._started = False
 
-        if self._print is not print:
-            set_error_function(None)
+        if self._opened:
+            _lib.jackctl_server_close(self.ptr)
+        self._opened = False
+
+        if self._print_info is not print:
             set_info_function(None)
+        if self._print_err is not print:
+            set_error_function(None)
+
+    def __del__(self):
+        if self._created:
+            _lib.jackctl_server_destroy(self.ptr)
 
 
 _dont_garbage_collect: list[Any] = []

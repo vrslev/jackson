@@ -1,5 +1,6 @@
 import contextlib
 import shlex
+from typing import Callable
 
 import anyio
 import asyncer
@@ -25,13 +26,25 @@ def _get_random_color():
     return _available_colors.pop()
 
 
-def generate_stream_handler(proc: str):
+def generate_stream_handlers(proc: str):
     color = _get_random_color()
 
-    def handler(message: str):
+    def stdout_handler(message: str):
         typer.secho(f"[{proc}] {message}", fg=color)  # type: ignore
 
-    return handler
+    def stderr_handler(message: str):
+        typer.secho(f"[{proc}] {message}", fg=color, bold=True)  # type: ignore
+
+    return stdout_handler, stderr_handler
+
+
+# def generate_stream_handler_bold(proc: str):
+#     color = _get_random_color()
+
+#     def handler(message: str):
+#         typer.secho(f"[{proc}] {message}", fg=color, bold=True)  # type: ignore
+
+#     return handler
 
 
 class Program:
@@ -39,23 +52,29 @@ class Program:
         self.cmd = cmd
         self.proc = cmd[0]
 
-    async def _restream_stream(self, stream: ByteReceiveStream | None):
+    async def _restream_stream(
+        self, stream: ByteReceiveStream | None, handler: Callable[[str], None]
+    ):
         if not stream:
             return
 
         async for text in TextReceiveStream(stream):
             for line in text.splitlines():
-                self.printer(line.strip())
+                handler(line.strip())
 
     @contextlib.asynccontextmanager
     async def _start(self):
-        self.printer = generate_stream_handler(self.proc)
-        self.printer(f"Starting {self.proc}... ({shlex.join(self.cmd)})")
+        self._info, self._err = generate_stream_handlers(self.proc)
+        self._info(f"Starting {self.proc}... ({shlex.join(self.cmd)})")
 
         async with await anyio.open_process(self.cmd) as process:  # type: ignore
             async with asyncer.create_task_group() as task_group:
-                task_group.soonify(self._restream_stream)(stream=process.stderr)
-                task_group.soonify(self._restream_stream)(stream=process.stdout)
+                task_group.soonify(self._restream_stream)(
+                    stream=process.stderr, handler=self._err
+                )
+                task_group.soonify(self._restream_stream)(
+                    stream=process.stdout, handler=self._info
+                )
                 yield process
 
     async def _close(self, process: Process):
@@ -67,7 +86,7 @@ class Program:
         # Otherwise RuntimeError('Event loop is closed') is being called
         process._process._transport.close()  # type: ignore
 
-        self.printer(f"Exited with code {code}")
+        self._info(f"Exited with code {code}")
         return code
 
     async def run_forever(self):

@@ -6,22 +6,30 @@ from typer.params import Option
 import jack_server
 from jackson.services import jacktrip
 from jackson.services.port_connector import PortConnector
-from jackson.services.util import generate_stream_handler
+from jackson.services.util import generate_stream_handlers
 from jackson.settings import Settings
 
 
 async def start_server(settings: Settings):
+    info_stream_handler, error_stream_handler = generate_stream_handlers("jack")
     jack = jack_server.Server(
         driver=settings.server.audio_driver,
         device=settings.server.audio_device,
         rate=settings.sample_rate,
-        stream_handler=generate_stream_handler("jack"),
+        info_stream_handler=info_stream_handler,
+        error_stream_handler=error_stream_handler,
     )
     port_connector = PortConnector(settings.server.ports)
 
     async with asyncer.create_task_group() as task_group:
         try:
-            jack.start()
+            try:
+                jack.start()
+            except (
+                jack_server.ServerNotStartedError,
+                jack_server.ServerNotOpenedError,
+            ):
+                raise typer.Exit(1)
             port_connector.init()
 
             task_group.soonify(port_connector.start_queue)()
@@ -39,11 +47,13 @@ async def start_server(settings: Settings):
 
 
 async def start_client(settings: Settings, start_jack: bool):
+    info_stream_handler, error_stream_handler = generate_stream_handlers("jack")
     jack = jack_server.Server(
         driver=settings.client.audio_driver,
         device=settings.client.audio_device,
         rate=settings.sample_rate,
-        stream_handler=generate_stream_handler("jack"),
+        info_stream_handler=info_stream_handler,
+        error_stream_handler=error_stream_handler,
     )
     port_connector = PortConnector(ports=settings.client.ports)
 
