@@ -25,7 +25,8 @@ server:
     # system:capture_14: Ivan:send_14
     # system:capture_15: Ivan:send_15
     # system:capture_16: Ivan:send_16
-    Ivan:receive_1: system:playback_1
+    # Ivan:receive_1: system:playback_1
+    system:capture_1: system:playback_1
 
 client:
   remote_name: Ivan
