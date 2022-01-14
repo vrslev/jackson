@@ -4,9 +4,9 @@ from typing import IO
 import yaml
 from pydantic import BaseModel, BaseSettings
 
-_SourcePort = str
-_DestinationPort = str
-ChannelMap = dict[_SourcePort, _DestinationPort]
+_SourcePortName = str
+_DestinationPortName = str
+ChannelMap = dict[_SourcePortName, _DestinationPortName]
 
 
 class _ServerSettings(BaseModel):
