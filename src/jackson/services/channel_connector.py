@@ -4,7 +4,8 @@ from typing import Callable
 
 import jack
 
-from jackson.utils import ChannelMap, generate_stream_handler
+from jackson.services.util import generate_stream_handler
+from jackson.settings import ChannelMap
 
 
 def _get_port_name(port: str | jack.Port):

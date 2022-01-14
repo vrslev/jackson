@@ -6,7 +6,8 @@ from typer.params import Option
 import jack_server
 from jackson.services import jacktrip
 from jackson.services.channel_connector import ChannelConnector
-from jackson.utils import Settings, generate_stream_handler
+from jackson.services.util import generate_stream_handler
+from jackson.settings import Settings
 
 
 async def start_server(settings: Settings):

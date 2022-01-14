@@ -1,15 +1,11 @@
 import contextlib
 import shlex
-from ipaddress import IPv4Address
-from typing import IO
 
 import anyio
 import asyncer
 import typer
-import yaml
 from anyio.abc import ByteReceiveStream, Process
 from anyio.streams.text import TextReceiveStream
-from pydantic import BaseModel, BaseSettings
 
 _available_colors: set[str] = set()
 
@@ -88,30 +84,3 @@ class Program:
                     await self.run_forever()
                 else:
                     raise typer.Exit(code or 0)
-
-
-_SourcePort = str
-_DestinationPort = str
-ChannelMap = dict[_SourcePort, _DestinationPort]
-
-
-class _ClientSettings(BaseModel):
-    remote_name: str
-    port: int
-    channels: ChannelMap
-    backend: str
-    device: str
-
-
-class _ServerSettings(_ClientSettings):
-    address: IPv4Address
-
-
-class Settings(BaseSettings):
-    server: _ServerSettings
-    client: _ClientSettings
-
-    @classmethod
-    def load(cls, file: IO[str]):
-        content = yaml.safe_load(file)
-        return cls(**content)
