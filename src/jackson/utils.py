@@ -39,21 +39,18 @@ def generate_stream_handler(proc: str):
     return printer
 
 
-async def _restream_stream(
-    stream: ByteReceiveStream | None, handler: Callable[[str], None]
-):
-    if not stream:
-        return
-
-    async for text in TextReceiveStream(stream):
-        for line in text.splitlines():
-            handler(line.strip())
-
-
 class Program:
     def __init__(self, cmd: list[str]) -> None:
         self.cmd = cmd
         self.proc = cmd[0]
+
+    async def _restream_stream(self, stream: ByteReceiveStream | None):
+        if not stream:
+            return
+
+        async for text in TextReceiveStream(stream):
+            for line in text.splitlines():
+                self.printer(line.strip())
 
     @contextlib.asynccontextmanager
     async def _start(self):
@@ -62,12 +59,8 @@ class Program:
 
         async with await anyio.open_process(self.cmd) as process:  # type: ignore
             async with asyncer.create_task_group() as task_group:
-                task_group.soonify(_restream_stream)(
-                    stream=process.stderr, handler=self.printer
-                )
-                task_group.soonify(_restream_stream)(
-                    stream=process.stdout, handler=self.printer
-                )
+                task_group.soonify(self._restream_stream)(stream=process.stderr)
+                task_group.soonify(self._restream_stream)(stream=process.stdout)
                 yield process
 
     async def _close(self, process: Process):
