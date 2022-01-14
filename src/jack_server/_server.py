@@ -78,7 +78,14 @@ class Driver:
 
 
 class Server:
-    def __init__(self, *, driver: str, device: str, rate: Literal[44100, 48000]):
+    def __init__(
+        self,
+        *,
+        driver: str,
+        device: str,
+        rate: Literal[44100, 48000],
+        stream_handler: Callable[[str], None] | None = None,
+    ):
         self.ptr = _lib.jackctl_server_create(
             _lib.DeviceAcquireFunc(),  # type: ignore
             _lib.DeviceReleaseFunc(),  # type: ignore
@@ -87,6 +94,13 @@ class Server:
         self.driver = self.get_driver_by_name(driver)
         self.driver.set_device(device)
         self.driver.set_rate(rate)
+
+        if stream_handler:
+            self._print = stream_handler
+            set_error_function(self._print)
+            set_info_function(self._print)
+        else:
+            self._print = print
 
     def get_driver_by_name(self, name: str):
         driver_jslist = _lib.jackctl_server_get_drivers_list(self.ptr)
@@ -99,15 +113,19 @@ class Server:
         raise RuntimeError(f"Driver not found: {name}")
 
     def start(self):
-        print("Starting server...")
+        self._print("Starting server...")
         _lib.jackctl_server_open(self.ptr, self.driver.ptr)
         _lib.jackctl_server_start(self.ptr)
 
     def stop(self):
-        print("Stopping server...")
+        self._print("Stopping server...")
         _lib.jackctl_server_stop(self.ptr)
         _lib.jackctl_server_close(self.ptr)
         _lib.jackctl_server_destroy(self.ptr)
+
+        if self._print is not print:
+            set_error_function(None)
+            set_info_function(None)
 
 
 _dont_garbage_collect: list[Any] = []
@@ -117,11 +135,14 @@ def _wrap_error_or_info_callback(
     callback: Callable[[str], None] | None,
 ):
     if callback:
-        wrapped_callback = lambda message: callback(message.decode())
-    else:
-        wrapped_callback: Callable[[bytes], None] | None = None
 
-    cb = _lib.PrintFunction(wrapped_callback)  # type: ignore
+        def wrapped_callback(message: bytes):
+            callback(message.decode())
+
+        cb = _lib.PrintFunction(wrapped_callback)
+    else:
+        cb = _lib.PrintFunction()  # type: ignore
+
     _dont_garbage_collect.append(cb)
     return cb
 
