@@ -11,7 +11,6 @@ PortMap = dict[_SourcePortName, _DestinationPortName]
 
 class _ServerSettings(BaseModel):
     address: IPv4Address
-    port: int
     ports: PortMap
     backend: str
     device: str
@@ -19,7 +18,6 @@ class _ServerSettings(BaseModel):
 
 class _ClientSettings(BaseModel):
     remote_name: str
-    port: int
     ports: PortMap
     backend: str
     device: str

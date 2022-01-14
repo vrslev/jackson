@@ -5,19 +5,16 @@ from jackson.services.util import Program
 
 async def start_server(
     *,
-    server_port: int,
+    local_address: IPv4Address,
     queue: str = "auto",
     no_jack_ports_connect: bool = True,
     udprt: bool = True,
-    local_address: IPv4Address,
 ):
     cmd: list[str] = [
         "jacktrip",
         "--jacktripserver",
         "--queue",
         queue,
-        "--bindport",
-        str(server_port),
         "--localaddress",
         str(local_address),
     ]
@@ -34,8 +31,6 @@ async def start_server(
 async def start_client(
     *,
     server_address: IPv4Address,
-    server_port: int,
-    client_port: int,
     receive_channels: int,
     send_channels: int,
     queue: str = "auto",
@@ -60,10 +55,6 @@ async def start_client(
         str(send_channels),
         "--queue",
         queue,
-        "--bindport",
-        str(client_port),
-        "--peerport",
-        str(server_port),
         "--clientname",
         client_name,
         "--remotename",
