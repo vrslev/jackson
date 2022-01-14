@@ -38,7 +38,7 @@ async def start_server(settings: Settings):
                 jack.stop()
 
 
-async def start_client(settings: Settings):
+async def start_client(settings: Settings, start_jack: bool):
     jack = jack_server.Server(
         driver=settings.client.audio_driver,
         device=settings.client.audio_device,
@@ -49,7 +49,8 @@ async def start_client(settings: Settings):
 
     async with asyncer.create_task_group() as task_group:
         try:
-            jack.start()
+            if start_jack:
+                jack.start()
             port_connector.init()
 
             task_group.soonify(port_connector.start_queue)()
@@ -66,7 +67,8 @@ async def start_client(settings: Settings):
         finally:
             with anyio.CancelScope(shield=True):
                 port_connector.deinit()
-                jack.stop()
+                if start_jack:
+                    jack.stop()
 
 
 app = typer.Typer()
@@ -87,8 +89,8 @@ def server_command(ctx: Context):
 
 
 @app.command("client")
-def client_command(ctx: Context):
-    asyncer.runnify(start_client)(settings=ctx.obj)
+def client_command(ctx: Context, no_jack: bool = Option(False, "--no-jack")):
+    asyncer.runnify(start_client)(settings=ctx.obj, start_jack=not no_jack)
 
 
 if __name__ == "__main__":
