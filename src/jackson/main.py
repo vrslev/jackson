@@ -12,8 +12,8 @@ from jackson.settings import Settings
 
 async def start_server(settings: Settings):
     jack = jack_server.Server(
-        driver=settings.server.backend,
-        device=settings.server.device,
+        driver=settings.server.audio_driver,
+        device=settings.server.audio_device,
         rate=48000,
         stream_handler=generate_stream_handler("jack"),
     )
@@ -40,8 +40,8 @@ async def start_server(settings: Settings):
 
 async def start_client(settings: Settings):
     jack = jack_server.Server(
-        driver=settings.client.backend,
-        device=settings.client.device,
+        driver=settings.client.audio_driver,
+        device=settings.client.audio_device,
         rate=48000,
         stream_handler=generate_stream_handler("jack"),
     )
@@ -57,7 +57,7 @@ async def start_client(settings: Settings):
                 server_address=settings.server.address,
                 receive_channels=16,
                 send_channels=2,
-                remote_name=settings.client.remote_name,
+                remote_name=settings.client.name,
             )
 
             while True:

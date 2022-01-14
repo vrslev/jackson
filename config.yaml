@@ -4,9 +4,8 @@
 
 server:
   address: 10.0.1.2
-  port: 4464
-  backend: coreaudio
-  device: BlackHole16ch_UID
+  audio_driver: coreaudio
+  audio_device: BlackHole16ch_UID
   ports:
     # system:capture_1: Ivan:send_1
     # system:capture_2: Ivan:send_2
@@ -28,10 +27,9 @@ server:
     system:capture_1: system:playback_1
 
 client:
-  remote_name: Ivan
-  port: 4464
-  backend: coreaudio
-  device: BlackHole16ch_UID
+  name: Ivan
+  audio_driver: coreaudio
+  audio_device: BlackHole16ch_UID
   ports:
     # JackTrip:receive_1: system:playback_1
     # JackTrip:receive_2: system:playback_2

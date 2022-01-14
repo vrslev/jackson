@@ -12,15 +12,15 @@ PortMap = dict[_SourcePortName, _DestinationPortName]
 class _ServerSettings(BaseModel):
     address: IPv4Address
     ports: PortMap
-    backend: str
-    device: str
+    audio_driver: str
+    audio_device: str
 
 
 class _ClientSettings(BaseModel):
-    remote_name: str
+    name: str
     ports: PortMap
-    backend: str
-    device: str
+    audio_driver: str
+    audio_device: str
 
 
 class Settings(BaseSettings):
