@@ -32,7 +32,7 @@ client:
   remote_name: Ivan
   port: 4464
   backend: coreaudio
-  device: SoundflowerEngine:1
+  device: BlackHole16ch_UID
   channels:
     # JackTrip:receive_1: system:playback_1
     # JackTrip:receive_2: system:playback_2
