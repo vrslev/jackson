@@ -4,11 +4,7 @@ from jackson.services.util import Program
 
 
 async def start_server(
-    *,
-    local_address: IPv4Address,
-    queue: str = "auto",
-    no_jack_ports_connect: bool = True,
-    udprt: bool = True,
+    *, local_address: IPv4Address, queue: str = "auto", udprt: bool = True
 ):
     cmd: list[str] = [
         "jacktrip",
@@ -17,10 +13,8 @@ async def start_server(
         queue,
         "--localaddress",
         str(local_address),
+        "--nojackportsconnect",
     ]
-
-    if no_jack_ports_connect:
-        cmd.append("--nojackportsconnect")
 
     if udprt:
         cmd.append("--udprt")
@@ -36,7 +30,6 @@ async def start_client(
     queue: str = "auto",
     client_name: str = "JackTrip",
     remote_name: str,
-    no_jack_ports_connect: bool = True,
     udprt: bool = True,
 ):
     """
@@ -59,10 +52,8 @@ async def start_client(
         client_name,
         "--remotename",
         remote_name,
+        "--nojackportsconnect",
     ]
-
-    if no_jack_ports_connect:
-        cmd.append("--nojackportsconnect")
 
     if udprt:
         cmd.append("--udprt")
