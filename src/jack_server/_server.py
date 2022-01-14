@@ -1,7 +1,7 @@
 from ctypes import POINTER, pointer
 from typing import Any, Callable, Literal
 
-import jackson.services.jack_server._libjackserver_bindings as _lib
+import jack_server._libjackserver_bindings as _lib
 
 
 class Parameter:
