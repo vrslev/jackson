@@ -3,14 +3,10 @@ from ipaddress import IPv4Address
 from jackson.services.util import Program
 
 
-async def start_server(
-    *, local_address: IPv4Address, queue: str = "auto", udprt: bool = True
-):
+async def start_server(*, local_address: IPv4Address, udprt: bool = True):
     cmd: list[str] = [
         "jacktrip",
         "--jacktripserver",
-        "--queue",
-        queue,
         "--localaddress",
         str(local_address),
         "--nojackportsconnect",
@@ -27,7 +23,6 @@ async def start_client(
     server_address: IPv4Address,
     receive_channels: int,
     send_channels: int,
-    queue: str = "auto",
     client_name: str = "JackTrip",
     remote_name: str,
     udprt: bool = True,
@@ -46,8 +41,6 @@ async def start_client(
         str(receive_channels),
         "--sendchannels",
         str(send_channels),
-        "--queue",
-        queue,
         "--clientname",
         client_name,
         "--remotename",
