@@ -32,10 +32,10 @@ def _get_random_color():
 def generate_stream_handler(proc: str):
     color = _get_random_color()
 
-    def printer(message: str):
+    def handler(message: str):
         typer.secho(f"[{proc}] {message}", fg=color)  # type: ignore
 
-    return printer
+    return handler
 
 
 class Program:
