@@ -7,7 +7,7 @@ server:
   address: 10.0.1.2
   port: 4464
   backend: coreaudio
-  device: AppleUSBAudioEngine:Allen&Heath Ltd:QU-32:131000:2,3
+  device: BlackHole16ch_UID
   channels:
     # TODO: Channel connector doesn't detect local ports because its registration happends when JACK server starts.
     # system:capture_1: Ivan:send_1
