@@ -5,7 +5,7 @@ from typer.params import Option
 
 import jack_server
 from jackson.services import jacktrip
-from jackson.services.channel_connector import ChannelConnector
+from jackson.services.port_connector import PortConnector
 from jackson.services.util import generate_stream_handler
 from jackson.settings import Settings
 
@@ -17,14 +17,14 @@ async def start_server(settings: Settings):
         rate=48000,
         stream_handler=generate_stream_handler("jack"),
     )
-    channel_connector = ChannelConnector(settings.server.channels)
+    port_connector = PortConnector(settings.server.ports)
 
     async with asyncer.create_task_group() as task_group:
         try:
             jack.start()
-            channel_connector.init()
+            port_connector.init()
 
-            task_group.soonify(channel_connector.start_queue)()
+            task_group.soonify(port_connector.start_queue)()
             task_group.soonify(jacktrip.start_server)(
                 server_port=settings.server.port, local_address=settings.server.address
             )
@@ -34,7 +34,7 @@ async def start_server(settings: Settings):
 
         finally:
             with anyio.CancelScope(shield=True):
-                channel_connector.deinit()
+                port_connector.deinit()
                 jack.stop()
 
 
@@ -45,14 +45,14 @@ async def start_client(settings: Settings):
         rate=48000,
         stream_handler=generate_stream_handler("jack"),
     )
-    channel_connector = ChannelConnector(channels=settings.client.channels)
+    port_connector = PortConnector(ports=settings.client.ports)
 
     async with asyncer.create_task_group() as task_group:
         try:
             jack.start()
-            channel_connector.init()
+            port_connector.init()
 
-            task_group.soonify(channel_connector.start_queue)()
+            task_group.soonify(port_connector.start_queue)()
             task_group.soonify(jacktrip.start_client)(
                 server_address=settings.server.address,
                 server_port=settings.server.port,
@@ -67,7 +67,7 @@ async def start_client(settings: Settings):
 
         finally:
             with anyio.CancelScope(shield=True):
-                channel_connector.deinit()
+                port_connector.deinit()
                 jack.stop()
 
 

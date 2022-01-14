@@ -5,23 +5,23 @@ from typing import Callable
 import jack
 
 from jackson.services.util import generate_stream_handler
-from jackson.settings import ChannelMap
+from jackson.settings import PortMap
 
 
 def _get_port_name(port: str | jack.Port):
     return port.name if isinstance(port, jack.Port) else port
 
 
-class ChannelConnector:
-    def __init__(self, channels: ChannelMap) -> None:
-        self.channels = channels
-        self._destination_ports = set(channels.values())
-        self._reverse_channels_map = {v: k for k, v in channels.items()}
+class PortConnector:
+    def __init__(self, ports: PortMap) -> None:
+        self.ports = ports
+        self._destination_ports = set(ports.values())
+        self._reverse_port_map = {v: k for k, v in ports.items()}
 
         self.callback_queue: asyncio.Queue[Callable[[], None]] = asyncio.Queue()
-        self._print = generate_stream_handler("channel-connector")
+        self._print = generate_stream_handler("port-connector")
 
-    def _connect_channels(
+    def _connect_ports(
         self, source: str | jack.Port, destination: str | jack.Port, *, enqueue: bool
     ):
         def task():
@@ -36,24 +36,24 @@ class ChannelConnector:
         else:
             task()
 
-    def _resolve_source_destination_ports(self, port: jack.Port):
+    def _resolve_source_destination(self, port: jack.Port):
         port_name = port.name
 
         if port.is_input:
             if port_name not in self._destination_ports:
                 return
 
-            source = self._reverse_channels_map[port_name]
+            source = self._reverse_port_map[port_name]
             destination = port
             return source, destination
 
         elif port.is_output:
-            if port_name not in self.channels:
+            if port_name not in self.ports:
                 # keys are source ports
                 return
 
             source = port
-            destination = self.channels[port_name]
+            destination = self.ports[port_name]
             return source, destination
 
     def port_registration_callback(self, port: jack.Port, register: bool):
@@ -63,14 +63,14 @@ class ChannelConnector:
             self._print(f"Unregistered port: {port.name}")
             return  # We don't want to do anything if port unregistered
 
-        if resp := self._resolve_source_destination_ports(port):
-            self._connect_channels(*resp, enqueue=True)
+        if resp := self._resolve_source_destination(port):
+            self._connect_ports(*resp, enqueue=True)
 
-    def _connect_initial_channels(self):
+    def _connect_initial_ports(self):
         for port in self.client.get_ports():
             if not self.client.get_all_connections(port):
-                if resp := self._resolve_source_destination_ports(port):
-                    self._connect_channels(*resp, enqueue=False)
+                if resp := self._resolve_source_destination(port):
+                    self._connect_ports(*resp, enqueue=False)
                 else:
                     continue
 
@@ -81,7 +81,7 @@ class ChannelConnector:
         for _ in range(200):
             try:
                 self._print("Connecting to Jack...")
-                self.client = jack.Client("ChannelConnector", no_start_server=True)
+                self.client = jack.Client("PortConnector", no_start_server=True)
                 self._print("Connected to Jack!")
                 break
             except jack.JackOpenError:
@@ -90,7 +90,7 @@ class ChannelConnector:
         else:
             raise RuntimeError("Can't connect to Jack")
 
-        self._connect_initial_channels()
+        self._connect_initial_ports()
         self.client.set_port_registration_callback(self.port_registration_callback)
         self.client.activate()
 

@@ -6,13 +6,13 @@ from pydantic import BaseModel, BaseSettings
 
 _SourcePortName = str
 _DestinationPortName = str
-ChannelMap = dict[_SourcePortName, _DestinationPortName]
+PortMap = dict[_SourcePortName, _DestinationPortName]
 
 
 class _ServerSettings(BaseModel):
     address: IPv4Address
     port: int
-    channels: ChannelMap
+    ports: PortMap
     backend: str
     device: str
 
@@ -20,7 +20,7 @@ class _ServerSettings(BaseModel):
 class _ClientSettings(BaseModel):
     remote_name: str
     port: int
-    channels: ChannelMap
+    ports: PortMap
     backend: str
     device: str
 
