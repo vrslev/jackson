@@ -4,7 +4,7 @@
 sample_rate: 48000
 
 server:
-  address: 10.0.1.2
+  address: 127.0.0.1
   audio_driver: coreaudio
   audio_device: BlackHole16ch_UID
   ports:
