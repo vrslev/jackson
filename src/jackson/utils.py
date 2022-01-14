@@ -1,8 +1,7 @@
 import contextlib
 import shlex
 from ipaddress import IPv4Address
-from shutil import which
-from typing import IO, Callable
+from typing import IO
 
 import anyio
 import asyncer
@@ -116,10 +115,3 @@ class Settings(BaseSettings):
     def load(cls, file: IO[str]):
         content = yaml.safe_load(file)
         return cls(**content)
-
-
-def check_jack_jacktrip_on_machine():
-    if not which("jackd"):
-        raise RuntimeError("Install jackd before running")
-    if not which("jacktrip"):
-        raise RuntimeError("Install jacktrip before running")

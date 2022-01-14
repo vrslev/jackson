@@ -6,11 +6,7 @@ from typer.params import Option
 import jack_server
 from jackson.services import jacktrip
 from jackson.services.channel_connector import ChannelConnector
-from jackson.utils import (
-    Settings,
-    check_jack_jacktrip_on_machine,
-    generate_stream_handler,
-)
+from jackson.utils import Settings, generate_stream_handler
 
 
 async def start_server(settings: Settings):
@@ -86,7 +82,6 @@ class Context(typer.Context):
 @app.callback()
 def main_callback(ctx: Context, config: typer.FileText = Option("config.yaml")):
     ctx.obj = Settings.load(config)
-    check_jack_jacktrip_on_machine()
 
 
 @app.command("server")
