@@ -27,3 +27,9 @@ build-backend = "poetry.core.masonry.api"
 [tool.pyright]
 typeCheckingMode = "strict"
 exclude = [".venv"]
+
+[tool.black]
+target-version = ["py310"]
+
+[tool.isort]
+profile = "black"
