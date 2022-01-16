@@ -24,7 +24,7 @@ class JackClient(jack.Client):
         jack.set_error_function(info_stream_handler)
         jack.set_info_function(error_stream_handler)
 
-        for _ in range(200):
+        for _ in range(100):
             try:
                 info_stream_handler("Connecting to Jack...")
                 super().__init__(name=name, no_start_server=True)
@@ -45,10 +45,9 @@ class JackClient(jack.Client):
         if self._activated:
             super().deactivate(ignore_errors=ignore_errors)
 
+    def close(self) -> None:  # type: ignore
         _dont_print: Callable[[str], None] = lambda message: None
-        jack.set_error_function(
-            _dont_print
-        )  # TODO: Does it belong here? What if uvicorn server doesn't want to activate
+        jack.set_error_function(_dont_print)
         jack.set_info_function(_dont_print)
 
 
@@ -125,6 +124,7 @@ class PortConnector:
 
     def deinit(self):
         self.jack_client.deactivate()
+        self.jack_client.close()
 
     async def start_queue(self):
         async with asyncer.create_task_group() as task_group:

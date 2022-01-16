@@ -1,7 +1,7 @@
 import logging
 import signal
 from copy import copy
-from typing import Callable, cast
+from typing import cast
 
 import anyio
 import jack
@@ -35,17 +35,13 @@ async def get_jack_client():
     def error_stream_handler(message: str):
         typer.secho(_err(message))  # type: ignore
 
-    jack.set_error_function(info_stream_handler)
-    jack.set_error_function(error_stream_handler)
     client = JackClient("MessagingServer", info_stream_handler, error_stream_handler)
     yield client
-    _print_nothing: Callable[[str], None] = lambda message: None
-    jack.set_error_function(_print_nothing)  # TODO: Add reset() helper
-    jack.set_error_function(_print_nothing)
+    client.close()
 
 
 @app.get("/init", response_model=InitResponse)
-def init(client: jack.Client = Depends(get_jack_client)):
+def init(client: JackClient = Depends(get_jack_client)):
     inputs = client.get_ports("system:.*", is_input=True)
     outputs = client.get_ports("system:.*", is_output=True)
     rate = cast(jack_server.SampleRate, client.samplerate)  # NOPE TODO: From settings
@@ -60,7 +56,7 @@ def check_client_name_not_system(client_name: str):
         )
 
 
-def get_port_or_raise(client: jack.Client, type: PortType, name: str):
+def get_port_or_raise(client: JackClient, type: PortType, name: str):
     try:
         return client.get_port_by_name(name)
     except jack.JackError:
@@ -72,7 +68,7 @@ def get_port_or_raise(client: jack.Client, type: PortType, name: str):
 @app.put("/connect/send")
 def connect_send(
     *,
-    jack_client: jack.Client = Depends(get_jack_client),
+    jack_client: JackClient = Depends(get_jack_client),
     client_name: str,
     client_port_number: int,
     server_port_number: int,
@@ -104,7 +100,7 @@ def connect_send(
 @app.patch("/connect/receive")
 def connect_receive(
     *,
-    jack_client: jack.Client = Depends(get_jack_client),
+    jack_client: JackClient = Depends(get_jack_client),
     client_name: str,
     client_port_number: int,
     server_port_number: int,
