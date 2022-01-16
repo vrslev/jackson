@@ -5,7 +5,7 @@ from typer.params import Option
 
 import jack_server
 from jackson.services import jacktrip
-from jackson.services.port_connector import PortConnector
+from jackson.services.port_connector.client import PortConnector
 from jackson.services.util import generate_stream_handlers
 from jackson.settings import ClientSettings, ServerSettings
 
@@ -54,7 +54,7 @@ async def start_client(settings: ClientSettings, start_jack: bool):
         info_stream_handler=info_stream_handler,
         error_stream_handler=error_stream_handler,
     )
-    port_connector = PortConnector(settings.ports)
+    port_connector = PortConnector(settings.ports, settings.server.messaging_url)
 
     async with asyncer.create_task_group() as task_group:
         try:

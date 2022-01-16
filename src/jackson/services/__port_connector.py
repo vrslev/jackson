@@ -1,3 +1,4 @@
+# type: ignore
 import asyncio
 import time
 from typing import Any, Callable, Coroutine
@@ -5,7 +6,7 @@ from typing import Any, Callable, Coroutine
 import asyncer
 import jack
 
-import jackson.services.messaging.client as messaging_client
+import jackson.services.port_connector.client as messaging_client
 from jackson.services.util import generate_stream_handlers
 from jackson.settings import ClientPorts
 

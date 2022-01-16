@@ -10,7 +10,9 @@ server:
 
 ports:
   receive:
+    # local_source_idx: remote_destination_idx
     1: 1
 
   send:
+    # local_destination_idx: remote_source_idx
     3: 2

@@ -6,10 +6,9 @@ import asyncer
 import httpx
 import jack
 
-import jackson.services.port_connector.client as messaging_client
 from jackson.services.port_connector.models import InitResponse
 from jackson.services.util import generate_stream_handlers
-from jackson.settings import ClientPorts
+from jackson.settings import ClientPorts, UrlWithPort
 
 
 class MessagingClient:
@@ -17,11 +16,11 @@ class MessagingClient:
         self.client = httpx.AsyncClient(base_url=base_url)
 
     async def init(self):
-        response = await self.client.get("/init")
+        response = await self.client.get("/init")  # type: ignore
         return InitResponse(**response.json())
 
     async def connect(self, source: str, destination: str):
-        response = await self.client.get("/connect")
+        # response = await self.client.get("/connect")
         ...
         # return ConnectResponse(**response.json())
 
@@ -66,69 +65,64 @@ class JackClient(jack.Client):
         jack.set_info_function(_dont_print)
 
 
-def _get_port_name(port: str | jack.Port):
-    return port.name if isinstance(port, jack.Port) else port
-
-
 class PortConnector:
-    def __init__(self, ports: ClientPorts) -> None:
+    def __init__(self, ports: ClientPorts, messaging_url: UrlWithPort) -> None:
         self.ports = ports
-        self._destination_ports = set(ports.values())
-        self._reverse_port_map = {v: k for k, v in ports.items()}
+        self.set_send_ports(ports.send)
+        self._set_receive_ports(ports.receive)
 
         self.callback_queue: asyncio.Queue[
             Callable[[], Coroutine[Any, Any, None]]
         ] = asyncio.Queue()
         self._info, self._err = generate_stream_handlers("port-connector")
+        self.messaging_client = MessagingClient(messaging_url)
 
-    async def build_destination_ports(self):
-        ...
+    def set_send_ports(self, send_ports: dict[int, int]):
+        self.send_ports: dict[str, str] = {}
 
-    async def _connect_ports(
-        self, source: str | jack.Port, destination: str | jack.Port
-    ):
-        source_name = _get_port_name(source)
-        destination_name = _get_port_name(destination)
-        await messaging_client.connect(source=source_name, destination=destination_name)
+        for local_source_idx, remote_destination_idx in send_ports.items():
+            src = f"system:capture_{local_source_idx}"
+            dest = f"JackTrip:send_{remote_destination_idx}"
+            self.send_ports[src] = dest
 
-        self.jack_client.connect(source=source_name, destination=destination_name)
-        self._info(f"Connected ports: {source_name} -> {destination_name}")
+    def _set_receive_ports(self, receive_ports: dict[int, int]):
+        self.receive_ports: dict[str, str] = {}
+
+        for local_destination_idx, remote_source_idx in receive_ports.items():
+            src = f"JackTrip:receive_{local_destination_idx}"
+            dest = f"system:playback_{remote_source_idx}"
+            self.receive_ports[src] = dest
+
+    async def _connect_ports(self, source: str, destination: str):
+        await self.messaging_client.connect(source, destination)
+        self.jack_client.connect(source, destination)
+        self._info(f"Connected ports: {source} -> {destination}")
 
     def _resolve_source_destination(self, port: jack.Port):
         port_name = port.name
 
-        if port.is_input:
-            if port_name not in self._destination_ports:
-                return
-
-            source = self._reverse_port_map[port_name]
-            destination = port
+        if port.is_input and port_name in self.receive_ports:
+            source = self.receive_ports[port_name]
+            destination = port_name
             return source, destination
 
-        elif port.is_output:
-            if port_name not in self.ports:
-                # keys are source ports
-                return
-
-            source = port
-            destination = self.ports[port_name]
+        elif port.is_output and port_name in self.send_ports:
+            source = port_name
+            destination = self.send_ports[port_name]
             return source, destination
 
     def port_registration_callback(self, port: jack.Port, register: bool):
-        if register:
-            self._info(f"Registered port: {port.name}")
-        else:
+        if not register:
             self._info(f"Unregistered port: {port.name}")
             return  # We don't want to do anything if port unregistered
 
+        self._info(f"Registered port: {port.name}")
         resp = self._resolve_source_destination(port)
         if not resp:
             return
 
-        source, destination = resp
-
         async def task():
-            await self._connect_ports(source, destination)
+            await self._connect_ports(*resp)
 
         self.callback_queue.put_nowait(task)
 
