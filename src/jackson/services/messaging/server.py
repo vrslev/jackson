@@ -12,6 +12,7 @@ from fastapi import Depends, FastAPI, status
 from uvicorn.config import LOGGING_CONFIG  # type: ignore
 
 import jack_server
+from jackson.services.jack_client import JackClient
 from jackson.services.messaging.models import (
     ConnectResponse,
     InitResponse,
@@ -20,7 +21,6 @@ from jackson.services.messaging.models import (
     PortType,
     StructuredHTTPException,
 )
-from jackson.services.port_connector import JackClient
 from jackson.services.util import generate_output_formatters
 
 app = FastAPI()
