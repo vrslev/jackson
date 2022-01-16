@@ -1,23 +1,13 @@
+name: Lev
+
 audio:
-  driver:
-  device:
+  driver: coreaudio
+  device: BlackHole16ch_UID
 
 server:
-  jacktrip_url:
-  messaging_url:
+  jacktrip_url: 127.0.0.1:4464
+  messaging_url: 127.0.0.1:8000
 
-# # Too much to write
-# ports:
-#   - type: input
-#     server_port: 1
-#     client_port: 1
-
-# # Too much to parse
-# ports:
-#   JackTrip:receive_1: system:playback_1
-#   system:capture_1: JackTrip:send_1
-
-# Optimal?
 ports:
   receive:
     1: 1
