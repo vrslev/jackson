@@ -1,12 +1,10 @@
-from typing import Literal
-
 import jack
 from fastapi import Depends, FastAPI, status
 
 from jackson.services.port_connector.models import (
     ConnectResponse,
     InitResponse,
-    PortAlreadyHasConnectionsData,
+    PlaybackPortAlreadyHasConnectionsData,
     PortNotFound,
     PortType,
     StructuredHTTPException,
@@ -34,78 +32,66 @@ def check_client_name_not_system(client_name: str):
         )
 
 
-ServerShould = Literal["send", "receive"]
-
-
-def resolve_ports_to_connect(
-    *,
-    server_should: ServerShould,
-    client_name: str,
-    server_port_number: int,
-    client_port_number: int,
-):
-    if server_should == "send":
-        source = f"system:capture_{server_port_number}"
-        destination = f"{client_name}:send_{client_port_number}"
-    else:
-        source = f"{client_name}:receive_{client_port_number}"
-        destination = f"system:playback_{server_port_number}"
-
-    return source, destination
-
-
 def get_port_or_raise(client: jack.Client, type: PortType, name: str):
     try:
         return client.get_port_by_name(name)
     except jack.JackError:
-        raise PortNotFound(type=type, name=name).exc()
+        raise StructuredHTTPException(
+            404, message="Port not found", data=PortNotFound(type=type, name=name)
+        )
 
 
-def validate_port_has_no_connections(
-    client: jack.Client, port: jack.Port, type: PortType, name: str
-):
-    connections = client.get_all_connections(port)
-    if not connections:
-        return
-
-    raise PortAlreadyHasConnectionsData(
-        type=type, name=name, connection_names=[p.name for p in connections]
-    ).exc()
-
-
-@app.put("/connect", response_model=ConnectResponse)
-def connect(
+@app.put("/connect/send")
+def connect_send(
     *,
-    client: jack.Client = Depends(get_jack_client),
+    jack_client: jack.Client = Depends(get_jack_client),
     client_name: str,
-    server_should: ServerShould,
-    server_port_number: int,
     client_port_number: int,
+    server_port_number: int,
 ):
+    # TO mixer
     check_client_name_not_system(client_name)
-    source_name, destination_name = resolve_ports_to_connect(
-        server_should=server_should,
-        client_name=client_name,
-        server_port_number=server_port_number,
-        client_port_number=client_port_number,
-    )
+    source_name = f"{client_name}:receive_{client_port_number}"
+    source = get_port_or_raise(client=jack_client, type="source", name=source_name)
 
-    source = get_port_or_raise(client=client, type="source", name=source_name)
-    if server_should == "send":
-        # TODO: What is multiple clients connected....
-        validate_port_has_no_connections(
-            client=client, port=source, type="source", name=source_name
-        )
-
+    destination_name = f"system:playback_{server_port_number}"
     destination = get_port_or_raise(
-        client=client, type="destination", name=destination_name
+        client=jack_client, type="destination", name=destination_name
     )
-    if server_should == "receive":
-        validate_port_has_no_connections(
-            client=client, port=destination, type="destination", name=destination_name
+
+    if connections := jack_client.get_all_connections(destination):
+        raise StructuredHTTPException(
+            status.HTTP_409_CONFLICT,
+            message="Port already has connections",
+            data=PlaybackPortAlreadyHasConnectionsData(
+                port_name=destination_name,
+                connection_names=[p.name for p in connections],
+            ),
         )
 
-    client.connect(source_name, destination_name)
+    jack_client.connect(source, destination)
+    return ConnectResponse(source=source_name, destination=destination_name)
+
+
+@app.patch("/connect/receive")
+def connect_receive(
+    *,
+    jack_client: jack.Client = Depends(get_jack_client),
+    client_name: str,
+    client_port_number: int,
+    server_port_number: int,
+):
+    # FROM mixer
+    check_client_name_not_system(client_name)
+    source_name = f"system:capture_{server_port_number}"
+    source = get_port_or_raise(client=jack_client, type="source", name=source_name)
+
+    destination_name = f"{client_name}:playback_{client_port_number}"
+    destination = get_port_or_raise(
+        client=jack_client, type="destination", name=destination_name
+    )
+
+    jack_client.connect(source, destination)
     return ConnectResponse(source=source_name, destination=destination_name)
 
 

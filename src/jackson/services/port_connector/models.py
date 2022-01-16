@@ -1,6 +1,6 @@
 from typing import Any, Literal
 
-from fastapi import HTTPException, status
+from fastapi import HTTPException
 from pydantic import BaseModel
 
 
@@ -36,19 +36,10 @@ class PortNotFound(BaseModel):
     type: PortType
     name: str
 
-    def exc(self):
-        return StructuredHTTPException(404, message="Source port not found", data=self)
 
-
-class PortAlreadyHasConnectionsData(BaseModel):
-    type: PortType
-    name: str
+class PlaybackPortAlreadyHasConnectionsData(BaseModel):
+    port_name: str
     connection_names: list[str]
-
-    def exc(self):
-        return StructuredHTTPException(
-            status.HTTP_409_CONFLICT, message="Port already has connections", data=self
-        )
 
 
 class ConnectResponse(BaseModel):
