@@ -1,6 +1,9 @@
+from typing import cast
+
 import jack
 from fastapi import Depends, FastAPI, status
 
+import jack_server
 from jackson.services.messaging.models import (
     ConnectResponse,
     InitResponse,
@@ -21,8 +24,9 @@ async def get_jack_client():
 def init(client: jack.Client = Depends(get_jack_client)):
     inputs = client.get_ports("system:.*", is_input=True)
     outputs = client.get_ports("system:.*", is_output=True)
+    rate = cast(jack_server.SampleRate, client.samplerate)
 
-    return InitResponse(inputs=len(inputs), outputs=len(outputs))
+    return InitResponse(inputs=len(inputs), outputs=len(outputs), rate=rate)
 
 
 def check_client_name_not_system(client_name: str):
