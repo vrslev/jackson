@@ -7,7 +7,7 @@ import jack
 
 from jackson.services.messaging.client import MessagingClient
 from jackson.services.util import generate_stream_handlers
-from jackson.settings import ClientPorts, UrlWithPort
+from jackson.settings import ClientPorts
 
 
 class JackClient(jack.Client):
@@ -51,7 +51,7 @@ class JackClient(jack.Client):
 
 
 class PortConnector:
-    def __init__(self, ports: ClientPorts, messaging_url: UrlWithPort) -> None:
+    def __init__(self, ports: ClientPorts, messaging_client: MessagingClient) -> None:
         self.ports = ports
         self.set_send_ports(ports.send)
         self._set_receive_ports(ports.receive)
@@ -60,7 +60,7 @@ class PortConnector:
             Callable[[], Coroutine[Any, Any, None]]
         ] = asyncio.Queue()
         self._info, self._err = generate_stream_handlers("port-connector")
-        self.messaging_client = MessagingClient(messaging_url)
+        self.messaging_client = messaging_client
 
     def set_send_ports(self, send_ports: dict[int, int]):
         self.send_ports: dict[str, str] = {}

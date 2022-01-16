@@ -1,12 +1,11 @@
-from typing import IO, TYPE_CHECKING
+from ipaddress import IPv4Address
+from typing import IO
 
 import yaml
-from pydantic import AnyUrl, BaseModel, BaseSettings, UrlError
+from pydantic import BaseModel, BaseSettings
 
 import jack_server
 
-if TYPE_CHECKING:
-    from pydantic.networks import Parts
 _SourcePortName = str
 _DestinationPortName = str
 PortMap = dict[_SourcePortName, _DestinationPortName]
@@ -28,43 +27,26 @@ class _ServerAudio(_BaseAudio):
     sample_rate: jack_server.SampleRate
 
 
-class ServerSettings(_YamlBaseSettings):
-    audio: _ServerAudio
+class _BaseServer(BaseModel):
     jacktrip_port: int
     messaging_port: int
+
+
+class _ServerServer(_BaseServer):
+    pass
+
+
+class ServerSettings(_YamlBaseSettings):
+    audio: _ServerAudio
+    server: _ServerServer
 
 
 class _ClientAudio(_BaseAudio):
     pass
 
 
-class UrlPortError(UrlError):
-    code = "url.port"
-    msg_template = "missing URL port"
-
-
-# from pydantic import BaseConfig
-# from pydantic.fields import ModelField
-# from pydantic.networks import url_regex
-# from pydantic.validators import constr_length_validator, str_validator
-
-
-class UrlWithPort(AnyUrl):
-    host: str
-    port: str
-
-    @classmethod
-    def validate_parts(cls, parts: "Parts") -> "Parts":
-        parts["scheme"] = ""
-        parts = super().validate_parts(parts)
-        if not parts.get("port"):
-            raise UrlPortError()
-        return parts
-
-
-class _ClientServer(BaseModel):
-    jacktrip_url: UrlWithPort
-    messaging_url: UrlWithPort
+class _ClientServer(_BaseServer):
+    host: IPv4Address
 
 
 class ClientPorts(BaseModel):

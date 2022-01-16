@@ -3,10 +3,13 @@ from typing import Any, Literal
 from fastapi import HTTPException
 from pydantic import BaseModel
 
+import jack_server
+
 
 class InitResponse(BaseModel):
     inputs: int
     outputs: int
+    rate: jack_server.SampleRate
 
 
 class StructuredDetail(BaseModel):

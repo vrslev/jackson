@@ -5,8 +5,9 @@ audio:
   device: BlackHole16ch_UID
 
 server:
-  jacktrip_url: 127.0.0.1:4464
-  messaging_url: 127.0.0.1:8000
+  jacktrip_port: 4464
+  messaging_port: 8000
+  host: 127.0.0.1
 
 ports:
   receive:
