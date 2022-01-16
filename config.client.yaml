@@ -1,0 +1,26 @@
+audio:
+  driver:
+  device:
+
+server:
+  jacktrip_url:
+  messaging_url:
+
+# # Too much to write
+# ports:
+#   - type: input
+#     server_port: 1
+#     client_port: 1
+
+# # Too much to parse
+# ports:
+#   JackTrip:receive_1: system:playback_1
+#   system:capture_1: JackTrip:send_1
+
+# Optimal?
+ports:
+  receive:
+    1: 1
+
+  send:
+    3: 2
