@@ -1,7 +1,7 @@
 import jack
 from fastapi import Depends, FastAPI, status
 
-from jackson.services.port_connector.models import (
+from jackson.services.messaging.models import (
     ConnectResponse,
     InitResponse,
     PlaybackPortAlreadyHasConnectionsData,

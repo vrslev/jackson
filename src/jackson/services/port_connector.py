@@ -3,26 +3,11 @@ import time
 from typing import Any, Callable, Coroutine
 
 import asyncer
-import httpx
 import jack
 
-from jackson.services.port_connector.models import InitResponse
+from jackson.services.messaging.client import MessagingClient
 from jackson.services.util import generate_stream_handlers
 from jackson.settings import ClientPorts, UrlWithPort
-
-
-class MessagingClient:
-    def __init__(self, base_url: str) -> None:
-        self.client = httpx.AsyncClient(base_url=base_url)
-
-    async def init(self):
-        response = await self.client.get("/init")  # type: ignore
-        return InitResponse(**response.json())
-
-    async def connect(self, source: str, destination: str):
-        # response = await self.client.get("/connect")
-        ...
-        # return ConnectResponse(**response.json())
 
 
 class JackClient(jack.Client):
