@@ -1,14 +1,13 @@
-from ipaddress import IPv4Address
-
 from jackson.services.util import Program
+from jackson.settings import UrlWithPort
 
 
-async def start_server(*, local_address: IPv4Address, udprt: bool = True):
+async def start_server(*, port: int, udprt: bool = True):
     cmd: list[str] = [
         "jacktrip",
         "--jacktripserver",
-        "--localaddress",
-        str(local_address),
+        "--bindport",
+        str(port),
         "--nojackportsconnect",
     ]
 
@@ -20,7 +19,7 @@ async def start_server(*, local_address: IPv4Address, udprt: bool = True):
 
 async def start_client(
     *,
-    server_address: IPv4Address,
+    url: UrlWithPort,
     receive_channels: int,
     send_channels: int,
     client_name: str = "JackTrip",
@@ -36,11 +35,13 @@ async def start_client(
     cmd: list[str] = [
         "jacktrip",
         "--pingtoserver",
-        str(server_address),
+        url.host,
         "--receivechannels",
         str(receive_channels),
         "--sendchannels",
         str(send_channels),
+        "--peerport",
+        url.port,
         "--clientname",
         client_name,
         "--remotename",
