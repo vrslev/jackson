@@ -1,26 +1,22 @@
-from typing import Callable
+import typer
 
 import jack_server
+from jackson.services.util import generate_stream_handlers
 
 
-class Server(jack_server.Server):
-    def __init__(
-        self,
-        *,
-        driver: str,
-        device: str,
-        rate: jack_server.SampleRate,
-        info_stream_handler: Callable[[str], None],
-        error_stream_handler: Callable[[str], None],
-    ):
+class JackServer(jack_server.Server):
+    def __init__(self, *, driver: str, device: str, rate: jack_server.SampleRate):
         super().__init__(driver=driver, device=device, rate=rate)
-        self._info = info_stream_handler
-        self._err = error_stream_handler
+        self._info, self._err = generate_stream_handlers("jack")
 
     def start(self):
         jack_server.set_info_function(self._info)
         jack_server.set_error_function(self._err)
-        super().start()
+
+        try:
+            super().start()
+        except (jack_server.ServerNotStartedError, jack_server.ServerNotOpenedError):
+            raise typer.Exit(1)
 
     def stop(self):
         super().stop()
