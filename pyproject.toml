@@ -14,6 +14,7 @@ PyYAML = "^6.0"
 asyncer = "^0.0.1"
 fastapi = "^0.71.0"
 uvicorn = {extras = ["standard"], version = "^0.17.0"}
+httpx = "^0.21.3"
 
 [tool.poetry.scripts]
 jackson = "jackson.main:app"
