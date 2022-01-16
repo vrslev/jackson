@@ -1,3 +1,5 @@
+from typing import Callable
+
 import typer
 
 import jack_server
@@ -19,6 +21,7 @@ class JackServer(jack_server.Server):
             raise typer.Exit(1)
 
     def stop(self):
+        _dont_print: Callable[[str], None] = lambda message: None
+        jack_server.set_info_function(_dont_print)
+        jack_server.set_error_function(_dont_print)
         super().stop()
-        jack_server.set_info_function(None)
-        jack_server.set_error_function(None)
