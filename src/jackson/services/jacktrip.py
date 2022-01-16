@@ -31,8 +31,8 @@ async def start_client(
     """
     Args:
 
-    client_name — The name of JACK Client
     remote_name — The name by which a server identifies a client
+    client_name — The name of JACK Client
     """
     cmd: list[str] = [
         "jacktrip",

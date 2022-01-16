@@ -8,6 +8,9 @@ import jack_server
 from jackson.services import jacktrip
 from jackson.services.jack_server import JackServer
 from jackson.services.messaging.client import MessagingClient
+from jackson.services.messaging.server import MessagingServer
+from jackson.services.messaging.server import app as messaging_app
+from jackson.services.messaging.server import uvicorn_signal_handler
 from jackson.services.port_connector import PortConnector
 from jackson.settings import ClientSettings, ServerSettings
 
@@ -25,6 +28,8 @@ class _BaseManager(ABC):
         async with asyncer.create_task_group() as task_group:
             try:
                 await self.start(task_group)
+                while True:
+                    await anyio.sleep(1)
             finally:
                 with anyio.CancelScope(shield=True):
                     await self.stop()
@@ -38,15 +43,20 @@ class Server(_BaseManager):
             device=self.settings.audio.device,
             rate=self.settings.audio.sample_rate,
         )
+        self.messaging_server = MessagingServer(messaging_app)
 
     async def start_jacktrip(self):
         return await jacktrip.start_server(port=self.settings.server.jacktrip_port)
 
     async def start(self, task_group: TaskGroup):
         self.jack_server.start()
+
         task_group.soonify(self.start_jacktrip)()
+        task_group.soonify(self.messaging_server.start)()
+        task_group.soonify(uvicorn_signal_handler)(task_group.cancel_scope)
 
     async def stop(self):
+        await self.messaging_server.stop()
         self.jack_server.stop()
 
 
@@ -78,6 +88,7 @@ class Client(_BaseManager):
 
     async def start(self, task_group: TaskGroup):
         init_response = await self.messaging_client.init()
+        print(init_response)
         if self.start_jack:
             self.start_jack_server(init_response.rate)
 

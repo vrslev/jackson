@@ -26,14 +26,26 @@ def _get_random_color():
     return _available_colors.pop()
 
 
-def generate_stream_handlers(proc: str):
+def generate_output_formatters(proc: str):
     color = _get_random_color()
 
+    def stdout_formatter(message: str):
+        return typer.style(f"[{proc}] {message}", fg=color)
+
+    def stderr_formatter(message: str):
+        return typer.style(f"[{proc}] {message}", fg=color, bold=True)
+
+    return stdout_formatter, stderr_formatter
+
+
+def generate_stream_handlers(proc: str):
+    stdout_formatter, stderr_formatter = generate_output_formatters(proc)
+
     def stdout_handler(message: str):
-        typer.secho(f"[{proc}] {message}", fg=color)  # type: ignore
+        typer.secho(stdout_formatter(message))  # type: ignore
 
     def stderr_handler(message: str):
-        typer.secho(f"[{proc}] {message}", fg=color, bold=True)  # type: ignore
+        typer.secho(stderr_formatter(message))  # type: ignore
 
     return stdout_handler, stderr_handler
 

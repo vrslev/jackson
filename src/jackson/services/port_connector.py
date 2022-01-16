@@ -46,7 +46,9 @@ class JackClient(jack.Client):
             super().deactivate(ignore_errors=ignore_errors)
 
         _dont_print: Callable[[str], None] = lambda message: None
-        jack.set_error_function(_dont_print)
+        jack.set_error_function(
+            _dont_print
+        )  # TODO: Does it belong here? What if uvicorn server doesn't want to activate
         jack.set_info_function(_dont_print)
 
 
