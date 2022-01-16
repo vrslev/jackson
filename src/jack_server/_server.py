@@ -55,7 +55,7 @@ class Parameter:
         _lib.jackctl_parameter_set_value(self.ptr, pointer(param_v))
 
 
-SampleRate = Literal[41000, 48000]
+SampleRate = Literal[44100, 48000]
 
 
 class Driver:
