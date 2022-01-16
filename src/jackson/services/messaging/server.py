@@ -37,7 +37,7 @@ async def get_jack_client():
 
     client = JackClient("MessagingServer", info_stream_handler, error_stream_handler)
     yield client
-    client.close()
+    client.block_streams()
 
 
 @app.get("/init", response_model=InitResponse)

@@ -4,6 +4,7 @@ from typing import Any, Callable, Coroutine
 
 import asyncer
 import jack
+import typer
 
 from jackson.services.messaging.client import MessagingClient
 from jackson.services.util import generate_stream_handlers
@@ -21,21 +22,33 @@ class JackClient(jack.Client):
         # on shutdown if it wasn't activated
         self._activated = False
 
-        jack.set_error_function(info_stream_handler)
-        jack.set_info_function(error_stream_handler)
+        self._info = info_stream_handler
+        self._err = error_stream_handler
+        self.block_streams()
 
         for _ in range(100):
             try:
-                info_stream_handler("Connecting to Jack...")
+                self._info("Connecting to Jack...")
                 super().__init__(name=name, no_start_server=True)
-                info_stream_handler("Connected to Jack!")
+                self._err("Connected to Jack!")
                 break
             except jack.JackOpenError:
                 time.sleep(0.1)
 
         else:
-            # TODO: Pretty exit
-            raise RuntimeError("Can't connect to Jack")
+            self._err("Can't connect to Jack")
+            raise typer.Exit(1)
+
+        self.set_stream_handlers()
+
+    def set_stream_handlers(self):
+        jack.set_error_function(self._info)
+        jack.set_info_function(self._err)
+
+    def block_streams(self):
+        _dont_print: Callable[[str], None] = lambda message: None
+        jack.set_error_function(_dont_print)
+        jack.set_info_function(_dont_print)
 
     def activate(self) -> None:
         super().activate()
@@ -44,11 +57,6 @@ class JackClient(jack.Client):
     def deactivate(self, ignore_errors: bool = True) -> None:
         if self._activated:
             super().deactivate(ignore_errors=ignore_errors)
-
-    def close(self) -> None:  # type: ignore
-        _dont_print: Callable[[str], None] = lambda message: None
-        jack.set_error_function(_dont_print)
-        jack.set_info_function(_dont_print)
 
 
 class PortConnector:
@@ -118,13 +126,12 @@ class PortConnector:
             info_stream_handler=self._info,
             error_stream_handler=self._err,
         )
-        # self._connect_initial_ports() # TODO: Connect initial ports or not?
         self.jack_client.set_port_registration_callback(self.port_registration_callback)
         self.jack_client.activate()
 
     def deinit(self):
         self.jack_client.deactivate()
-        self.jack_client.close()
+        self.jack_client.block_streams()
 
     async def start_queue(self):
         async with asyncer.create_task_group() as task_group:

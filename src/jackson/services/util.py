@@ -38,7 +38,9 @@ def generate_output_formatters(proc: str):
     return stdout_formatter, stderr_formatter
 
 
-def generate_stream_handlers(proc: str):
+def generate_stream_handlers(
+    proc: str,
+):  # TODO: Split concepts of colored output and stream handlers
     stdout_formatter, stderr_formatter = generate_output_formatters(proc)
 
     def stdout_handler(message: str):
