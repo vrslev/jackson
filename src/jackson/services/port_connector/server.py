@@ -3,7 +3,7 @@ from typing import Literal
 import jack
 from fastapi import Depends, FastAPI, status
 
-from jackson.services.messaging.models import (
+from jackson.services.port_connector.models import (
     ConnectResponse,
     InitResponse,
     PortAlreadyHasConnectionsData,
