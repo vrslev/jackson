@@ -38,15 +38,6 @@ def generate_stream_handlers(proc: str):
     return stdout_handler, stderr_handler
 
 
-# def generate_stream_handler_bold(proc: str):
-#     color = _get_random_color()
-
-#     def handler(message: str):
-#         typer.secho(f"[{proc}] {message}", fg=color, bold=True)  # type: ignore
-
-#     return handler
-
-
 class Program:
     def __init__(self, cmd: list[str]) -> None:
         self.cmd = cmd
