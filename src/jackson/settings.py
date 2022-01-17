@@ -6,10 +6,6 @@ from pydantic import BaseModel, BaseSettings
 
 import jack_server
 
-_SourcePortName = str
-_DestinationPortName = str
-PortMap = dict[_SourcePortName, _DestinationPortName]
-
 
 class _YamlBaseSettings(BaseSettings):
     @classmethod

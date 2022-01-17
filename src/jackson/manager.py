@@ -82,8 +82,8 @@ class Client(_BaseManager):
 
     async def start_jacktrip(self, receive_channels: int, send_channels: int):
         return await jacktrip.start_client(
-            host=self.settings.server.host,
-            port=self.settings.server.jacktrip_port,
+            server_host=self.settings.server.host,
+            server_port=self.settings.server.jacktrip_port,
             receive_channels=receive_channels,
             send_channels=send_channels,
             remote_name=self.settings.name,
@@ -99,7 +99,7 @@ class Client(_BaseManager):
         task_group.soonify(self.port_connector.start_queue)()
 
         task_group.soonify(self.start_jacktrip)(
-            receive_channels=init_response.outputs,
+            receive_channels=init_response.outputs,  # TODO: Configure this depending on number of connections
             send_channels=init_response.inputs,  # TODO: This is not always true
         )
 

@@ -8,6 +8,7 @@ from jackson.logging import (
     get_configured_logger,
     silent_jack_stream_handler,
 )
+from jackson.services.models import PortName
 
 log = get_configured_logger(__name__, "JackClient")
 log.addFilter(JackClientFilter())
@@ -52,6 +53,8 @@ class JackClient(jack.Client):
         if self._activated:
             super().deactivate(ignore_errors=ignore_errors)
 
-    def connect(self, source: str | jack.Port, destination: str | jack.Port) -> None:
-        super().connect(source, destination)
-        log.info(f"Connected ports: {source} -> {destination}")
+    def connect(self, source: PortName, destination: PortName) -> None:  # type: ignore
+        source_name = str(source)
+        destination_name = str(destination)
+        super().connect(source_name, destination_name)
+        log.info(f"Connected ports: {source_name} -> {destination_name}")

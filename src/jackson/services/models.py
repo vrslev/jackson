@@ -49,3 +49,6 @@ class PlaybackPortAlreadyHasConnections(BaseModel):
 class ConnectResponse(BaseModel):
     source: PortName
     destination: PortName
+
+
+ClientShould = Literal["send", "receive"]

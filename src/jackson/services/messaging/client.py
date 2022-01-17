@@ -1,5 +1,5 @@
 from ipaddress import IPv4Address
-from typing import Any, Literal
+from typing import Any
 
 import httpx
 from pydantic import AnyHttpUrl, BaseModel
@@ -7,6 +7,7 @@ from pydantic.dataclasses import dataclass
 
 from jackson.logging import get_configured_logger
 from jackson.services.models import (
+    ClientShould,
     ConnectResponse,
     InitResponse,
     PlaybackPortAlreadyHasConnections,
@@ -26,14 +27,6 @@ class ServerError(Exception):
         return f"{self.message}: {self.data.dict()}"
 
 
-def build_exception(
-    name: str, detail: dict[str, Any], data_model: type[BaseModel]
-) -> Exception:
-    cls_ = dataclass(type(name, (ServerError,), {"message": None, "data": None}))
-    exc = cls_(message=detail["message"], data=data_model(**detail["data"]))
-    return exc  # type: ignore
-
-
 class MessagingClient:
     def __init__(self, host: IPv4Address, port: int) -> None:
         base_url = AnyHttpUrl.build(scheme="http", host=str(host), port=str(port))
@@ -51,21 +44,25 @@ class MessagingClient:
         return InitResponse(**response.json())
 
     def handle_exceptions(self, data: dict[str, Any]):
-        if "detail" not in data:
+        if "detail" not in data or "message" not in data["detail"]:
             return
 
-        res = self.exception_handlers.get(data["detail"]["message"])
+        detail = data["detail"]
+        res = self.exception_handlers.get(detail["message"])
         if res is None:
             raise NotImplementedError
 
         name, model = res
-        raise build_exception(name=name, detail=data["detail"], data_model=model)
+
+        cls_ = dataclass(type(name, (ServerError,), {"message": None, "data": None}))
+        exc = cls_(message=detail["message"], data=model(**detail["data"]))
+        return exc  # type: ignore
 
     async def connect(
         self,
         source: PortName,
         destination: PortName,
-        client_should: Literal["send", "receive"],
+        client_should: ClientShould,
     ):
         response = await self.client.patch(  # type: ignore
             "/connect",

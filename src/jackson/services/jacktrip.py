@@ -73,56 +73,49 @@ class _Program:
                     raise typer.Exit(code or 0)
 
 
-async def start_server(*, port: int, udprt: bool = True):
+async def start_server(*, port: int):
     cmd: list[str] = [
         "jacktrip",
         "--jacktripserver",
         "--bindport",
         str(port),
         "--nojackportsconnect",
+        "--udprt",
     ]
-
-    if udprt:
-        cmd.append("--udprt")
-
     await _Program(cmd).run_forever()
 
 
 async def start_client(
     *,
-    host: IPv4Address,
-    port: int,
+    server_host: IPv4Address,
+    server_port: int,
     receive_channels: int,
     send_channels: int,
     remote_name: str,
     client_name: str = "JackTrip",
-    udprt: bool = True,
 ):
     """
     Args:
-        remote_name — The name by which a server identifies a client
-        client_name — The name of JACK Client
+        remote_name: Name by which server identifies a client
+        client_name: Name of JACK Client
     """
     cmd: list[str] = [
         "jacktrip",
         "--pingtoserver",
-        str(host),
+        str(server_host),
         "--receivechannels",
         str(receive_channels),
         "--sendchannels",
         str(send_channels),
         "--peerport",
-        str(port),
+        str(server_port),
         "--clientname",
         client_name,
         "--remotename",
         remote_name,
         "--nojackportsconnect",
+        "--udprt",
     ]
-
-    if udprt:
-        cmd.append("--udprt")
-
     await _Program(cmd).run_forever()
 
 
@@ -135,17 +128,17 @@ _reserved_send_ports: set[_BridgePort] = set()
 _reserved_receive_ports: set[_BridgePort] = set()
 
 
-def _get_first_available_bridge_port(set_: set[_BridgePort]) -> int:  # type: ignore
+def _get_first_available_port(reserved_ports: set[_BridgePort]) -> int:  # type: ignore
     for idx in itertools.count(start=1):
-        if idx in set_:
+        if idx in reserved_ports:
             continue
-        set_.add(idx)
+        reserved_ports.add(idx)
         return idx
 
 
-def get_first_available_bridge_send_port():
-    return _get_first_available_bridge_port(_reserved_send_ports)
+def get_first_available_send_port():
+    return _get_first_available_port(_reserved_send_ports)
 
 
-def get_first_available_bridge_receive_port():
-    return _get_first_available_bridge_port(_reserved_receive_ports)
+def get_first_available_receive_port():
+    return _get_first_available_port(_reserved_receive_ports)

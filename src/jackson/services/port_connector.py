@@ -1,25 +1,22 @@
 import asyncio
-from typing import Any, Callable, Coroutine, Literal
+from typing import Any, Callable, Coroutine
 
 import asyncer
 import jack
 from pydantic import BaseModel
 
 from jackson.logging import get_configured_logger
+from jackson.services import jacktrip
 from jackson.services.jack_client import JackClient
-from jackson.services.jacktrip import (
-    get_first_available_bridge_receive_port,
-    get_first_available_bridge_send_port,
-)
 from jackson.services.messaging.client import MessagingClient
-from jackson.services.models import PortName
+from jackson.services.models import ClientShould, PortName
 from jackson.settings import ClientPorts
 
 log = get_configured_logger(__name__, "PortConnector")
 
 
 class PortConnection(BaseModel, frozen=True):
-    client_should: Literal["send", "receive"]
+    client_should: ClientShould
     source: PortName
     local_bridge: PortName
     remote_bridge: PortName
@@ -61,7 +58,7 @@ class PortConnector:
         self, connections: list[PortConnection], send_ports: dict[int, int]
     ):
         for source_idx, destination_idx in send_ports.items():
-            bridge_idx = get_first_available_bridge_send_port()
+            bridge_idx = jacktrip.get_first_available_send_port()
             conn = PortConnection(
                 client_should="send",
                 source=PortName(client="system", type="capture", idx=source_idx),
@@ -79,7 +76,7 @@ class PortConnector:
         self, connections: list[PortConnection], receive_ports: dict[int, int]
     ):
         for destination_idx, source_idx in receive_ports.items():
-            bridge_idx = get_first_available_bridge_receive_port()
+            bridge_idx = jacktrip.get_first_available_receive_port()
             conn = PortConnection(
                 client_should="receive",
                 source=PortName(client="system", type="capture", idx=source_idx),
@@ -112,7 +109,7 @@ class PortConnector:
         )
 
         local_source, local_destination = connection.get_local_connection()
-        self.jack_client.connect(str(local_source), str(local_destination))
+        self.jack_client.connect(local_source, local_destination)
 
     def port_registration_callback(self, port: jack.Port, register: bool):
         port_name = port.name

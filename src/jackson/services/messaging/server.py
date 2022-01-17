@@ -1,6 +1,6 @@
 import signal
 from functools import lru_cache
-from typing import Any, Literal, cast
+from typing import Any, cast
 
 import anyio
 import jack
@@ -12,6 +12,7 @@ import jack_server
 from jackson.logging import get_configured_logger
 from jackson.services.jack_client import JackClient
 from jackson.services.models import (
+    ClientShould,
     ConnectResponse,
     InitResponse,
     PlaybackPortAlreadyHasConnections,
@@ -28,11 +29,6 @@ for logger_name in ("uvicorn.error", "uvicorn.access"):
     get_configured_logger(logger_name, "HttpServer")
 
 
-class StructuredDetail(BaseModel):
-    message: str
-    data: BaseModel | None
-
-
 class StructuredHTTPException(HTTPException):
     def __init__(
         self,
@@ -43,7 +39,7 @@ class StructuredHTTPException(HTTPException):
     ) -> None:
         super().__init__(
             status_code=status_code,
-            detail=StructuredDetail(message=message, data=data).dict(),
+            detail={"message": message, "data": data},
             headers=headers,
         )
 
@@ -77,7 +73,7 @@ def connect(
     jack_client: JackClient = Depends(get_jack_client),
     source: PortName,
     destination: PortName,
-    client_should: Literal["send", "receive"] = Body(...),
+    client_should: ClientShould = Body(...),
 ):
     # TODO: Validate source and destination
     get_port_or_raise(jack_client, type="source", name=source)
@@ -96,7 +92,7 @@ def connect(
             ),
         )
 
-    jack_client.connect(str(source), str(destination))
+    jack_client.connect(source, destination)
     return ConnectResponse(source=source, destination=destination)
 
 
