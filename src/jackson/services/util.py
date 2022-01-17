@@ -1,14 +1,36 @@
 import contextlib
 import shlex
+from functools import partial
 from typing import Callable
 
 import anyio
 import asyncer
+import rich
+import rich.console
 import typer
 from anyio.abc import ByteReceiveStream, Process
 from anyio.streams.text import TextReceiveStream
+from rich.style import Style
 
 _available_colors: set[str] = set()
+
+# console = rich.console.Console()
+
+
+# def get_proc_title(proc: str):
+#     global _available_colors
+#     if not _available_colors:
+#         _available_colors = {
+#             "red",
+#             "green",
+#             "yellow",
+#             "magenta",
+#             "cyan",
+#             "white",
+#         }
+
+#     color = _available_colors.pop()
+#     return rf"[{color} bold]\[{proc}][/{color} bold]"
 
 
 def _get_random_color():
@@ -41,6 +63,9 @@ def generate_output_formatters(proc: str):
 def generate_stream_handlers(
     proc: str,
 ):  # TODO: Split concepts of colored output and stream handlers
+    console = rich.console.Console(log_path=False, log_time_format=f"[%X] [{proc}]")
+    return console.log, partial(console.log, style=Style(bold=True))
+    # return partial(console.log, proc_title), partial(console.log, proc_title)
     stdout_formatter, stderr_formatter = generate_output_formatters(proc)
 
     def stdout_handler(message: str):
