@@ -1,5 +1,5 @@
 from ipaddress import IPv4Address
-from typing import Any
+from typing import Any, Literal
 
 import httpx
 from pydantic import AnyHttpUrl, BaseModel
@@ -54,81 +54,25 @@ class MessagingClient:
         if "detail" not in data:
             return
 
-        resp = self.exception_handlers.get(data["detail"]["message"])
-        if resp is None:
+        res = self.exception_handlers.get(data["detail"]["message"])
+        if res is None:
             raise NotImplementedError
 
-        name, model = resp
+        name, model = res
         raise build_exception(name=name, detail=data["detail"], data_model=model)
 
-    async def connect_send(
-        self, client_name: str, bridge_port_idx: int, server_port_idx: int
+    async def connect(
+        self,
+        source: PortName,
+        destination: PortName,
+        client_should: Literal["send", "receive"],
     ):
-        """
-        CONFIG
-        send:
-            3: 2
-
-        ON CLIENT
-        system:capture_3 -> JackTrip:send_2
-
-        ON SERVER
-        Lev:receive_2 -> system:playback_2
-        """
-        # TODO:
-        # It is really uneffecient to use virtual send ports same as on server
-        # Because you can't tell JackTrip which ports to send
-        # You would have to send all channels up to max index
-        # For example, if you send channel 20, you would have to send 20 channels.
-        """
-        send:
-            - local: 3
-              bridge: 1
-              mixer: 20
-
-        ON CLIENT
-        system:capture_3 -> JackTrip:send_1
-
-        ON SERVER
-        Lev:receive_2 -> system:playback_20
-
-        """
-        response = await self.client.put(  # type: ignore
-            "/connect/send",
-            params={
-                "client_name": client_name,
-                "bridge_port_idx": bridge_port_idx,
-                "server_port_idx": server_port_idx,
-            },
-        )
-        data = response.json()
-        self.handle_exceptions(data)
-
-        parsed_data = ConnectResponse(**data)
-        log.info(
-            f"Connected ports on server: {parsed_data.source} -> {parsed_data.destination}"
-        )
-
-    async def connect_receive(
-        self, client_name: str, bridge_port_idx: int, server_port_idx: int
-    ):
-        """
-        CONFIG
-        receive:
-            2: 3
-
-        ON CLIENT
-        JackTrip:receive_3 -> system:playback_2
-
-        ON SERVER
-        system:capture_3 -> Lev:send_3
-        """
         response = await self.client.patch(  # type: ignore
-            "/connect/receive",
-            params={
-                "client_name": client_name,
-                "bridge_port_idx": bridge_port_idx,
-                "server_port_idx": server_port_idx,
+            "/connect",
+            json={
+                "source": source.dict(),
+                "destination": destination.dict(),
+                "client_should": client_should,
             },
         )
         data = response.json()
@@ -138,16 +82,3 @@ class MessagingClient:
         log.info(
             f"Connected ports on server: {parsed_data.source} -> {parsed_data.destination}"
         )
-
-    async def connect(self, client_name: str, source: PortName, destination: PortName):
-        if source.client == "system":
-            return await self.connect_send(
-                client_name=client_name, destination_idx=destination.idx
-            )
-
-        elif destination.client == "system":
-            return await self.connect_receive(
-                client_name=client_name, source_idx=source.idx
-            )
-
-        raise NotImplementedError

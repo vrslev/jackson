@@ -1,11 +1,11 @@
 import signal
 from functools import lru_cache
-from typing import Any, cast
+from typing import Any, Literal, cast
 
 import anyio
 import jack
 import uvicorn  # type: ignore
-from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi import Body, Depends, FastAPI, HTTPException, status
 from pydantic import BaseModel
 
 import jack_server
@@ -62,13 +62,6 @@ def init(client: JackClient = Depends(get_jack_client)):
     return InitResponse(inputs=len(inputs), outputs=len(outputs), rate=rate)
 
 
-def check_client_name_not_system(client_name: str):
-    if client_name == "system":
-        raise StructuredHTTPException(
-            status.HTTP_400_BAD_REQUEST, 'Client name can\'t be "system"'
-        )
-
-
 def get_port_or_raise(jack_client: JackClient, type: PortDirectionType, name: PortName):
     try:
         return jack_client.get_port_by_name(str(name))
@@ -78,60 +71,33 @@ def get_port_or_raise(jack_client: JackClient, type: PortDirectionType, name: Po
         )
 
 
-def _connect_ports(jack_client: JackClient, source: PortName, destination: PortName):
-    jack_client.connect(str(source), str(destination))
-    log.info(f"Connected ports: {source} -> {destination}")
-    return ConnectResponse(source=source, destination=destination)
-
-
-@app.put("/connect/send")
-def connect_send(
+@app.patch("/connect")
+def connect(
     *,
     jack_client: JackClient = Depends(get_jack_client),
-    client_name: str,
-    bridge_port_idx: int,
-    server_port_idx: int,
+    source: PortName,
+    destination: PortName,
+    client_should: Literal["send", "receive"] = Body(...),
 ):
-    # TO mixer
-    check_client_name_not_system(client_name)
-    source_name = PortName(client=client_name, type="receive", idx=bridge_port_idx)
-    get_port_or_raise(jack_client, type="source", name=source_name)
-
-    destination_name = PortName(client="system", type="playback", idx=server_port_idx)
-    destination = get_port_or_raise(
-        jack_client, type="destination", name=destination_name
+    # TODO: Validate source and destination
+    get_port_or_raise(jack_client, type="source", name=source)
+    destination_port = get_port_or_raise(
+        jack_client, type="destination", name=destination
     )
 
-    if connections := jack_client.get_all_connections(destination):
+    if client_should == "send" and (
+        connections := jack_client.get_all_connections(destination_port)
+    ):
         raise StructuredHTTPException(
             status.HTTP_409_CONFLICT,
             message="Port already has connections",
             data=PlaybackPortAlreadyHasConnections(
-                port_name=destination_name,
-                connection_names=[p.name for p in connections],
+                port_name=destination, connection_names=[p.name for p in connections]
             ),
         )
-    return _connect_ports(jack_client, source_name, destination_name)
 
-
-@app.patch("/connect/receive")
-def connect_receive(
-    *,
-    jack_client: JackClient = Depends(get_jack_client),
-    client_name: str,
-    bridge_port_idx: int,
-    server_port_idx: int,
-):
-    # FROM mixer
-    check_client_name_not_system(client_name)
-
-    source_name = PortName(client="system", type="capture", idx=server_port_idx)
-    get_port_or_raise(jack_client, type="source", name=source_name)
-
-    destination_name = PortName(client=client_name, type="send", idx=bridge_port_idx)
-    get_port_or_raise(jack_client, type="destination", name=destination_name)
-
-    return _connect_ports(jack_client, source_name, destination_name)
+    jack_client.connect(str(source), str(destination))
+    return ConnectResponse(source=source, destination=destination)
 
 
 class MessagingServer(uvicorn.Server):

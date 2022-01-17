@@ -106,7 +106,9 @@ class PortConnector:
 
         remote_source, remote_destination = connection.get_remote_connection()
         await self.messaging_client.connect(
-            self.client_name, remote_source, remote_destination
+            source=remote_source,
+            destination=remote_destination,
+            client_should=connection.client_should,
         )
 
         local_source, local_destination = connection.get_local_connection()
