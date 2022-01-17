@@ -1,5 +1,5 @@
 from ipaddress import IPv4Address
-from typing import IO, cast
+from typing import IO
 
 import yaml
 from pydantic import BaseModel, BaseSettings
@@ -59,7 +59,3 @@ class ClientSettings(_YamlBaseSettings):
     audio: _ClientAudio
     server: _ClientServer
     ports: ClientPorts
-
-
-server_settings = cast(ServerSettings, None)
-client_settings = cast(ClientSettings, None)

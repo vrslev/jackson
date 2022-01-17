@@ -1,6 +1,6 @@
 import signal
 from functools import lru_cache
-from typing import Any
+from typing import Any, cast
 
 import anyio
 import jack
@@ -8,6 +8,7 @@ import uvicorn  # type: ignore
 from fastapi import Depends, FastAPI, HTTPException, status
 from pydantic import BaseModel
 
+import jack_server
 from jackson.logging import get_configured_logger
 from jackson.services.jack_client import JackClient
 from jackson.services.models import (
@@ -54,11 +55,9 @@ def get_jack_client():
 
 @app.get("/init", response_model=InitResponse)
 def init(client: JackClient = Depends(get_jack_client)):
-    from jackson.settings import server_settings
-
     inputs = client.get_ports("system:.*", is_input=True)
     outputs = client.get_ports("system:.*", is_output=True)
-    rate = server_settings.audio.sample_rate
+    rate = cast(jack_server.SampleRate, client.samplerate)
 
     return InitResponse(inputs=len(inputs), outputs=len(outputs), rate=rate)
 
