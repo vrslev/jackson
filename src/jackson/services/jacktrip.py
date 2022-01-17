@@ -99,9 +99,8 @@ async def start_client(
 ):
     """
     Args:
-
-    remote_name — The name by which a server identifies a client
-    client_name — The name of JACK Client
+        remote_name — The name by which a server identifies a client
+        client_name — The name of JACK Client
     """
     cmd: list[str] = [
         "jacktrip",
@@ -124,3 +123,14 @@ async def start_client(
         cmd.append("--udprt")
 
     await _Program(cmd).run_forever()
+
+
+# def resolve_number_of_send_channels(send_ports: dict[int, int]):
+#     return max(send_ports.keys()) if send_ports else 0
+
+
+_JackTripPort = int
+_LocalPort = int
+_RemotePort = int
+
+_reserved_ports: dict[_JackTripPort, tuple[_LocalPort, _RemotePort]] = {}

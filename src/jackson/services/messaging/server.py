@@ -89,14 +89,15 @@ def connect_send(
     *,
     jack_client: JackClient = Depends(get_jack_client),
     client_name: str,
-    port_idx: int,
+    bridge_port_idx: int,
+    server_port_idx: int,
 ):
     # TO mixer
     check_client_name_not_system(client_name)
-    source_name = PortName(client=client_name, type="receive", idx=port_idx)
+    source_name = PortName(client=client_name, type="receive", idx=bridge_port_idx)
     get_port_or_raise(jack_client, type="source", name=source_name)
 
-    destination_name = PortName(client="system", type="playback", idx=port_idx)
+    destination_name = PortName(client="system", type="playback", idx=server_port_idx)
     destination = get_port_or_raise(
         jack_client, type="destination", name=destination_name
     )
@@ -118,15 +119,16 @@ def connect_receive(
     *,
     jack_client: JackClient = Depends(get_jack_client),
     client_name: str,
-    port_idx: int,
+    bridge_port_idx: int,
+    server_port_idx: int,
 ):
     # FROM mixer
     check_client_name_not_system(client_name)
 
-    source_name = PortName(client="system", type="capture", idx=port_idx)
+    source_name = PortName(client="system", type="capture", idx=server_port_idx)
     get_port_or_raise(jack_client, type="source", name=source_name)
 
-    destination_name = PortName(client=client_name, type="send", idx=port_idx)
+    destination_name = PortName(client=client_name, type="send", idx=bridge_port_idx)
     get_port_or_raise(jack_client, type="destination", name=destination_name)
 
     return _connect_ports(jack_client, source_name, destination_name)

@@ -61,7 +61,9 @@ class MessagingClient:
         name, model = resp
         raise build_exception(name=name, detail=data["detail"], data_model=model)
 
-    async def connect_send(self, client_name: str, destination_idx: int):
+    async def connect_send(
+        self, client_name: str, bridge_port_idx: int, server_port_idx: int
+    ):
         """
         CONFIG
         send:
@@ -73,9 +75,31 @@ class MessagingClient:
         ON SERVER
         Lev:receive_2 -> system:playback_2
         """
+        # TODO:
+        # It is really uneffecient to use virtual send ports same as on server
+        # Because you can't tell JackTrip which ports to send
+        # You would have to send all channels up to max index
+        # For example, if you send channel 20, you would have to send 20 channels.
+        """
+        send:
+            - local: 3
+              bridge: 1
+              mixer: 20
+
+        ON CLIENT
+        system:capture_3 -> JackTrip:send_1
+
+        ON SERVER
+        Lev:receive_2 -> system:playback_20
+
+        """
         response = await self.client.put(  # type: ignore
             "/connect/send",
-            params={"client_name": client_name, "port_idx": destination_idx},
+            params={
+                "client_name": client_name,
+                "bridge_port_idx": bridge_port_idx,
+                "server_port_idx": server_port_idx,
+            },
         )
         data = response.json()
         self.handle_exceptions(data)
@@ -85,7 +109,9 @@ class MessagingClient:
             f"Connected ports on server: {parsed_data.source} -> {parsed_data.destination}"
         )
 
-    async def connect_receive(self, client_name: str, source_idx: int):
+    async def connect_receive(
+        self, client_name: str, bridge_port_idx: int, server_port_idx: int
+    ):
         """
         CONFIG
         receive:
@@ -99,7 +125,11 @@ class MessagingClient:
         """
         response = await self.client.patch(  # type: ignore
             "/connect/receive",
-            params={"client_name": client_name, "port_idx": source_idx},
+            params={
+                "client_name": client_name,
+                "bridge_port_idx": bridge_port_idx,
+                "server_port_idx": server_port_idx,
+            },
         )
         data = response.json()
         self.handle_exceptions(data)
