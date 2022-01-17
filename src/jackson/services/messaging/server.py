@@ -12,7 +12,7 @@ from jackson.services.jack_client import JackClient
 from jackson.services.models import (
     ConnectResponse,
     InitResponse,
-    PlaybackPortAlreadyHasConnectionsData,
+    PlaybackPortAlreadyHasConnections,
     PortDirectionType,
     PortNotFound,
     StructuredHTTPException,
@@ -75,7 +75,7 @@ def connect_send(
         raise StructuredHTTPException(
             status.HTTP_409_CONFLICT,
             message="Port already has connections",
-            data=PlaybackPortAlreadyHasConnectionsData(
+            data=PlaybackPortAlreadyHasConnections(
                 port_name=destination_name,
                 connection_names=[p.name for p in connections],
             ),

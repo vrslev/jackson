@@ -27,7 +27,7 @@ class StructuredHTTPException(HTTPException):
     ) -> None:
         super().__init__(
             status_code=status_code,
-            detail=StructuredDetail(message=message, data=data),
+            detail=StructuredDetail(message=message, data=data).dict(),
             headers=headers,
         )
 
@@ -40,7 +40,7 @@ class PortNotFound(BaseModel):
     name: str
 
 
-class PlaybackPortAlreadyHasConnectionsData(BaseModel):
+class PlaybackPortAlreadyHasConnections(BaseModel):
     port_name: str
     connection_names: list[str]
 
