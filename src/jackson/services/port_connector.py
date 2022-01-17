@@ -81,7 +81,7 @@ class PortConnector:
         self.jack_client.activate()
 
     def deinit(self):
-        self.jack_client.deactivate()
+        self.jack_client.deactivate()  # TODO: Handle error on /init: AttributeError: 'PortConnector' object has no attribute 'jack_client'
         self.jack_client.block_streams()
 
     async def start_queue(self):

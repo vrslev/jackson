@@ -5,82 +5,23 @@ from typing import Callable
 
 import anyio
 import asyncer
-import rich
-import rich.console
 import typer
 from anyio.abc import ByteReceiveStream, Process
 from anyio.streams.text import TextReceiveStream
+from rich.console import Console
 from rich.style import Style
 
-_available_colors: set[str] = set()
 
-# console = rich.console.Console()
-
-
-# def get_proc_title(proc: str):
-#     global _available_colors
-#     if not _available_colors:
-#         _available_colors = {
-#             "red",
-#             "green",
-#             "yellow",
-#             "magenta",
-#             "cyan",
-#             "white",
-#         }
-
-#     color = _available_colors.pop()
-#     return rf"[{color} bold]\[{proc}][/{color} bold]"
-
-
-def _get_random_color():
-    global _available_colors
-
-    if not _available_colors:
-        _available_colors = {
-            typer.colors.GREEN,
-            typer.colors.YELLOW,
-            typer.colors.BLUE,
-            typer.colors.MAGENTA,
-            typer.colors.CYAN,
-        }
-
-    return _available_colors.pop()
-
-
-def generate_output_formatters(proc: str):
-    color = _get_random_color()
-
-    def stdout_formatter(message: str):
-        return typer.style(f"[{proc}] {message}", fg=color)
-
-    def stderr_formatter(message: str):
-        return typer.style(f"[{proc}] {message}", fg=color, bold=True)
-
-    return stdout_formatter, stderr_formatter
-
-
-def generate_stream_handlers(
-    proc: str,
-):  # TODO: Split concepts of colored output and stream handlers
-    console = rich.console.Console(log_path=False, log_time_format=f"[%X] [{proc}]")
+def generate_stream_handlers(proc: str):
+    console = Console(log_path=False, log_time_format=f"[%X] [{proc}]")
     return console.log, partial(console.log, style=Style(bold=True))
-    # return partial(console.log, proc_title), partial(console.log, proc_title)
-    stdout_formatter, stderr_formatter = generate_output_formatters(proc)
-
-    def stdout_handler(message: str):
-        typer.secho(stdout_formatter(message))  # type: ignore
-
-    def stderr_handler(message: str):
-        typer.secho(stderr_formatter(message))  # type: ignore
-
-    return stdout_handler, stderr_handler
 
 
 class Program:
     def __init__(self, cmd: list[str]) -> None:
         self.cmd = cmd
         self.proc = cmd[0]
+        self._info, self._err = generate_stream_handlers(self.proc)
 
     async def _restream_stream(
         self, stream: ByteReceiveStream | None, handler: Callable[[str], None]
@@ -94,7 +35,6 @@ class Program:
 
     @contextlib.asynccontextmanager
     async def _start(self):
-        self._info, self._err = generate_stream_handlers(self.proc)
         self._info(f"Starting {self.proc}... ({shlex.join(self.cmd)})")
 
         async with await anyio.open_process(self.cmd) as process:  # type: ignore

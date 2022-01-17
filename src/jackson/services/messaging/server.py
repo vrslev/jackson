@@ -4,7 +4,6 @@ from typing import cast
 
 import anyio
 import jack
-import typer
 import uvicorn  # type: ignore
 from fastapi import Depends, FastAPI, status
 from rich.logging import RichHandler
@@ -19,21 +18,13 @@ from jackson.services.messaging.models import (
     PortType,
     StructuredHTTPException,
 )
-from jackson.services.util import generate_output_formatters
+from jackson.services.util import generate_stream_handlers
 
 app = FastAPI()
 
-_info, _err = generate_output_formatters("messaging-server")
-
 
 async def get_jack_client():
-    def info_stream_handler(message: str):
-        typer.secho(_info(message))  # type: ignore
-
-    def error_stream_handler(message: str):
-        typer.secho(_err(message))  # type: ignore
-
-    client = JackClient("MessagingServer", info_stream_handler, error_stream_handler)
+    client = JackClient("MessagingServer", *generate_stream_handlers("messaging"))
     yield client
     client.block_streams()
 
@@ -122,7 +113,7 @@ class MessagingServer(uvicorn.Server):
         logging.basicConfig(
             level="INFO",
             format="%(message)s",
-            datefmt="[%X] [server]",
+            datefmt="[%X] [messaging]",
             handlers=[RichHandler()],
         )
 
