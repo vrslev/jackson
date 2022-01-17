@@ -51,3 +51,7 @@ class JackClient(jack.Client):
     def deactivate(self, ignore_errors: bool = True) -> None:
         if self._activated:
             super().deactivate(ignore_errors=ignore_errors)
+
+    def connect(self, source: str | jack.Port, destination: str | jack.Port) -> None:
+        super().connect(source, destination)
+        log.info(f"Connected ports: {source} -> {destination}")

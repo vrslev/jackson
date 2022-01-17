@@ -1,11 +1,16 @@
 import asyncio
-from typing import Any, Callable, Coroutine
+from typing import Any, Callable, Coroutine, Literal
 
 import asyncer
 import jack
+from pydantic import BaseModel
 
 from jackson.logging import get_configured_logger
 from jackson.services.jack_client import JackClient
+from jackson.services.jacktrip import (
+    get_first_available_bridge_receive_port,
+    get_first_available_bridge_send_port,
+)
 from jackson.services.messaging.client import MessagingClient
 from jackson.services.models import PortName
 from jackson.settings import ClientPorts
@@ -13,13 +18,32 @@ from jackson.settings import ClientPorts
 log = get_configured_logger(__name__, "PortConnector")
 
 
+class PortConnection(BaseModel, frozen=True):
+    client_should: Literal["send", "receive"]
+    source: PortName
+    local_bridge: PortName
+    remote_bridge: PortName
+    destination: PortName
+
+    def get_local_connection(self):
+        if self.client_should == "send":
+            return self.source, self.local_bridge
+        else:
+            return self.local_bridge, self.destination
+
+    def get_remote_connection(self):
+        if self.client_should == "send":
+            return self.remote_bridge, self.destination
+        else:
+            return self.source, self.remote_bridge
+
+
 class PortConnector:
     def __init__(
         self, client_name: str, ports: ClientPorts, messaging_client: MessagingClient
     ) -> None:
         self.client_name = client_name
-        self.set_send_ports(ports.send)
-        self._set_receive_ports(ports.receive)
+        self.init_connections(ports)
 
         self.callback_queue: asyncio.Queue[
             Callable[[], Coroutine[Any, Any, None]]
@@ -27,55 +51,82 @@ class PortConnector:
         self.messaging_client = messaging_client
         self.jack_client = None
 
-    def set_send_ports(self, send_ports: dict[int, int]):
-        self.send_ports: dict[PortName, PortName] = {}
+    def init_connections(self, ports_from_config: ClientPorts):
+        connections: list[PortConnection] = []
+        self.resolve_send_ports(connections, ports_from_config.send)
+        self.resolve_receive_ports(connections, ports_from_config.receive)
+        self.build_connection_map(connections)
 
-        for local_source_idx, remote_destination_idx in send_ports.items():
-            src = PortName(client="system", type="capture", idx=local_source_idx)
-            dest = PortName(client="JackTrip", type="send", idx=remote_destination_idx)
-            self.send_ports[src] = dest
+    def resolve_send_ports(
+        self, connections: list[PortConnection], send_ports: dict[int, int]
+    ):
+        for source_idx, destination_idx in send_ports.items():
+            bridge_idx = get_first_available_bridge_send_port()
+            conn = PortConnection(
+                client_should="send",
+                source=PortName(client="system", type="capture", idx=source_idx),
+                local_bridge=PortName(client="JackTrip", type="send", idx=bridge_idx),
+                remote_bridge=PortName(
+                    client=self.client_name, type="receive", idx=bridge_idx
+                ),
+                destination=PortName(
+                    client="system", type="playback", idx=destination_idx
+                ),
+            )
+            connections.append(conn)
 
-        self.reverse_send_ports = {v: k for k, v in self.send_ports.items()}
+    def resolve_receive_ports(
+        self, connections: list[PortConnection], receive_ports: dict[int, int]
+    ):
+        for destination_idx, source_idx in receive_ports.items():
+            bridge_idx = get_first_available_bridge_receive_port()
+            conn = PortConnection(
+                client_should="receive",
+                source=PortName(client="system", type="capture", idx=source_idx),
+                remote_bridge=PortName(
+                    client=self.client_name, type="send", idx=bridge_idx
+                ),
+                local_bridge=PortName(
+                    client="JackTrip", type="receive", idx=bridge_idx
+                ),
+                destination=PortName(
+                    client="system", type="playback", idx=destination_idx
+                ),
+            )
+            connections.append(conn)
 
-    def _set_receive_ports(self, receive_ports: dict[int, int]):
-        self.receive_ports: dict[PortName, PortName] = {}
+    def build_connection_map(self, connections: list[PortConnection]):
+        RegisteredJackTripPort = str
+        self.connection_map: dict[RegisteredJackTripPort, PortConnection] = {}
+        for conn in connections:
+            self.connection_map[str(conn.local_bridge)] = conn
 
-        for local_destination_idx, remote_source_idx in receive_ports.items():
-            src = PortName(client="JackTrip", type="receive", idx=local_destination_idx)
-            dest = PortName(client="system", type="playback", idx=remote_source_idx)
-            self.receive_ports[src] = dest
-
-    async def _connect_ports(self, source: PortName, destination: PortName):
+    async def _connect_ports(self, connection: PortConnection):
         assert self.jack_client
-        await self.messaging_client.connect(self.client_name, source, destination)
-        self.jack_client.connect(str(source), str(destination))
-        log.info(f"Connected ports: {source} -> {destination}")
 
-    def _resolve_source_destination(self, port: jack.Port):
-        port_name = PortName.parse(port.name)
+        remote_source, remote_destination = connection.get_remote_connection()
+        await self.messaging_client.connect(
+            self.client_name, remote_source, remote_destination
+        )
 
-        if port.is_input and port_name in self.reverse_send_ports:
-            source = self.reverse_send_ports[port_name]
-            destination = port_name
-            return source, destination
-
-        elif port.is_output and port_name in self.receive_ports:
-            source = port_name
-            destination = self.receive_ports[port_name]
-            return source, destination
+        local_source, local_destination = connection.get_local_connection()
+        self.jack_client.connect(str(local_source), str(local_destination))
 
     def port_registration_callback(self, port: jack.Port, register: bool):
+        port_name = port.name
         if not register:
-            log.info(f"Unregistered port: {port.name}")
+            log.info(f"Unregistered port: {port_name}")
             return  # We don't want to do anything if port unregistered
 
-        log.info(f"Registered port: {port.name}")
-        resp = self._resolve_source_destination(port)
-        if not resp:
+        log.info(f"Registered port: {port_name}")
+
+        if port_name not in self.connection_map:
             return
 
+        conn = self.connection_map[port_name]
+
         async def task():
-            await self._connect_ports(*resp)
+            await self._connect_ports(conn)
 
         self.callback_queue.put_nowait(task)
 

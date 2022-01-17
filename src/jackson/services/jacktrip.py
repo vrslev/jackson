@@ -1,4 +1,5 @@
 import contextlib
+import itertools
 import shlex
 from ipaddress import IPv4Address
 from typing import Callable
@@ -129,8 +130,22 @@ async def start_client(
 #     return max(send_ports.keys()) if send_ports else 0
 
 
-_JackTripPort = int
-_LocalPort = int
-_RemotePort = int
+_BridgePort = int
+_reserved_send_ports: set[_BridgePort] = set()
+_reserved_receive_ports: set[_BridgePort] = set()
 
-_reserved_ports: dict[_JackTripPort, tuple[_LocalPort, _RemotePort]] = {}
+
+def _get_first_available_bridge_port(set_: set[_BridgePort]) -> int:  # type: ignore
+    for idx in itertools.count(start=1):
+        if idx in set_:
+            continue
+        set_.add(idx)
+        return idx
+
+
+def get_first_available_bridge_send_port():
+    return _get_first_available_bridge_port(_reserved_send_ports)
+
+
+def get_first_available_bridge_receive_port():
+    return _get_first_available_bridge_port(_reserved_receive_ports)
