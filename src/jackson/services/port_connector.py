@@ -12,7 +12,10 @@ from jackson.settings import ClientPorts
 
 
 class PortConnector:
-    def __init__(self, ports: ClientPorts, messaging_client: MessagingClient) -> None:
+    def __init__(
+        self, client_name: str, ports: ClientPorts, messaging_client: MessagingClient
+    ) -> None:
+        self.client_name = client_name
         self.set_send_ports(ports.send)
         self._set_receive_ports(ports.receive)
 
@@ -28,9 +31,7 @@ class PortConnector:
 
         for local_source_idx, remote_destination_idx in send_ports.items():
             src = PortName(client="system", type="capture", idx=local_source_idx)
-            # src = f"system:capture_{local_source_idx}"
             dest = PortName(client="JackTrip", type="send", idx=remote_destination_idx)
-            # dest = f"JackTrip:send_{remote_destination_idx}"
             self.send_ports[src] = dest
 
         self.reverse_send_ports = {v: k for k, v in self.send_ports.items()}
@@ -41,13 +42,11 @@ class PortConnector:
         for local_destination_idx, remote_source_idx in receive_ports.items():
             src = PortName(client="JackTrip", type="receive", idx=local_destination_idx)
             dest = PortName(client="system", type="playback", idx=remote_source_idx)
-            # src = f"JackTrip:receive_{local_destination_idx}"
-            # dest = f"system:playback_{remote_source_idx}"
             self.receive_ports[src] = dest
 
     async def _connect_ports(self, source: PortName, destination: PortName):
         assert self.jack_client
-        await self.messaging_client.connect(source, destination)
+        await self.messaging_client.connect(self.client_name, source, destination)
         self.jack_client.connect(str(source), str(destination))
         self._info(f"Connected ports: {source} -> {destination}")
 

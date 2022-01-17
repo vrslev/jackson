@@ -59,15 +59,14 @@ def connect_send(
     *,
     jack_client: JackClient = Depends(get_jack_client),
     client_name: str,
-    client_port_number: int,
-    server_port_number: int,
+    port_idx: int,
 ):
     # TO mixer
     check_client_name_not_system(client_name)
-    source_name = f"{client_name}:receive_{client_port_number}"
+    source_name = f"{client_name}:receive_{port_idx}"
     source = get_port_or_raise(client=jack_client, type="source", name=source_name)
 
-    destination_name = f"system:playback_{server_port_number}"
+    destination_name = f"system:playback_{port_idx}"
     destination = get_port_or_raise(
         client=jack_client, type="destination", name=destination_name
     )
@@ -83,6 +82,7 @@ def connect_send(
         )
 
     jack_client.connect(source, destination)
+    logging.info(f"Connected ports: {source_name} -> {destination_name}")
     return ConnectResponse(source=source_name, destination=destination_name)
 
 

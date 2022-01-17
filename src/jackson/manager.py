@@ -68,7 +68,9 @@ class Client(_BaseManager):
             host=settings.server.host, port=settings.server.messaging_port
         )
         self.jack_server = None
-        self.port_connector = PortConnector(settings.ports, self.messaging_client)
+        self.port_connector = PortConnector(
+            settings.name, settings.ports, self.messaging_client
+        )
 
     def start_jack_server(self, rate: jack_server.SampleRate):
         self.jack_server = JackServer(

@@ -3,7 +3,7 @@ from ipaddress import IPv4Address
 import httpx
 from pydantic import AnyHttpUrl
 
-from jackson.services.models import InitResponse
+from jackson.services.models import ConnectResponse, InitResponse, PortName
 
 
 class MessagingClient:
@@ -15,8 +15,40 @@ class MessagingClient:
         response = await self.client.get("/init")  # type: ignore
         return InitResponse(**response.json())
 
-    # async def connect_receive(
-    #     self, client_name: str, client_port_number: int, server_port_number: int
-    # ):...
-    async def connect(self, source: str, destination: str):
-        print(source, destination)
+    async def connect_send(self, client_name: str, destination_idx: int):
+        """
+        CONFIG
+        ports:
+            send:
+                3: 2
+
+
+        ON CLIENT
+        system:capture_3 -> JackTrip:send_2
+
+        ON SERVER
+        JackTrip:receive_2 -> system:playback_2
+        """
+        response = await self.client.put(  # type: ignore
+            "/connect/send",
+            params={"client_name": client_name, "port_idx": destination_idx},
+        )
+        # print(response.json())
+        return ConnectResponse(**response.json())
+
+    async def connect_receive(
+        self, client_name: str, destination_idx: int
+    ) -> ConnectResponse:
+        raise NotImplementedError
+
+    async def connect(self, client_name: str, source: PortName, destination: PortName):
+        if source.client == "system":
+            return await self.connect_send(
+                client_name=client_name, destination_idx=destination.idx
+            )
+        elif destination.client == "system":
+            return
+            return await self.connect_receive(
+                client_name=client_name, destination_idx=destination.idx
+            )
+        raise NotImplementedError
