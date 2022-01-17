@@ -24,7 +24,7 @@ class JackClient(jack.Client):
             try:
                 self._info("Connecting to Jack...")
                 super().__init__(name=name, no_start_server=True)
-                self._err("Connected to Jack!")
+                self._info("Connected to Jack!")
                 break
             except jack.JackOpenError:
                 time.sleep(0.1)

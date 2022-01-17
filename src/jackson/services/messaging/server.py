@@ -1,6 +1,6 @@
 import logging
 import signal
-from typing import cast
+from functools import lru_cache
 
 import anyio
 import jack
@@ -8,7 +8,6 @@ import uvicorn  # type: ignore
 from fastapi import Depends, FastAPI, status
 from rich.logging import RichHandler
 
-import jack_server
 from jackson.services.jack_client import JackClient
 from jackson.services.messaging.models import (
     ConnectResponse,
@@ -23,17 +22,18 @@ from jackson.services.util import generate_stream_handlers
 app = FastAPI()
 
 
-async def get_jack_client():
-    client = JackClient("MessagingServer", *generate_stream_handlers("messaging"))
-    yield client
-    client.block_streams()
+@lru_cache
+def get_jack_client():
+    return JackClient("MessagingServer", *generate_stream_handlers("messaging"))
 
 
 @app.get("/init", response_model=InitResponse)
 def init(client: JackClient = Depends(get_jack_client)):
+    from jackson.settings import server_settings
+
     inputs = client.get_ports("system:.*", is_input=True)
     outputs = client.get_ports("system:.*", is_output=True)
-    rate = cast(jack_server.SampleRate, client.samplerate)  # NOPE TODO: From settings
+    rate = server_settings.audio.sample_rate
 
     return InitResponse(inputs=len(inputs), outputs=len(outputs), rate=rate)
 
