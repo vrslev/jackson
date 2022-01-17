@@ -137,14 +137,17 @@ class MessagingServer(uvicorn.Server):
         super().__init__(uvicorn.Config(app=app, workers=1, log_config=None))
         self.config.load()
         self.lifespan = self.config.lifespan_class(self.config)
+        self._started = False
 
     async def start(self):
+        self._started = True
         await self.startup()  # type: ignore
 
     async def stop(self):
-        self.should_exit = True
-        await self.main_loop()
-        await self.shutdown()
+        if self._started:
+            self.should_exit = True
+            await self.main_loop()
+            await self.shutdown()
 
 
 async def uvicorn_signal_handler(scope: anyio.CancelScope):
