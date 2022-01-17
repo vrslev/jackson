@@ -3,7 +3,7 @@ import logging
 import rich.traceback
 from rich.logging import RichHandler
 
-rich.traceback.install()
+rich.traceback.install(show_locals=True)
 logging.basicConfig(level=logging.INFO, handlers=[])
 
 
