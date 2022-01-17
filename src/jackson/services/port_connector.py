@@ -12,7 +12,6 @@ from jackson.settings import ClientPorts
 
 class PortConnector:
     def __init__(self, ports: ClientPorts, messaging_client: MessagingClient) -> None:
-        self.ports = ports
         self.set_send_ports(ports.send)
         self._set_receive_ports(ports.receive)
 
@@ -31,6 +30,8 @@ class PortConnector:
             dest = f"JackTrip:send_{remote_destination_idx}"
             self.send_ports[src] = dest
 
+        self.reverse_send_ports = {v: k for k, v in self.send_ports.items()}
+
     def _set_receive_ports(self, receive_ports: dict[int, int]):
         self.receive_ports: dict[str, str] = {}
 
@@ -48,14 +49,14 @@ class PortConnector:
     def _resolve_source_destination(self, port: jack.Port):
         port_name = port.name
 
-        if port.is_input and port_name in self.receive_ports:
-            source = self.receive_ports[port_name]
+        if port.is_input and port_name in self.reverse_send_ports:
+            source = self.reverse_send_ports[port_name]
             destination = port_name
             return source, destination
 
-        elif port.is_output and port_name in self.send_ports:
+        elif port.is_output and port_name in self.receive_ports:
             source = port_name
-            destination = self.send_ports[port_name]
+            destination = self.receive_ports[port_name]
             return source, destination
 
     def port_registration_callback(self, port: jack.Port, register: bool):
