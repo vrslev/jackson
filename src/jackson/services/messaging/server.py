@@ -1,15 +1,13 @@
 import logging
 import signal
-from copy import copy
 from typing import cast
 
 import anyio
 import jack
 import typer
 import uvicorn  # type: ignore
-import uvicorn.logging  # type: ignore
 from fastapi import Depends, FastAPI, status
-from uvicorn.config import LOGGING_CONFIG  # type: ignore
+from rich.logging import RichHandler
 
 import jack_server
 from jackson.services.jack_client import JackClient
@@ -119,50 +117,16 @@ def connect_receive(
     return ConnectResponse(source=source_name, destination=destination_name)
 
 
-_level_name_colors = {
-    5: _info,
-    logging.DEBUG: _info,
-    logging.INFO: _info,
-    logging.WARNING: _info,
-    logging.ERROR: _err,
-    logging.CRITICAL: _err,
-}
-
-
-class _UvicornDefaultFormatter(uvicorn.logging.DefaultFormatter):
-    def formatMessage(self, record: logging.LogRecord) -> str:
-        recordcopy = copy(record)
-        func = _level_name_colors[recordcopy.levelno]
-        recordcopy.message = func(recordcopy.getMessage())
-        return super().formatMessage(recordcopy)
-
-
-class _UvicornAccessFormatter(uvicorn.logging.AccessFormatter):
-    def formatMessage(self, record: logging.LogRecord) -> str:
-        recordcopy = copy(record)
-        client_addr, method, full_path, http_version, status_code = recordcopy.args  # type: ignore
-        status_code = self.get_status_code(int(status_code))  # type: ignore
-        request_line = (
-            f"{client_addr} {method} {full_path} HTTP/{http_version} {status_code}"
-        )
-        func = _level_name_colors[recordcopy.levelno]
-        request_line = func(request_line)
-        recordcopy.__dict__["request_line"] = request_line
-        return uvicorn.logging.ColourizedFormatter.formatMessage(self, recordcopy)
-
-
-def configure_logging():
-    LOGGING_CONFIG["formatters"]["default"]["fmt"] = "%(message)s"
-    LOGGING_CONFIG["formatters"]["default"]["()"] = _UvicornDefaultFormatter
-    LOGGING_CONFIG["formatters"]["default"]["use_colors"] = False
-    LOGGING_CONFIG["formatters"]["access"]["fmt"] = "%(request_line)s"
-    LOGGING_CONFIG["formatters"]["access"]["()"] = _UvicornAccessFormatter
-
-
 class MessagingServer(uvicorn.Server):
     def __init__(self, app: FastAPI) -> None:
-        configure_logging()
-        super().__init__(uvicorn.Config(app=app, workers=1))
+        logging.basicConfig(
+            level="INFO",
+            format="%(message)s",
+            datefmt="[%X] [server]",
+            handlers=[RichHandler()],
+        )
+
+        super().__init__(uvicorn.Config(app=app, workers=1, log_config=None))
         self.config.load()
         self.lifespan = self.config.lifespan_class(self.config)
 
