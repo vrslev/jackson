@@ -13,8 +13,8 @@ from jackson.services.models import (
     ConnectResponse,
     InitResponse,
     PlaybackPortAlreadyHasConnectionsData,
+    PortDirectionType,
     PortNotFound,
-    PortType,
     StructuredHTTPException,
 )
 from jackson.services.util import generate_stream_handlers
@@ -45,7 +45,7 @@ def check_client_name_not_system(client_name: str):
         )
 
 
-def get_port_or_raise(client: JackClient, type: PortType, name: str):
+def get_port_or_raise(client: JackClient, type: PortDirectionType, name: str):
     try:
         return client.get_port_by_name(name)
     except jack.JackError:
