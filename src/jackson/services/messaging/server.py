@@ -1,11 +1,13 @@
 import logging
 import signal
 from functools import lru_cache
+from typing import Any
 
 import anyio
 import jack
 import uvicorn  # type: ignore
-from fastapi import Depends, FastAPI, status
+from fastapi import Depends, FastAPI, HTTPException, status
+from pydantic import BaseModel
 from rich.logging import RichHandler
 
 from jackson.services.jack_client import JackClient
@@ -16,11 +18,30 @@ from jackson.services.models import (
     PortDirectionType,
     PortName,
     PortNotFound,
-    StructuredHTTPException,
 )
 from jackson.services.util import generate_stream_handlers
 
 app = FastAPI()
+
+
+class StructuredDetail(BaseModel):
+    message: str
+    data: BaseModel | None
+
+
+class StructuredHTTPException(HTTPException):
+    def __init__(
+        self,
+        status_code: int,
+        message: str,
+        data: BaseModel | None = None,
+        headers: dict[str, Any] | None = None,
+    ) -> None:
+        super().__init__(
+            status_code=status_code,
+            detail=StructuredDetail(message=message, data=data).dict(),
+            headers=headers,
+        )
 
 
 @lru_cache
