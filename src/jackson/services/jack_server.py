@@ -1,9 +1,14 @@
 import typer
 
 import jack_server
-from jackson.logging import get_configured_logger, silent_jack_stream_handler
+from jackson.logging import (
+    JackServerFilter,
+    get_configured_logger,
+    silent_jack_stream_handler,
+)
 
 log = get_configured_logger(__name__, "JackServer")
+log.addFilter(JackServerFilter())
 
 
 class JackServer(jack_server.Server):

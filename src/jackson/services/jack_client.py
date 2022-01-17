@@ -3,9 +3,14 @@ import time
 import jack
 import typer
 
-from jackson.logging import get_configured_logger, silent_jack_stream_handler
+from jackson.logging import (
+    JackClientFilter,
+    get_configured_logger,
+    silent_jack_stream_handler,
+)
 
 log = get_configured_logger(__name__, "JackClient")
+log.addFilter(JackClientFilter())
 
 
 class JackClient(jack.Client):

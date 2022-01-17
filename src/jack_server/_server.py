@@ -132,7 +132,7 @@ class Server:
         self._opened = False
 
     def __del__(self):
-        if self._created:
+        if getattr(self, "_created", None):
             _lib.jackctl_server_destroy(self.ptr)
 
 
