@@ -3,7 +3,7 @@ from typing import Callable
 import typer
 
 import jack_server
-from jackson.services.util import generate_stream_handlers
+from jackson.logging import generate_stream_handlers
 
 
 class JackServer(jack_server.Server):

@@ -10,6 +10,7 @@ from fastapi import Depends, FastAPI, HTTPException, status
 from pydantic import BaseModel
 from rich.logging import RichHandler
 
+from jackson.logging import generate_stream_handlers
 from jackson.services.jack_client import JackClient
 from jackson.services.models import (
     ConnectResponse,
@@ -19,7 +20,6 @@ from jackson.services.models import (
     PortName,
     PortNotFound,
 )
-from jackson.services.util import generate_stream_handlers
 
 app = FastAPI()
 

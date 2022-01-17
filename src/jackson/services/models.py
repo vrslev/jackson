@@ -4,13 +4,6 @@ from pydantic import BaseModel
 
 import jack_server
 
-
-class InitResponse(BaseModel):
-    inputs: int
-    outputs: int
-    rate: jack_server.SampleRate
-
-
 PortType = Literal["send", "receive", "capture", "playback"]
 
 
@@ -32,6 +25,12 @@ class PortName(BaseModel, frozen=True):
         client = port_name.replace(f":{type_and_idx}", "")
 
         return cls(client=client, type=cast(PortType, type_), idx=int(idx))
+
+
+class InitResponse(BaseModel):
+    inputs: int
+    outputs: int
+    rate: jack_server.SampleRate
 
 
 PortDirectionType = Literal["source", "destination"]

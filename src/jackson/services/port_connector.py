@@ -4,10 +4,10 @@ from typing import Any, Callable, Coroutine
 import asyncer
 import jack
 
+from jackson.logging import generate_stream_handlers
 from jackson.services.jack_client import JackClient
 from jackson.services.messaging.client import MessagingClient
 from jackson.services.models import PortName
-from jackson.services.util import generate_stream_handlers
 from jackson.settings import ClientPorts
 
 
