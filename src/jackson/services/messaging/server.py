@@ -9,7 +9,7 @@ from fastapi import Depends, FastAPI, status
 from rich.logging import RichHandler
 
 from jackson.services.jack_client import JackClient
-from jackson.services.messaging.models import (
+from jackson.services.models import (
     ConnectResponse,
     InitResponse,
     PlaybackPortAlreadyHasConnectionsData,

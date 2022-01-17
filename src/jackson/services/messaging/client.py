@@ -3,7 +3,7 @@ from ipaddress import IPv4Address
 import httpx
 from pydantic import AnyHttpUrl
 
-from jackson.services.messaging.models import InitResponse
+from jackson.services.models import InitResponse
 
 
 class MessagingClient:
@@ -15,7 +15,8 @@ class MessagingClient:
         response = await self.client.get("/init")  # type: ignore
         return InitResponse(**response.json())
 
+    # async def connect_receive(
+    #     self, client_name: str, client_port_number: int, server_port_number: int
+    # ):...
     async def connect(self, source: str, destination: str):
-        # response = await self.client.get("/connect")
-        ...
-        # return ConnectResponse(**response.json())
+        print(source, destination)
