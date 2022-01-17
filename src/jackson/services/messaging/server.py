@@ -14,6 +14,7 @@ from jackson.services.models import (
     InitResponse,
     PlaybackPortAlreadyHasConnections,
     PortDirectionType,
+    PortName,
     PortNotFound,
     StructuredHTTPException,
 )
@@ -45,13 +46,19 @@ def check_client_name_not_system(client_name: str):
         )
 
 
-def get_port_or_raise(client: JackClient, type: PortDirectionType, name: str):
+def get_port_or_raise(jack_client: JackClient, type: PortDirectionType, name: PortName):
     try:
-        return client.get_port_by_name(name)
+        return jack_client.get_port_by_name(str(name))
     except jack.JackError:
         raise StructuredHTTPException(
             404, message="Port not found", data=PortNotFound(type=type, name=name)
         )
+
+
+def _connect_ports(jack_client: JackClient, source: PortName, destination: PortName):
+    jack_client.connect(str(source), str(destination))
+    logging.info(f"Connected ports: {source} -> {destination}")
+    return ConnectResponse(source=source, destination=destination)
 
 
 @app.put("/connect/send")
@@ -63,12 +70,12 @@ def connect_send(
 ):
     # TO mixer
     check_client_name_not_system(client_name)
-    source_name = f"{client_name}:receive_{port_idx}"
-    source = get_port_or_raise(client=jack_client, type="source", name=source_name)
+    source_name = PortName(client=client_name, type="receive", idx=port_idx)
+    get_port_or_raise(jack_client, type="source", name=source_name)
 
-    destination_name = f"system:playback_{port_idx}"
+    destination_name = PortName(client="system", type="playback", idx=port_idx)
     destination = get_port_or_raise(
-        client=jack_client, type="destination", name=destination_name
+        jack_client, type="destination", name=destination_name
     )
 
     if connections := jack_client.get_all_connections(destination):
@@ -80,10 +87,7 @@ def connect_send(
                 connection_names=[p.name for p in connections],
             ),
         )
-
-    jack_client.connect(source, destination)
-    logging.info(f"Connected ports: {source_name} -> {destination_name}")
-    return ConnectResponse(source=source_name, destination=destination_name)
+    return _connect_ports(jack_client, source_name, destination_name)
 
 
 @app.patch("/connect/receive")
@@ -91,21 +95,18 @@ def connect_receive(
     *,
     jack_client: JackClient = Depends(get_jack_client),
     client_name: str,
-    client_port_number: int,
-    server_port_number: int,
+    port_idx: int,
 ):
     # FROM mixer
     check_client_name_not_system(client_name)
-    source_name = f"system:capture_{server_port_number}"
-    source = get_port_or_raise(client=jack_client, type="source", name=source_name)
 
-    destination_name = f"{client_name}:playback_{client_port_number}"
-    destination = get_port_or_raise(
-        client=jack_client, type="destination", name=destination_name
-    )
+    source_name = PortName(client="system", type="capture", idx=port_idx)
+    get_port_or_raise(jack_client, type="source", name=source_name)
 
-    jack_client.connect(source, destination)
-    return ConnectResponse(source=source_name, destination=destination_name)
+    destination_name = PortName(client=client_name, type="send", idx=port_idx)
+    get_port_or_raise(jack_client, type="destination", name=destination_name)
+
+    return _connect_ports(jack_client, source_name, destination_name)
 
 
 class MessagingServer(uvicorn.Server):

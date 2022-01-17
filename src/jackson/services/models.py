@@ -32,24 +32,6 @@ class StructuredHTTPException(HTTPException):
         )
 
 
-PortDirectionType = Literal["source", "destination"]
-
-
-class PortNotFound(BaseModel):
-    type: PortDirectionType
-    name: str
-
-
-class PlaybackPortAlreadyHasConnections(BaseModel):
-    port_name: str
-    connection_names: list[str]
-
-
-class ConnectResponse(BaseModel):
-    source: str
-    destination: str
-
-
 PortType = Literal["send", "receive", "capture", "playback"]
 
 
@@ -71,3 +53,21 @@ class PortName(BaseModel, frozen=True):
         client = port_name.replace(f":{type_and_idx}", "")
 
         return cls(client=client, type=cast(PortType, type_), idx=int(idx))
+
+
+PortDirectionType = Literal["source", "destination"]
+
+
+class PortNotFound(BaseModel):
+    type: PortDirectionType
+    name: PortName
+
+
+class PlaybackPortAlreadyHasConnections(BaseModel):
+    port_name: PortName
+    connection_names: list[str]
+
+
+class ConnectResponse(BaseModel):
+    source: PortName
+    destination: PortName

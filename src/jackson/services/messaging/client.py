@@ -1,3 +1,4 @@
+import logging
 from ipaddress import IPv4Address
 from typing import Any
 
@@ -47,50 +48,74 @@ class MessagingClient:
         response = await self.client.get("/init")  # type: ignore
         return InitResponse(**response.json())
 
-    def handler_detail(self, detail: dict[str, Any]):
-        resp = self.exception_handlers.get(detail["message"])
+    def handle_exceptions(self, data: dict[str, Any]):
+        if "detail" not in data:
+            return
+
+        resp = self.exception_handlers.get(data["detail"]["message"])
         if resp is None:
             raise NotImplementedError
 
         name, model = resp
-        raise build_exception(name=name, detail=detail, data_model=model)
+        raise build_exception(name=name, detail=data["detail"], data_model=model)
 
     async def connect_send(self, client_name: str, destination_idx: int):
         """
         CONFIG
-        ports:
-            send:
-                3: 2
-
+        send:
+            3: 2
 
         ON CLIENT
         system:capture_3 -> JackTrip:send_2
 
         ON SERVER
-        JackTrip:receive_2 -> system:playback_2
+        Lev:receive_2 -> system:playback_2
         """
         response = await self.client.put(  # type: ignore
             "/connect/send",
             params={"client_name": client_name, "port_idx": destination_idx},
         )
         data = response.json()
-        if "detail" in data:
-            self.handler_detail(data["detail"])
-        return ConnectResponse(**data)
+        self.handle_exceptions(data)
 
-    async def connect_receive(
-        self, client_name: str, destination_idx: int
-    ) -> ConnectResponse:
-        raise NotImplementedError
+        parsed_data = ConnectResponse(**data)
+        logging.info(
+            f"Connected ports on server: {parsed_data.source} -> {parsed_data.destination}"
+        )
+
+    async def connect_receive(self, client_name: str, source_idx: int):
+        """
+        CONFIG
+        receive:
+            2: 3
+
+        ON CLIENT
+        JackTrip:receive_3 -> system:playback_2
+
+        ON SERVER
+        system:capture_3 -> Lev:send_3
+        """
+        response = await self.client.patch(  # type: ignore
+            "/connect/receive",
+            params={"client_name": client_name, "port_idx": source_idx},
+        )
+        data = response.json()
+        self.handle_exceptions(data)
+
+        parsed_data = ConnectResponse(**data)
+        logging.info(
+            f"Connected ports on server: {parsed_data.source} -> {parsed_data.destination}"
+        )
 
     async def connect(self, client_name: str, source: PortName, destination: PortName):
         if source.client == "system":
             return await self.connect_send(
                 client_name=client_name, destination_idx=destination.idx
             )
+
         elif destination.client == "system":
-            return
             return await self.connect_receive(
-                client_name=client_name, destination_idx=destination.idx
+                client_name=client_name, source_idx=source.idx
             )
+
         raise NotImplementedError
