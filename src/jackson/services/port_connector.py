@@ -10,7 +10,7 @@ from jackson.services.messaging.client import MessagingClient
 from jackson.services.models import PortName
 from jackson.settings import ClientPorts
 
-log = get_configured_logger(__name__, "port-connector")
+log = get_configured_logger(__name__, "PortConnector")
 
 
 class PortConnector:

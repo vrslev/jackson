@@ -14,7 +14,7 @@ from jackson.services.models import (
     PortNotFound,
 )
 
-log = get_configured_logger(__name__, "messaging-client")
+log = get_configured_logger(__name__, "HttpClient")
 
 
 @dataclass

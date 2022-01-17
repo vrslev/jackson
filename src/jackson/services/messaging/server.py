@@ -20,11 +20,11 @@ from jackson.services.models import (
 )
 
 app = FastAPI()
-log = get_configured_logger(__name__, "messaging-server")
+log = get_configured_logger(__name__, "HttpServer")
 
 # Configure uvicorn loggers
 for logger_name in ("uvicorn.error", "uvicorn.access"):
-    get_configured_logger(logger_name, "messaging-server")
+    get_configured_logger(logger_name, "HttpServer")
 
 
 class StructuredDetail(BaseModel):

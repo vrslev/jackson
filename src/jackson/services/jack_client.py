@@ -5,7 +5,7 @@ import typer
 
 from jackson.logging import get_configured_logger, silent_jack_stream_handler
 
-log = get_configured_logger(__name__, "jack-client")
+log = get_configured_logger(__name__, "JackClient")
 
 
 class JackClient(jack.Client):
