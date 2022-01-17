@@ -6,6 +6,7 @@ import jack
 
 from jackson.services.jack_client import JackClient
 from jackson.services.messaging.client import MessagingClient
+from jackson.services.models import PortName
 from jackson.services.util import generate_stream_handlers
 from jackson.settings import ClientPorts
 
@@ -23,31 +24,35 @@ class PortConnector:
         self.jack_client = None
 
     def set_send_ports(self, send_ports: dict[int, int]):
-        self.send_ports: dict[str, str] = {}
+        self.send_ports: dict[PortName, PortName] = {}
 
         for local_source_idx, remote_destination_idx in send_ports.items():
-            src = f"system:capture_{local_source_idx}"
-            dest = f"JackTrip:send_{remote_destination_idx}"
+            src = PortName(client="system", type="capture", idx=local_source_idx)
+            # src = f"system:capture_{local_source_idx}"
+            dest = PortName(client="JackTrip", type="send", idx=remote_destination_idx)
+            # dest = f"JackTrip:send_{remote_destination_idx}"
             self.send_ports[src] = dest
 
         self.reverse_send_ports = {v: k for k, v in self.send_ports.items()}
 
     def _set_receive_ports(self, receive_ports: dict[int, int]):
-        self.receive_ports: dict[str, str] = {}
+        self.receive_ports: dict[PortName, PortName] = {}
 
         for local_destination_idx, remote_source_idx in receive_ports.items():
-            src = f"JackTrip:receive_{local_destination_idx}"
-            dest = f"system:playback_{remote_source_idx}"
+            src = PortName(client="JackTrip", type="receive", idx=local_destination_idx)
+            dest = PortName(client="system", type="playback", idx=remote_source_idx)
+            # src = f"JackTrip:receive_{local_destination_idx}"
+            # dest = f"system:playback_{remote_source_idx}"
             self.receive_ports[src] = dest
 
-    async def _connect_ports(self, source: str, destination: str):
+    async def _connect_ports(self, source: PortName, destination: PortName):
         assert self.jack_client
         await self.messaging_client.connect(source, destination)
-        self.jack_client.connect(source, destination)
+        self.jack_client.connect(str(source), str(destination))
         self._info(f"Connected ports: {source} -> {destination}")
 
     def _resolve_source_destination(self, port: jack.Port):
-        port_name = port.name
+        port_name = PortName.parse(port.name)
 
         if port.is_input and port_name in self.reverse_send_ports:
             source = self.reverse_send_ports[port_name]
