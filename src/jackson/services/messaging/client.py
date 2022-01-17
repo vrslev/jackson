@@ -1,4 +1,3 @@
-import logging
 from ipaddress import IPv4Address
 from typing import Any
 
@@ -6,6 +5,7 @@ import httpx
 from pydantic import AnyHttpUrl, BaseModel
 from pydantic.dataclasses import dataclass
 
+from jackson.logging import get_configured_logger
 from jackson.services.models import (
     ConnectResponse,
     InitResponse,
@@ -13,6 +13,8 @@ from jackson.services.models import (
     PortName,
     PortNotFound,
 )
+
+log = get_configured_logger(__name__, "messaging-client")
 
 
 @dataclass
@@ -79,7 +81,7 @@ class MessagingClient:
         self.handle_exceptions(data)
 
         parsed_data = ConnectResponse(**data)
-        logging.info(
+        log.info(
             f"Connected ports on server: {parsed_data.source} -> {parsed_data.destination}"
         )
 
@@ -103,7 +105,7 @@ class MessagingClient:
         self.handle_exceptions(data)
 
         parsed_data = ConnectResponse(**data)
-        logging.info(
+        log.info(
             f"Connected ports on server: {parsed_data.source} -> {parsed_data.destination}"
         )
 

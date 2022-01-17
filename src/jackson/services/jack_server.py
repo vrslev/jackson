@@ -1,19 +1,18 @@
-from typing import Callable
-
 import typer
 
 import jack_server
-from jackson.logging import generate_stream_handlers
+from jackson.logging import get_configured_logger, silent_jack_stream_handler
+
+log = get_configured_logger(__name__, "jack-server")
 
 
 class JackServer(jack_server.Server):
     def __init__(self, *, driver: str, device: str, rate: jack_server.SampleRate):
         super().__init__(driver=driver, device=device, rate=rate)
-        self._info, self._err = generate_stream_handlers("jack")
 
     def start(self):
-        jack_server.set_info_function(self._info)
-        jack_server.set_error_function(self._err)
+        jack_server.set_info_function(log.info)
+        jack_server.set_error_function(log.error)
 
         try:
             super().start()
@@ -21,7 +20,7 @@ class JackServer(jack_server.Server):
             raise typer.Exit(1)
 
     def stop(self):
-        _dont_print: Callable[[str], None] = lambda message: None
-        jack_server.set_info_function(_dont_print)
-        jack_server.set_error_function(_dont_print)
+        jack_server.set_info_function(silent_jack_stream_handler)
+        jack_server.set_error_function(silent_jack_stream_handler)
+
         super().stop()

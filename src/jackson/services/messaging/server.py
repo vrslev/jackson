@@ -1,4 +1,3 @@
-import logging
 import signal
 from functools import lru_cache
 from typing import Any
@@ -8,9 +7,8 @@ import jack
 import uvicorn  # type: ignore
 from fastapi import Depends, FastAPI, HTTPException, status
 from pydantic import BaseModel
-from rich.logging import RichHandler
 
-from jackson.logging import generate_stream_handlers
+from jackson.logging import get_configured_logger
 from jackson.services.jack_client import JackClient
 from jackson.services.models import (
     ConnectResponse,
@@ -22,6 +20,11 @@ from jackson.services.models import (
 )
 
 app = FastAPI()
+log = get_configured_logger(__name__, "messaging-server")
+
+# Configure uvicorn loggers
+for logger_name in ("uvicorn.error", "uvicorn.access"):
+    get_configured_logger(logger_name, "messaging-server")
 
 
 class StructuredDetail(BaseModel):
@@ -46,7 +49,7 @@ class StructuredHTTPException(HTTPException):
 
 @lru_cache
 def get_jack_client():
-    return JackClient("MessagingServer", *generate_stream_handlers("messaging"))
+    return JackClient("MessagingServer")
 
 
 @app.get("/init", response_model=InitResponse)
@@ -78,7 +81,7 @@ def get_port_or_raise(jack_client: JackClient, type: PortDirectionType, name: Po
 
 def _connect_ports(jack_client: JackClient, source: PortName, destination: PortName):
     jack_client.connect(str(source), str(destination))
-    logging.info(f"Connected ports: {source} -> {destination}")
+    log.info(f"Connected ports: {source} -> {destination}")
     return ConnectResponse(source=source, destination=destination)
 
 
@@ -132,13 +135,6 @@ def connect_receive(
 
 class MessagingServer(uvicorn.Server):
     def __init__(self, app: FastAPI) -> None:
-        logging.basicConfig(
-            level="INFO",
-            format="%(message)s",
-            datefmt="[%X] [messaging]",
-            handlers=[RichHandler()],
-        )
-
         super().__init__(uvicorn.Config(app=app, workers=1, log_config=None))
         self.config.load()
         self.lifespan = self.config.lifespan_class(self.config)

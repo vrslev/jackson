@@ -1,13 +1,10 @@
 import asyncer
-import rich.traceback
 import typer
 from typer.params import Option
 
 import jackson.settings
 from jackson.manager import Client, Server
 from jackson.settings import ClientSettings, ServerSettings
-
-rich.traceback.install()
 
 app = typer.Typer()
 

@@ -1,48 +1,43 @@
 import time
-from typing import Callable
 
 import jack
 import typer
 
+from jackson.logging import get_configured_logger, silent_jack_stream_handler
+
+log = get_configured_logger(__name__, "jack-client")
+
 
 class JackClient(jack.Client):
-    def __init__(
-        self,
-        name: str,
-        info_stream_handler: Callable[[str], None],
-        error_stream_handler: Callable[[str], None],
-    ) -> None:
+    def __init__(self, name: str) -> None:
         # Attribute exists so we don't call client.deactivate()
         # on shutdown if it wasn't activated
         self._activated = False
 
-        self._info = info_stream_handler
-        self._err = error_stream_handler
         self.block_streams()
 
         for _ in range(100):
             try:
-                self._info("Connecting to Jack...")
+                log.info("Connecting to Jack...")
                 super().__init__(name=name, no_start_server=True)
-                self._info("Connected to Jack!")
+                log.info("Connected to Jack!")
                 break
             except jack.JackOpenError:
                 time.sleep(0.1)
 
         else:
-            self._err("Can't connect to Jack")
+            log.error("Can't connect to Jack")
             raise typer.Exit(1)
 
         self.set_stream_handlers()
 
     def set_stream_handlers(self):
-        jack.set_error_function(self._info)
-        jack.set_info_function(self._err)
+        jack.set_info_function(log.info)
+        jack.set_error_function(log.error)
 
     def block_streams(self):
-        _dont_print: Callable[[str], None] = lambda message: None
-        jack.set_error_function(_dont_print)
-        jack.set_info_function(_dont_print)
+        jack.set_info_function(silent_jack_stream_handler)
+        jack.set_error_function(silent_jack_stream_handler)
 
     def activate(self) -> None:
         super().activate()

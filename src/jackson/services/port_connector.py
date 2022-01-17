@@ -4,11 +4,13 @@ from typing import Any, Callable, Coroutine
 import asyncer
 import jack
 
-from jackson.logging import generate_stream_handlers
+from jackson.logging import get_configured_logger
 from jackson.services.jack_client import JackClient
 from jackson.services.messaging.client import MessagingClient
 from jackson.services.models import PortName
 from jackson.settings import ClientPorts
+
+log = get_configured_logger(__name__, "port-connector")
 
 
 class PortConnector:
@@ -22,7 +24,6 @@ class PortConnector:
         self.callback_queue: asyncio.Queue[
             Callable[[], Coroutine[Any, Any, None]]
         ] = asyncio.Queue()
-        self._info, self._err = generate_stream_handlers("port-connector")
         self.messaging_client = messaging_client
         self.jack_client = None
 
@@ -48,7 +49,7 @@ class PortConnector:
         assert self.jack_client
         await self.messaging_client.connect(self.client_name, source, destination)
         self.jack_client.connect(str(source), str(destination))
-        self._info(f"Connected ports: {source} -> {destination}")
+        log.info(f"Connected ports: {source} -> {destination}")
 
     def _resolve_source_destination(self, port: jack.Port):
         port_name = PortName.parse(port.name)
@@ -65,10 +66,10 @@ class PortConnector:
 
     def port_registration_callback(self, port: jack.Port, register: bool):
         if not register:
-            self._info(f"Unregistered port: {port.name}")
+            log.info(f"Unregistered port: {port.name}")
             return  # We don't want to do anything if port unregistered
 
-        self._info(f"Registered port: {port.name}")
+        log.info(f"Registered port: {port.name}")
         resp = self._resolve_source_destination(port)
         if not resp:
             return
@@ -79,11 +80,7 @@ class PortConnector:
         self.callback_queue.put_nowait(task)
 
     def init(self):
-        self.jack_client = JackClient(
-            "PortConnector",
-            info_stream_handler=self._info,
-            error_stream_handler=self._err,
-        )
+        self.jack_client = JackClient("PortConnector")
         self.jack_client.set_port_registration_callback(self.port_registration_callback)
         self.jack_client.activate()
 

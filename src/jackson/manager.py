@@ -56,6 +56,8 @@ class Server(_BaseManager):
         task_group.soonify(uvicorn_signal_handler)(task_group.cancel_scope)
 
     async def stop(self):
+        # TODO: AttributeError: 'MessagingServer' object has no attribute 'servers'
+        # when `default' server already active
         await self.messaging_server.stop()
         self.jack_server.stop()
 
@@ -91,7 +93,7 @@ class Client(_BaseManager):
 
     async def start(self, task_group: TaskGroup):
         init_response = await self.messaging_client.init()
-        print(init_response)
+
         if self.start_jack:
             self.start_jack_server(init_response.rate)
 

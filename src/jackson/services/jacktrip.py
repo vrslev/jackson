@@ -9,14 +9,14 @@ import typer
 from anyio.abc import ByteReceiveStream, Process
 from anyio.streams.text import TextReceiveStream
 
-from jackson.logging import generate_stream_handlers
+from jackson.logging import get_configured_logger
 
 
 class _Program:
     def __init__(self, cmd: list[str]) -> None:
         self.cmd = cmd
-        self.proc = cmd[0]
-        self._info, self._err = generate_stream_handlers(self.proc)
+        self.name = cmd[0]
+        self.log = get_configured_logger(self.name, self.name)
 
     async def _restream_stream(
         self, stream: ByteReceiveStream | None, handler: Callable[[str], None]
@@ -30,15 +30,15 @@ class _Program:
 
     @contextlib.asynccontextmanager
     async def _start(self):
-        self._info(f"Starting {self.proc}... ({shlex.join(self.cmd)})")
+        self.log.info(f"Starting {self.name}... ({shlex.join(self.cmd)})")
 
-        async with await anyio.open_process(self.cmd) as process:  # type: ignore
+        async with await anyio.open_process(self.cmd) as process:
             async with asyncer.create_task_group() as task_group:
                 task_group.soonify(self._restream_stream)(
-                    stream=process.stderr, handler=self._err
+                    stream=process.stderr, handler=self.log.error
                 )
                 task_group.soonify(self._restream_stream)(
-                    stream=process.stdout, handler=self._info
+                    stream=process.stdout, handler=self.log.info
                 )
                 yield process
 
@@ -51,7 +51,7 @@ class _Program:
         # Otherwise RuntimeError('Event loop is closed') is being called
         process._process._transport.close()  # type: ignore
 
-        self._info(f"Exited with code {code}")
+        self.log.info(f"Exited with code {code}")
         return code
 
     async def run_forever(self):
