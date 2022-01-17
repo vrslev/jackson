@@ -67,6 +67,7 @@ class Client(_BaseManager):
         self.messaging_client = MessagingClient(
             host=settings.server.host, port=settings.server.messaging_port
         )
+        self.jack_server = None
         self.port_connector = PortConnector(settings.ports, self.messaging_client)
 
     def start_jack_server(self, rate: jack_server.SampleRate):
@@ -104,5 +105,5 @@ class Client(_BaseManager):
         await self.messaging_client.client.aclose()
         self.port_connector.deinit()
 
-        if self.start_jack:
+        if self.jack_server and self.start_jack:
             self.jack_server.stop()

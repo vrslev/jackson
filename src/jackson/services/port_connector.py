@@ -21,6 +21,7 @@ class PortConnector:
         ] = asyncio.Queue()
         self._info, self._err = generate_stream_handlers("port-connector")
         self.messaging_client = messaging_client
+        self.jack_client = None
 
     def set_send_ports(self, send_ports: dict[int, int]):
         self.send_ports: dict[str, str] = {}
@@ -39,6 +40,7 @@ class PortConnector:
             self.receive_ports[src] = dest
 
     async def _connect_ports(self, source: str, destination: str):
+        assert self.jack_client
         await self.messaging_client.connect(source, destination)
         self.jack_client.connect(source, destination)
         self._info(f"Connected ports: {source} -> {destination}")
@@ -81,8 +83,9 @@ class PortConnector:
         self.jack_client.activate()
 
     def deinit(self):
-        self.jack_client.deactivate()  # TODO: Handle error on /init: AttributeError: 'PortConnector' object has no attribute 'jack_client'
-        self.jack_client.block_streams()
+        if self.jack_client:
+            self.jack_client.deactivate()
+            self.jack_client.block_streams()
 
     async def start_queue(self):
         async with asyncer.create_task_group() as task_group:
