@@ -1,3 +1,4 @@
+# TODO: Use CFFI
 from ctypes import (
     CDLL,
     CFUNCTYPE,
@@ -146,6 +147,10 @@ jackctl_server_close.restype = c_bool
 jackctl_server_destroy: Callable[[Any], None] = _lib.jackctl_server_destroy
 jackctl_server_destroy.argtypes = [POINTER(jackctl_server_t)]
 jackctl_server_destroy.restype = c_void_p
+
+jackctl_server_get_parameters: Callable[[Any], Any] = _lib.jackctl_server_get_parameters
+jackctl_server_get_parameters.argtypes = [POINTER(jackctl_server_t)]
+jackctl_server_get_parameters.restype = POINTER(JSList)
 
 
 PrintFunction = CFUNCTYPE(None, c_char_p)

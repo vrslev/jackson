@@ -54,8 +54,21 @@ class Parameter:
             param_v.b = bool(val)
         _lib.jackctl_parameter_set_value(self.ptr, pointer(param_v))
 
+    def __repr__(self) -> str:
+        return f"<jack_server.Parameter value={self.value}>"
+
 
 SampleRate = Literal[44100, 48000]
+
+
+def _get_params_dict(params_jslist: Any):
+    params: dict[bytes, Parameter] = {}
+
+    for param_ptr in _lib.JSIter(params_jslist, POINTER(_lib.jackctl_parameter_t)):
+        param = Parameter(param_ptr)
+        params[param.name] = param
+
+    return params
 
 
 class Driver:
@@ -63,11 +76,7 @@ class Driver:
         self.ptr = ptr
 
         params_jslist = _lib.jackctl_driver_get_parameters(self.ptr)
-        self.params: dict[bytes, Parameter] = {}
-
-        for param_ptr in _lib.JSIter(params_jslist, POINTER(_lib.jackctl_parameter_t)):
-            param = Parameter(param_ptr)
-            self.params[param.name] = param
+        self.params = _get_params_dict(params_jslist)
 
     @property
     def name(self) -> str:
@@ -88,8 +97,15 @@ class ServerNotOpenedError(RuntimeError):
     pass
 
 
-class Server:
-    def __init__(self, *, driver: str, device: str, rate: SampleRate | None = None):
+class Server:  # TODO: Have to run in sync mode.
+    def __init__(
+        self,
+        *,
+        driver: str,
+        device: str,
+        rate: SampleRate | None = None,
+        sync: bool = False,
+    ):
         self.ptr = _lib.jackctl_server_create(
             _lib.DeviceAcquireFunc(),  # type: ignore
             _lib.DeviceReleaseFunc(),  # type: ignore
@@ -99,10 +115,16 @@ class Server:
         self._opened = False
         self._started = False
 
+        params_jslist = _lib.jackctl_server_get_parameters(self.ptr)
+        self.params = _get_params_dict(params_jslist)
+
         self.driver = self.get_driver_by_name(driver)
         self.driver.set_device(device)
+
         if rate:
             self.driver.set_rate(rate)
+        if sync:
+            self.set_sync(sync)
 
     def get_driver_by_name(self, name: str):
         driver_jslist = _lib.jackctl_server_get_drivers_list(self.ptr)
@@ -113,6 +135,9 @@ class Server:
                 return driver
 
         raise RuntimeError(f"Driver not found: {name}")
+
+    def set_sync(self, sync: bool):
+        self.params[b"sync"].value = sync
 
     def start(self):
         self._opened = _lib.jackctl_server_open(self.ptr, self.driver.ptr)
