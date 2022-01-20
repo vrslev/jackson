@@ -77,25 +77,32 @@ class Client(_BaseManager):
         )
         self.jack_server.start()
 
-    def init_port_connector(self, inputs: int, outputs: int):
+    def init_port_connector(self, inputs_limit: int, outputs_limit: int):
         self.port_connector = PortConnector(
             client_name=self.settings.name,
             ports=self.settings.ports,
             messaging_client=self.messaging_client,
-            inputs=inputs,
-            outputs=outputs,
+            inputs_limit=inputs_limit,
+            outputs_limit=outputs_limit,
         )
         self.port_connector.init()
 
+    async def start_port_connector_queue(self):
+        assert self.port_connector
+        return await self.port_connector.start_queue()
+
     async def start_jacktrip(self):
         assert self.port_connector
-        receive, send = self.port_connector.get_receive_send_channels_count()
+        (
+            receive_count,
+            send_count,
+        ) = self.port_connector.get_receive_send_channels_counts()
 
         return await jacktrip.start_client(
             server_host=self.settings.server.host,
             server_port=self.settings.server.jacktrip_port,
-            receive_channels=receive,
-            send_channels=send,
+            receive_channels=receive_count,
+            send_channels=send_count,
             remote_name=self.settings.name,
         )
 
@@ -106,9 +113,8 @@ class Client(_BaseManager):
             self.start_jack_server(init_response.rate)
 
         self.init_port_connector(init_response.inputs, init_response.outputs)
-        assert self.port_connector
-        task_group.soonify(self.port_connector.start_queue)()
 
+        task_group.soonify(self.start_port_connector_queue)()
         task_group.soonify(self.start_jacktrip)()
 
     async def stop(self):

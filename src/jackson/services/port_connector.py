@@ -42,11 +42,11 @@ class PortConnector:
         client_name: str,
         ports: ClientPorts,
         messaging_client: MessagingClient,
-        inputs: int,
-        outputs: int,
+        inputs_limit: int,
+        outputs_limit: int,
     ) -> None:
         self.client_name = client_name
-        self.init_connections(ports, inputs, outputs)
+        self.init_connections(ports, inputs_limit, outputs_limit)
 
         self.callback_queue: asyncio.Queue[
             Callable[[], Coroutine[Any, Any, None]]
@@ -55,11 +55,13 @@ class PortConnector:
         self.jack_client = None
 
     def init_connections(
-        self, ports_from_config: ClientPorts, inputs: int, outputs: int
+        self, ports_from_config: ClientPorts, inputs_limit: int, outputs_limit: int
     ):
         connections: list[PortConnection] = []
-        self.resolve_send_ports(connections, ports_from_config.send, inputs)
-        self.resolve_receive_ports(connections, ports_from_config.receive, outputs)
+        self.resolve_send_ports(connections, ports_from_config.send, inputs_limit)
+        self.resolve_receive_ports(
+            connections, ports_from_config.receive, outputs_limit
+        )
         self.build_connection_map(connections)
 
     def resolve_send_ports(
@@ -109,7 +111,7 @@ class PortConnector:
         for conn in connections:
             self.connection_map[str(conn.local_bridge)] = conn
 
-    def get_receive_send_channels_count(self):
+    def get_receive_send_channels_counts(self):
         receive, send = 0, 0
         for connection in self.connection_map.values():
             if connection.client_should == "send":
