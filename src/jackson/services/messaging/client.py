@@ -56,7 +56,7 @@ class MessagingClient:
 
         cls_ = dataclass(type(name, (ServerError,), {"message": None, "data": None}))
         exc = cls_(message=detail["message"], data=model(**detail["data"]))
-        return exc  # type: ignore
+        raise exc  # type: ignore
 
     async def connect(
         self,
