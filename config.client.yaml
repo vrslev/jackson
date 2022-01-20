@@ -7,7 +7,7 @@ audio:
 server:
   jacktrip_port: 4464
   messaging_port: 8000
-  host: 127.0.0.1
+  host: 192.168.0.12
 
 ports:
   receive:
@@ -15,8 +15,21 @@ ports:
     1: 1
     2: 2
     3: 3
-
-  send:
-    # local_destination_idx: remote_source_idx
     4: 4
     5: 5
+    6: 6
+    7: 7
+    8: 8
+    9: 9
+    10: 10
+    11: 11
+    12: 12
+    13: 13
+    14: 14
+    15: 15
+    16: 16
+
+  send: {}
+    # local_destination_idx: remote_source_idx
+    # 4: 4
+    # 5: 5
