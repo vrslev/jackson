@@ -8,7 +8,7 @@ logging.basicConfig(level=logging.INFO, handlers=[])
 
 
 def get_logging_handler(name: str):
-    return RichHandler(log_time_format=f"[%X] [{name}] ")
+    return RichHandler(log_time_format=f"[%X] [{name}] ", rich_tracebacks=True)
 
 
 def get_configured_logger(name: str | None, prog_name: str):
