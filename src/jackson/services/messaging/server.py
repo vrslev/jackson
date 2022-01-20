@@ -98,7 +98,9 @@ def connect(
 
 class MessagingServer(uvicorn.Server):
     def __init__(self, app: FastAPI) -> None:
-        super().__init__(uvicorn.Config(app=app, workers=1, log_config=None))
+        super().__init__(
+            uvicorn.Config(app=app, host="0.0.0.0", workers=1, log_config=None)
+        )
         self.config.load()
         self.lifespan = self.config.lifespan_class(self.config)
         self._started = False
