@@ -4,8 +4,6 @@ from typing import IO
 import yaml
 from pydantic import BaseModel, BaseSettings
 
-import jack_server
-
 
 class _YamlBaseSettings(BaseSettings):
     @classmethod
@@ -14,13 +12,13 @@ class _YamlBaseSettings(BaseSettings):
         return cls(**content)
 
 
-class _BaseAudio(BaseModel):
+class _Audio(BaseModel):
     driver: str
     device: str
 
 
-class _ServerAudio(_BaseAudio):
-    sample_rate: jack_server.SampleRate
+class _ServerAudio(_Audio):
+    pass
 
 
 class _BaseServer(BaseModel):
@@ -37,7 +35,7 @@ class ServerSettings(_YamlBaseSettings):
     server: _ServerServer
 
 
-class _ClientAudio(_BaseAudio):
+class _ClientAudio(_Audio):
     pass
 
 

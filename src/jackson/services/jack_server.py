@@ -12,7 +12,9 @@ log.addFilter(JackServerFilter())
 
 
 class JackServer(jack_server.Server):
-    def __init__(self, *, driver: str, device: str, rate: jack_server.SampleRate):
+    def __init__(
+        self, *, driver: str, device: str, rate: jack_server.SampleRate | None = None
+    ):
         super().__init__(driver=driver, device=device, rate=rate)
 
     def start(self):

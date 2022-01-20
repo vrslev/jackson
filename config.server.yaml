@@ -1,7 +1,6 @@
 audio:
   driver: coreaudio
   device: BlackHole16ch_UID
-  sample_rate: 48000
 
 server:
   jacktrip_port: 4464

@@ -38,9 +38,7 @@ class Server(_BaseManager):
     def __init__(self, settings: ServerSettings):
         self.settings = settings
         self.jack_server = JackServer(
-            driver=self.settings.audio.driver,
-            device=self.settings.audio.device,
-            rate=self.settings.audio.sample_rate,
+            driver=self.settings.audio.driver, device=self.settings.audio.device
         )
         self.messaging_server = MessagingServer(messaging_app)
 

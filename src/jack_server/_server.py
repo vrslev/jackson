@@ -89,7 +89,7 @@ class ServerNotOpenedError(RuntimeError):
 
 
 class Server:
-    def __init__(self, *, driver: str, device: str, rate: SampleRate):
+    def __init__(self, *, driver: str, device: str, rate: SampleRate | None = None):
         self.ptr = _lib.jackctl_server_create(
             _lib.DeviceAcquireFunc(),  # type: ignore
             _lib.DeviceReleaseFunc(),  # type: ignore
@@ -101,7 +101,8 @@ class Server:
 
         self.driver = self.get_driver_by_name(driver)
         self.driver.set_device(device)
-        self.driver.set_rate(rate)
+        if rate:
+            self.driver.set_rate(rate)
 
     def get_driver_by_name(self, name: str):
         driver_jslist = _lib.jackctl_server_get_drivers_list(self.ptr)
