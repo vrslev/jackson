@@ -28,8 +28,7 @@ class _BaseManager(ABC):
         async with asyncer.create_task_group() as task_group:
             try:
                 await self.start(task_group)
-                while True:
-                    await anyio.sleep(1)
+                await anyio.sleep_forever()
             finally:
                 with anyio.CancelScope(shield=True):
                     await self.stop()
