@@ -12,8 +12,11 @@ server:
 ports:
   receive:
     # local_source_idx: remote_destination_idx
-    2: 1
+    1: 1
+    2: 2
+    3: 3
 
   send:
     # local_destination_idx: remote_source_idx
-    3: 2
+    4: 4
+    5: 5
