@@ -39,7 +39,7 @@ class StructuredHTTPException(HTTPException):
     ) -> None:
         super().__init__(
             status_code=status_code,
-            detail={"message": message, "data": data},
+            detail={"message": message, "data": data.dict() if data else None},
             headers=headers,
         )
 
