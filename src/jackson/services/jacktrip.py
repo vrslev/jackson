@@ -104,9 +104,11 @@ async def start_client(
         "--pingtoserver",
         str(server_host),
         "--receivechannels",
-        str(receive_channels),
+        str(
+            receive_channels or 1
+        ),  # JackTrip doesn't allow one-way channel broadcasting
         "--sendchannels",
-        str(send_channels),
+        str(send_channels or 1),
         "--peerport",
         str(server_port),
         "--clientname",
@@ -136,9 +138,13 @@ def _get_first_available_port(reserved_ports: set[_BridgePort]) -> int:  # type:
         return idx
 
 
-def get_first_available_send_port():
+def get_first_available_send_port(limit: int):
+    if len(_reserved_send_ports) >= limit:
+        raise RuntimeError("Limit of available send ports exceeded.")
     return _get_first_available_port(_reserved_send_ports)
 
 
-def get_first_available_receive_port():
+def get_first_available_receive_port(limit: int):
+    if len(_reserved_receive_ports) >= limit:
+        raise RuntimeError("Limit of available receive ports exceeded.")
     return _get_first_available_port(_reserved_receive_ports)

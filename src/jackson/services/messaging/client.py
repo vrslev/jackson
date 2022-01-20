@@ -1,6 +1,7 @@
 from ipaddress import IPv4Address
 from typing import Any
 
+import anyio
 import httpx
 from pydantic import AnyHttpUrl, BaseModel
 from pydantic.dataclasses import dataclass
@@ -18,13 +19,15 @@ from jackson.services.models import (
 log = get_configured_logger(__name__, "HttpClient")
 
 
-@dataclass
-class ServerError(Exception):
+class ServerError(Exception):  # type: ignore
     message: str
     data: Any
 
     def __str__(self) -> str:
         return f"{self.message}: {self.data.dict()}"
+
+
+ServerError = dataclass(ServerError)  # type: ignore
 
 
 class MessagingClient:
@@ -64,15 +67,26 @@ class MessagingClient:
         destination: PortName,
         client_should: ClientShould,
     ):
-        response = await self.client.patch(  # type: ignore
-            "/connect",
-            json={
-                "source": source.dict(),
-                "destination": destination.dict(),
-                "client_should": client_should,
-            },
-        )
-        data = response.json()
+        async def _send():
+            return await self.client.patch(  # type: ignore
+                "/connect",
+                json={
+                    "source": source.dict(),
+                    "destination": destination.dict(),
+                    "client_should": client_should,
+                },
+            )
+
+        for _ in range(3):
+            response = await _send()
+            if response.status_code == 404:  # type: ignore
+                await anyio.sleep(0.5)
+                continue
+            else:
+                break
+
+        data = response.json()  # type: ignore
+
         self.handle_exceptions(data)
 
         parsed_data = ConnectResponse(**data)

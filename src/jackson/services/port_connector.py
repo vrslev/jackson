@@ -37,10 +37,16 @@ class PortConnection(BaseModel, frozen=True):
 
 class PortConnector:
     def __init__(
-        self, client_name: str, ports: ClientPorts, messaging_client: MessagingClient
+        self,
+        *,
+        client_name: str,
+        ports: ClientPorts,
+        messaging_client: MessagingClient,
+        inputs: int,
+        outputs: int,
     ) -> None:
         self.client_name = client_name
-        self.init_connections(ports)
+        self.init_connections(ports, inputs, outputs)
 
         self.callback_queue: asyncio.Queue[
             Callable[[], Coroutine[Any, Any, None]]
@@ -48,17 +54,19 @@ class PortConnector:
         self.messaging_client = messaging_client
         self.jack_client = None
 
-    def init_connections(self, ports_from_config: ClientPorts):
+    def init_connections(
+        self, ports_from_config: ClientPorts, inputs: int, outputs: int
+    ):
         connections: list[PortConnection] = []
-        self.resolve_send_ports(connections, ports_from_config.send)
-        self.resolve_receive_ports(connections, ports_from_config.receive)
+        self.resolve_send_ports(connections, ports_from_config.send, inputs)
+        self.resolve_receive_ports(connections, ports_from_config.receive, outputs)
         self.build_connection_map(connections)
 
     def resolve_send_ports(
-        self, connections: list[PortConnection], send_ports: dict[int, int]
+        self, connections: list[PortConnection], send_ports: dict[int, int], limit: int
     ):
         for source_idx, destination_idx in send_ports.items():
-            bridge_idx = jacktrip.get_first_available_send_port()
+            bridge_idx = jacktrip.get_first_available_send_port(limit)
             conn = PortConnection(
                 client_should="send",
                 source=PortName(client="system", type="capture", idx=source_idx),
@@ -73,10 +81,13 @@ class PortConnector:
             connections.append(conn)
 
     def resolve_receive_ports(
-        self, connections: list[PortConnection], receive_ports: dict[int, int]
+        self,
+        connections: list[PortConnection],
+        receive_ports: dict[int, int],
+        limit: int,
     ):
         for destination_idx, source_idx in receive_ports.items():
-            bridge_idx = jacktrip.get_first_available_receive_port()
+            bridge_idx = jacktrip.get_first_available_receive_port(limit)
             conn = PortConnection(
                 client_should="receive",
                 source=PortName(client="system", type="capture", idx=source_idx),
@@ -98,10 +109,20 @@ class PortConnector:
         for conn in connections:
             self.connection_map[str(conn.local_bridge)] = conn
 
+    def get_receive_send_channels_count(self):
+        receive, send = 0, 0
+        for connection in self.connection_map.values():
+            if connection.client_should == "send":
+                send += 1
+            else:
+                receive += 1
+        return receive, send
+
     async def _connect_ports(self, connection: PortConnection):
         assert self.jack_client
 
         remote_source, remote_destination = connection.get_remote_connection()
+
         await self.messaging_client.connect(
             source=remote_source,
             destination=remote_destination,
