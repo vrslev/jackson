@@ -29,9 +29,9 @@ requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.pyright]
-typeCheckingMode = "strict"
 ignore = [".venv"]
-
+typeCheckingMode = "strict"
+reportUnnecessaryTypeIgnoreComment = "warning"
 
 [tool.black]
 target-version = ["py310"]

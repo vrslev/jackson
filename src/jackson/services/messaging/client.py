@@ -19,7 +19,7 @@ from jackson.services.models import (
 log = get_configured_logger(__name__, "HttpClient")
 
 
-class ServerError(Exception):  # type: ignore
+class ServerError(Exception):
     message: str
     data: Any
 
