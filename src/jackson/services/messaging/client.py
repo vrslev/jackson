@@ -37,7 +37,7 @@ class MessagingClient:
         base_url = AnyHttpUrl.build(scheme="http", host=str(host), port=str(port))
         self.client = httpx.AsyncClient(base_url=base_url)
         self.exc_message_to_model: dict[str, type[BaseModel]] = {
-            "Port already has connections": PlaybackPortAlreadyHasConnections,
+            "Playback port already has connections": PlaybackPortAlreadyHasConnections,
             "Port not found": PortNotFound,
         }
 

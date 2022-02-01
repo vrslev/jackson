@@ -83,9 +83,9 @@ class PortConnector:
             )
             connections.append(conn)
 
-        RegisteredJackTripPort = str
+        RegisteredJackTripPort = PortName
         self.connection_map: dict[RegisteredJackTripPort, PortConnection] = {
-            str(conn.local_bridge): conn for conn in connections
+            conn.local_bridge: conn for conn in connections
         }
 
     async def _connect_ports_on_both_ends(self, connection: PortConnection):
@@ -96,7 +96,7 @@ class PortConnector:
         self.jack_client.connect(*connection.get_local_connection())
 
     def _port_registration_callback(self, port: jack.Port, register: bool):
-        port_name = port.name
+        port_name = PortName.parse(port.name)
 
         if not register:
             log.info(f"Unregistered port: {port_name}")

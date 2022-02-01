@@ -11,7 +11,7 @@ def get_logging_handler(name: str):
     return RichHandler(log_time_format=f"[%X] [{name}] ", rich_tracebacks=True)
 
 
-def get_configured_logger(name: str | None, prog_name: str):
+def get_configured_logger(name: str, prog_name: str):
     logger = logging.getLogger(name)
     logger.addHandler(get_logging_handler(prog_name.ljust(8)[:8]))
     return logger

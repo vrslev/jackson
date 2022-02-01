@@ -63,6 +63,9 @@ class JackClient(jack.Client):
         super().connect(source_name, destination_name)
         log.info(f"Connected ports: {source_name} -> {destination_name}")
 
+    def get_port_by_name(self, name: PortName) -> jack.Port:  # type: ignore
+        return super().get_port_by_name(str(name))
+
     @property
     def samplerate(self) -> jack_server.SampleRate:
         return cast(jack_server.SampleRate, super().samplerate)

@@ -44,34 +44,33 @@ def get_jack_client():
 
 
 @app.get("/init", response_model=InitResponse)
-def init(client: JackClient = Depends(get_jack_client)):
-    inputs = client.get_ports("system:.*", is_input=True)
-    outputs = client.get_ports("system:.*", is_output=True)
-    rate = client.samplerate
+def init(jack_client: JackClient = Depends(get_jack_client)):
+    inputs = jack_client.get_ports("system:.*", is_input=True)
+    outputs = jack_client.get_ports("system:.*", is_output=True)
+    rate = jack_client.samplerate
 
     return InitResponse(inputs=len(inputs), outputs=len(outputs), rate=rate)
 
 
-def get_port_or_raise(jack_client: JackClient, type: PortDirectionType, name: PortName):
+def get_port_or_fail(jack_client: JackClient, type: PortDirectionType, name: PortName):
     try:
-        return jack_client.get_port_by_name(str(name))
+        return jack_client.get_port_by_name(name)
     except jack.JackError:
         raise StructuredHTTPException(
             404, message="Port not found", data=PortNotFound(type=type, name=name)
         )
 
 
-@app.patch("/connect")
+@app.patch("/connect", response_model=ConnectResponse)
 def connect(
-    *,
-    jack_client: JackClient = Depends(get_jack_client),
     source: PortName,
     destination: PortName,
     client_should: ClientShould = Body(...),
+    jack_client: JackClient = Depends(get_jack_client),
 ):
-    # TODO: Validate source and destination
-    get_port_or_raise(jack_client, type="source", name=source)
-    destination_port = get_port_or_raise(
+    # TODO: Validate (check if allowed) source and destination
+    get_port_or_fail(jack_client, type="source", name=source)
+    destination_port = get_port_or_fail(
         jack_client, type="destination", name=destination
     )
 
@@ -80,7 +79,7 @@ def connect(
     ):
         raise StructuredHTTPException(
             status.HTTP_409_CONFLICT,
-            message="Port already has connections",
+            message="Playback port already has connections",
             data=PlaybackPortAlreadyHasConnections(
                 port_name=destination, connection_names=[p.name for p in connections]
             ),
@@ -94,9 +93,8 @@ class MessagingServer(uvicorn.Server):
     def __init__(self, app: FastAPI) -> None:
         self._started = False
 
-        # Configure uvicorn loggers
-        for logger_name in ("uvicorn.error", "uvicorn.access"):
-            get_configured_logger(logger_name, "HttpServer")
+        for name in ("uvicorn.error", "uvicorn.access"):
+            get_configured_logger(name, "HttpServer")
 
         config = uvicorn.Config(app=app, host="0.0.0.0", workers=1, log_config=None)
         super().__init__(config)
@@ -111,7 +109,6 @@ class MessagingServer(uvicorn.Server):
     async def stop(self):
         if self._started:
             self.should_exit = True
-            await self.main_loop()
             await self.shutdown()
 
 
