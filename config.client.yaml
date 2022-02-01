@@ -29,7 +29,7 @@ ports:
     15: 15
     16: 16
 
-  send: {}
+  send:
     # local_destination_idx: remote_source_idx
-    # 4: 4
+    4: 4
     # 5: 5
