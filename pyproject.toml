@@ -33,6 +33,7 @@ build-backend = "poetry.core.masonry.api"
 ignore = [".venv"]
 typeCheckingMode = "strict"
 reportUnnecessaryTypeIgnoreComment = "warning"
+reportMissingTypeStubs = false
 
 [tool.black]
 target-version = ["py310"]
