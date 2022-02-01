@@ -160,7 +160,6 @@ class PortConnector:
     def deinit(self):
         if self.jack_client:
             self.jack_client.deactivate()
-            self.jack_client.block_streams()
 
     async def start_queue(self):
         async with asyncer.create_task_group() as task_group:

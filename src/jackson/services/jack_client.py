@@ -16,11 +16,11 @@ log.addFilter(JackClientFilter())
 
 class JackClient(jack.Client):
     def __init__(self, name: str) -> None:
-        # Attribute exists so we don't call client.deactivate()
-        # on shutdown if it wasn't activated
+        # Attribute exists so we don't call client.deactivate() on shutdown
+        # if it wasn't activated. Otherwise causes segfault.
         self._activated = False
 
-        self.block_streams()
+        self._block_streams()
 
         for _ in range(100):
             try:
@@ -35,15 +35,15 @@ class JackClient(jack.Client):
             log.error("Can't connect to Jack")
             raise typer.Exit(1)
 
-        self.set_stream_handlers()
+        self._set_stream_handlers()
 
-    def set_stream_handlers(self):
-        jack.set_info_function(log.info)
-        jack.set_error_function(log.error)
-
-    def block_streams(self):
+    def _block_streams(self):
         jack.set_info_function(silent_jack_stream_handler)
         jack.set_error_function(silent_jack_stream_handler)
+
+    def _set_stream_handlers(self):
+        jack.set_info_function(log.info)
+        jack.set_error_function(log.error)
 
     def activate(self) -> None:
         super().activate()
@@ -52,6 +52,8 @@ class JackClient(jack.Client):
     def deactivate(self, ignore_errors: bool = True) -> None:
         if self._activated:
             super().deactivate(ignore_errors=ignore_errors)
+
+        self._block_streams()
 
     def connect(self, source: PortName, destination: PortName) -> None:  # type: ignore
         source_name = str(source)
