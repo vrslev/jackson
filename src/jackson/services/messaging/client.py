@@ -1,10 +1,11 @@
+from dataclasses import dataclass
+from functools import partial
 from ipaddress import IPv4Address
-from typing import Any
+from typing import Any, Callable, Coroutine, TypeVar
 
 import anyio
 import httpx
 from pydantic import AnyHttpUrl, BaseModel
-from pydantic.dataclasses import dataclass
 
 from jackson.logging import get_configured_logger
 from jackson.services.messaging.models import (
@@ -19,77 +20,79 @@ from jackson.services.port_connection import ClientShould
 log = get_configured_logger(__name__, "HttpClient")
 
 
+@dataclass
 class ServerError(Exception):
     message: str
-    data: Any
+    data: BaseModel
 
     def __str__(self) -> str:
         return f"{self.message}: {self.data.dict()}"
 
 
-ServerError = dataclass(ServerError)  # type: ignore
+_T = TypeVar("_T", bound=BaseModel)
 
 
 class MessagingClient:
     def __init__(self, host: IPv4Address, port: int) -> None:
         base_url = AnyHttpUrl.build(scheme="http", host=str(host), port=str(port))
         self.client = httpx.AsyncClient(base_url=base_url)
-        self.exception_handlers: dict[str, tuple[str, type[BaseModel]]] = {
-            "Port already has connections": (
-                "PlaybackPortAlreadyHasConnectionsError",
-                PlaybackPortAlreadyHasConnections,
-            ),
-            "Port not found": ("PortNotFoundError", PortNotFound),
+        self.exc_message_to_model: dict[str, type[BaseModel]] = {
+            "Port already has connections": PlaybackPortAlreadyHasConnections,
+            "Port not found": PortNotFound,
         }
+
+    def _handle_exceptions(self, data: dict[str, Any]):
+        if "detail" not in data:
+            return
+
+        if "message" not in data["detail"]:
+            raise RuntimeError(data)
+
+        detail = data["detail"]
+        model = self.exc_message_to_model.get(detail["message"])
+        if model is None:
+            raise RuntimeError(data)
+
+        raise ServerError(message=detail["message"], data=model(**detail["data"]))
+
+    def _handle_response(self, response: httpx.Response, model: type[_T]) -> _T:
+        data = response.json()
+        self._handle_exceptions(data)
+        return model(**data)
+
+    async def _retry(
+        self,
+        func: Callable[[], Coroutine[None, None, httpx.Response]],
+        times: int,
+        delay: float,
+    ) -> httpx.Response:
+        response = None
+
+        for _ in range(times):
+            response = await func()
+            if response.status_code == 404:  # type: ignore
+                await anyio.sleep(delay)
+                continue
+            else:
+                return response
+
+        assert response
+        return response
 
     async def init(self):
         response = await self.client.get("/init")  # type: ignore
-        return InitResponse(**response.json())
-
-    def handle_exceptions(self, data: dict[str, Any]):
-        if "detail" not in data or "message" not in data["detail"]:
-            return
-
-        detail = data["detail"]
-        res = self.exception_handlers.get(detail["message"])
-        if res is None:
-            raise NotImplementedError
-
-        name, model = res
-
-        cls_ = dataclass(type(name, (ServerError,), {"message": None, "data": None}))
-        exc = cls_(message=detail["message"], data=model(**detail["data"]))
-        raise exc  # type: ignore
+        return self._handle_response(response, InitResponse)
 
     async def connect(
-        self,
-        source: PortName,
-        destination: PortName,
-        client_should: ClientShould,
+        self, source: PortName, destination: PortName, client_should: ClientShould
     ):
-        async def _send():
-            return await self.client.patch(  # type: ignore
-                "/connect",
-                json={
-                    "source": source.dict(),
-                    "destination": destination.dict(),
-                    "client_should": client_should,
-                },
-            )
+        payload = {
+            "source": source.dict(),
+            "destination": destination.dict(),
+            "client_should": client_should,
+        }
+        _connect = partial(self.client.patch, "/connect", json=payload)  # type: ignore
 
-        for _ in range(3):
-            response = await _send()
-            if response.status_code == 404:  # type: ignore
-                await anyio.sleep(0.5)
-                continue
-            else:
-                break
-
-        data = response.json()  # type: ignore
-
-        self.handle_exceptions(data)
-
-        parsed_data = ConnectResponse(**data)
-        log.info(
-            f"Connected ports on server: {parsed_data.source} -> {parsed_data.destination}"
-        )
+        response = await self._retry(_connect, times=3, delay=0.5)
+        data = self._handle_response(response, ConnectResponse)
+        log.info(f"Connected ports on server: {data.source} -> {data.destination}")
