@@ -92,10 +92,7 @@ class Client(_BaseManager):
 
     async def start_jacktrip(self):
         assert self.port_connector
-        (
-            receive_count,
-            send_count,
-        ) = self.port_connector.get_receive_send_channels_counts()
+        receive_count, send_count = self.port_connector.count_receive_send_channels()
 
         return await jacktrip.start_client(
             server_host=self.settings.server.host,

@@ -1,4 +1,5 @@
 import asyncio
+from functools import partial
 from typing import Any, Callable, Coroutine
 
 import asyncer
@@ -25,7 +26,7 @@ class PortConnector:
         outputs_limit: int,
     ) -> None:
         self.client_name = client_name
-        self.build_connection_map(ports, inputs_limit, outputs_limit)
+        self._build_connection_map(ports, inputs_limit, outputs_limit)
 
         self.callback_queue: asyncio.Queue[
             Callable[[], Coroutine[Any, Any, None]]
@@ -33,10 +34,12 @@ class PortConnector:
         self.messaging_client = messaging_client
 
         self.jack_client = JackClient("PortConnector")
-        self.jack_client.set_port_registration_callback(self.port_registration_callback)
+        self.jack_client.set_port_registration_callback(
+            self._port_registration_callback
+        )
         self.jack_client.activate()
 
-    def build_connection_map(
+    def _build_connection_map(
         self, ports_from_config: ClientPorts, inputs_limit: int, outputs_limit: int
     ):
         connections: list[PortConnection] = []
@@ -80,7 +83,8 @@ class PortConnector:
         for conn in connections:
             self.connection_map[str(conn.local_bridge)] = conn
 
-    def get_receive_send_channels_counts(self):
+    def count_receive_send_channels(self):
+        # Required for JackTrip
         receive, send = 0, 0
         for connection in self.connection_map.values():
             if connection.client_should == "send":
@@ -89,20 +93,16 @@ class PortConnector:
                 receive += 1
         return receive, send
 
-    async def _connect_ports(self, connection: PortConnection):
-        remote_source, remote_destination = connection.get_remote_connection()
-
+    async def _connect_ports_on_both_ends(self, connection: PortConnection):
         await self.messaging_client.connect(
-            source=remote_source,
-            destination=remote_destination,
+            *connection.get_remote_connection(),
             client_should=connection.client_should,
         )
+        self.jack_client.connect(*connection.get_local_connection())
 
-        local_source, local_destination = connection.get_local_connection()
-        self.jack_client.connect(local_source, local_destination)
-
-    def port_registration_callback(self, port: jack.Port, register: bool):
+    def _port_registration_callback(self, port: jack.Port, register: bool):
         port_name = port.name
+
         if not register:
             log.info(f"Unregistered port: {port_name}")
             return  # We don't want to do anything if port unregistered
@@ -113,17 +113,13 @@ class PortConnector:
             return
 
         conn = self.connection_map[port_name]
-
-        async def task():
-            await self._connect_ports(conn)
-
-        self.callback_queue.put_nowait(task)
-
-    def deinit(self):
-        self.jack_client.deactivate()
+        self.callback_queue.put_nowait(partial(self._connect_ports_on_both_ends, conn))
 
     async def run_queue(self):
         async with asyncer.create_task_group() as task_group:
             while True:
                 callback = await self.callback_queue.get()
                 task_group.soonify(callback)()
+
+    def deinit(self):
+        self.jack_client.deactivate()
