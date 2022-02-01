@@ -90,12 +90,15 @@ class PortConnector:
 
     def count_receive_send_channels(self):
         # Required for JackTrip
-        receive, send = 0, 0
+        receive = 0
+        send = 0
+
         for connection in self.connection_map.values():
             if connection.client_should == "send":
                 send += 1
             else:
                 receive += 1
+
         return receive, send
 
     async def _connect_ports_on_both_ends(self, connection: PortConnection):
