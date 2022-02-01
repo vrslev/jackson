@@ -7,6 +7,7 @@ services:
       - 8000:8000
     volumes:
       - /dev/snd:/dev/snd
+      - ./config.server.yaml:/code/config.server.yaml
     ulimits:
       rtprio: 99
     cap_add:
