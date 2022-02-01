@@ -1,6 +1,6 @@
+import jack_server
 import typer
 
-import jack_server
 from jackson.logging import (
     JackServerFilter,
     get_configured_logger,
@@ -12,9 +12,7 @@ log.addFilter(JackServerFilter())
 
 
 class JackServer(jack_server.Server):
-    def __init__(
-        self, *, driver: str, device: str, rate: jack_server.SampleRate | None = None
-    ):
+    def __init__(self, *, driver: str, device: str, rate: jack_server.SampleRate):
         super().__init__(driver=driver, device=device, rate=rate, sync=True)
 
     def start(self):
