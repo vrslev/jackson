@@ -32,4 +32,3 @@ ports:
   send:
     # local_destination_idx: remote_source_idx
     4: 4
-    # 5: 5

@@ -1,4 +1,6 @@
 __pycache__
+.vscode
 .venv
+
 config.client.yaml
 config.server.yaml

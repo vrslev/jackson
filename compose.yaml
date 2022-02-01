@@ -1,0 +1,13 @@
+services:
+  app:
+    image: jackson
+    build: .
+    ports:
+      - 4464:4464
+      - 8000:8000
+    volumes:
+      - /dev/snd:/dev/snd
+    ulimits:
+      rtprio: 99
+    cap_add:
+      - SYS_NICE
