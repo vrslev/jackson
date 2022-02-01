@@ -12,14 +12,12 @@ from anyio.streams.text import TextReceiveStream
 
 from jackson.logging import JackTripFilter, get_configured_logger
 
-log = get_configured_logger(__name__, "JackTrip")
-log.addFilter(JackTripFilter())
-
 
 class _Program:
-    def __init__(self, cmd: list[str]) -> None:
+    def __init__(self, pretty_name: str, cmd: list[str]) -> None:
         self.cmd = cmd
         self.name = cmd[0]
+        self.log = get_configured_logger(f"{__name__}.{self.name}", pretty_name)
 
     async def _restream_stream(
         self, stream: ByteReceiveStream | None, handler: Callable[[str], None]
@@ -33,15 +31,15 @@ class _Program:
 
     @contextlib.asynccontextmanager
     async def _start(self):
-        log.info(f"Starting {self.name}... ({shlex.join(self.cmd)})")
+        self.log.info(f"Starting {self.name}... ({shlex.join(self.cmd)})")
 
         async with await anyio.open_process(self.cmd) as process:
             async with asyncer.create_task_group() as task_group:
                 task_group.soonify(self._restream_stream)(
-                    stream=process.stderr, handler=log.error
+                    stream=process.stderr, handler=self.log.error
                 )
                 task_group.soonify(self._restream_stream)(
-                    stream=process.stdout, handler=log.info
+                    stream=process.stdout, handler=self.log.info
                 )
                 yield process
 
@@ -54,7 +52,7 @@ class _Program:
         # Otherwise RuntimeError('Event loop is closed') is being called
         process._process._transport.close()  # type: ignore
 
-        log.info(f"Exited with code {code}")
+        self.log.info(f"Exited with code {code}")
         return code
 
     async def run_forever(self):
@@ -73,6 +71,12 @@ class _Program:
                     raise typer.Exit(code or 0)
 
 
+async def _run_jacktrip(cmd: list[str]):
+    program = _Program("JackTrip", cmd)
+    program.log.addFilter(JackTripFilter())
+    await program.run_forever()
+
+
 async def start_server(*, port: int):
     cmd: list[str] = [
         "jacktrip",
@@ -82,7 +86,7 @@ async def start_server(*, port: int):
         "--nojackportsconnect",
         "--udprt",
     ]
-    await _Program(cmd).run_forever()
+    await _run_jacktrip(cmd)
 
 
 async def start_client(
@@ -99,14 +103,14 @@ async def start_client(
         remote_name: Name by which server identifies a client
         client_name: Name of JACK Client
     """
+
     cmd: list[str] = [
         "jacktrip",
         "--pingtoserver",
         str(server_host),
         "--receivechannels",
-        str(
-            receive_channels or 1
-        ),  # JackTrip doesn't allow one-way channel broadcasting
+        str(receive_channels or 1),
+        # JackTrip doesn't allow one-way channel broadcasting
         "--sendchannels",
         str(send_channels or 1),
         "--peerport",
@@ -118,11 +122,7 @@ async def start_client(
         "--nojackportsconnect",
         "--udprt",
     ]
-    await _Program(cmd).run_forever()
-
-
-# def resolve_number_of_send_channels(send_ports: dict[int, int]):
-#     return max(send_ports.keys()) if send_ports else 0
+    await _run_jacktrip(cmd)
 
 
 _BridgePort = int
@@ -130,12 +130,14 @@ _reserved_send_ports: set[_BridgePort] = set()
 _reserved_receive_ports: set[_BridgePort] = set()
 
 
-def _get_first_available_port(reserved_ports: set[_BridgePort]) -> int:  # type: ignore
+def _get_first_available_port(reserved_ports: set[_BridgePort]) -> int:
     for idx in itertools.count(start=1):
         if idx in reserved_ports:
             continue
         reserved_ports.add(idx)
         return idx
+
+    raise NotImplementedError
 
 
 def get_first_available_send_port(limit: int):
