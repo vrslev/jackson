@@ -88,19 +88,6 @@ class PortConnector:
             str(conn.local_bridge): conn for conn in connections
         }
 
-    def count_receive_send_channels(self):
-        # Required for JackTrip
-        receive = 0
-        send = 0
-
-        for connection in self.connection_map.values():
-            if connection.client_should == "send":
-                send += 1
-            else:
-                receive += 1
-
-        return receive, send
-
     async def _connect_ports_on_both_ends(self, connection: PortConnection):
         await self.messaging_client.connect(
             *connection.get_remote_connection(),
@@ -123,11 +110,23 @@ class PortConnector:
         conn = self.connection_map[port_name]
         self.callback_queue.put_nowait(partial(self._connect_ports_on_both_ends, conn))
 
+    def count_receive_send_channels(self):
+        # Required for JackTrip
+        receive, send = 0, 0
+
+        for connection in self.connection_map.values():
+            if connection.client_should == "send":
+                send += 1
+            else:
+                receive += 1
+
+        return receive, send
+
     async def run_queue(self):
         async with asyncer.create_task_group() as task_group:
             while True:
                 callback = await self.callback_queue.get()
                 task_group.soonify(callback)()
 
-    def deinit(self):
+    def stop(self):
         self.jack_client.deactivate()

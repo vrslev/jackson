@@ -95,7 +95,6 @@ async def start_client(
     receive_channels: int,
     send_channels: int,
     remote_name: str,
-    client_name: str = "JackTrip",
 ):
     """
     Args:
@@ -115,7 +114,7 @@ async def start_client(
         "--peerport",
         str(server_port),
         "--clientname",
-        client_name,
+        "JackTrip",
         "--remotename",
         remote_name,
         "--nojackportsconnect",

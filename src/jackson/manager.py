@@ -44,13 +44,12 @@ class Server(_BaseManager):
         )
         self.messaging_server = MessagingServer(messaging_app)
 
-    async def start_jacktrip(self):
-        return await jacktrip.start_server(port=self.settings.server.jacktrip_port)
-
     async def start(self, task_group: TaskGroup):
         self.jack_server.start()
 
-        task_group.soonify(self.start_jacktrip)()
+        task_group.soonify(jacktrip.start_server)(
+            port=self.settings.server.jacktrip_port
+        )
         task_group.soonify(self.messaging_server.start)()
         task_group.soonify(uvicorn_signal_handler)(task_group.cancel_scope)
 
@@ -63,11 +62,12 @@ class Client(_BaseManager):
     def __init__(self, settings: ClientSettings, start_jack: bool) -> None:
         self.settings = settings
         self.start_jack = start_jack
+        self.jack_server = None
+        self.port_connector = None
+
         self.messaging_client = MessagingClient(
             host=settings.server.host, port=settings.server.messaging_port
         )
-        self.jack_server = None
-        self.port_connector = None
 
     def start_jack_server(self, rate: jack_server.SampleRate):
         self.jack_server = JackServer(
@@ -86,10 +86,6 @@ class Client(_BaseManager):
             outputs_limit=outputs_limit,
         )
 
-    async def start_port_connector_queue(self):
-        assert self.port_connector
-        return await self.port_connector.run_queue()
-
     async def start_jacktrip(self):
         assert self.port_connector
         receive_count, send_count = self.port_connector.count_receive_send_channels()
@@ -103,21 +99,22 @@ class Client(_BaseManager):
         )
 
     async def start(self, task_group: TaskGroup):
-        init_response = await self.messaging_client.init()
+        init_resp = await self.messaging_client.init()
 
         if self.start_jack:
-            self.start_jack_server(init_response.rate)
+            self.start_jack_server(init_resp.rate)
 
-        self.init_port_connector(init_response.inputs, init_response.outputs)
+        self.init_port_connector(init_resp.inputs, init_resp.outputs)
+        assert self.port_connector
 
-        task_group.soonify(self.start_port_connector_queue)()
+        task_group.soonify(self.port_connector.run_queue)()
         task_group.soonify(self.start_jacktrip)()
 
     async def stop(self):
         await self.messaging_client.client.aclose()
 
         if self.port_connector:
-            self.port_connector.deinit()
+            self.port_connector.stop()
 
-        if self.jack_server and self.start_jack:
+        if self.start_jack and self.jack_server:
             self.jack_server.stop()
