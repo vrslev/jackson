@@ -7,13 +7,13 @@ rich.traceback.install(show_locals=True)
 logging.basicConfig(level=logging.INFO, handlers=[])
 
 
-def get_logging_handler(name: str):
-    return RichHandler(log_time_format=f"[%X] [{name}] ", rich_tracebacks=True)
-
-
 def get_configured_logger(name: str, prog_name: str):
     logger = logging.getLogger(name)
-    logger.addHandler(get_logging_handler(prog_name.ljust(8)[:8]))
+    short_name = prog_name.ljust(8)[:8]
+    handler = RichHandler(
+        log_time_format=f"[%X] [{short_name}] ", markup=True, rich_tracebacks=True
+    )
+    logger.addHandler(handler)
     return logger
 
 

@@ -30,7 +30,10 @@ class _Program:
 
     @contextlib.asynccontextmanager
     async def _start(self):
-        self.log.info(f"Starting {self.name}... ({shlex.join(self.cmd)})")
+        self.log.info(
+            f"Starting [bold blue]{self.name}[/bold blue]..."
+            + f" [italic]({shlex.join(self.cmd)})[/italic]"
+        )
 
         async with await anyio.open_process(self.cmd) as process:
             async with asyncer.create_task_group() as task_group:

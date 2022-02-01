@@ -99,10 +99,10 @@ class PortConnector:
         port_name = PortName.parse(port.name)
 
         if not register:
-            log.info(f"Unregistered port: {port_name}")
+            log.info(f"Unregistered port: [red]{port_name}[/red]")
             return  # We don't want to do anything if port unregistered
 
-        log.info(f"Registered port: {port_name}")
+        log.info(f"Registered port: [green]{port_name}[/green]")
 
         if port_name not in self.connection_map:
             return

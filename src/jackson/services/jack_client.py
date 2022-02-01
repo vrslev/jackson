@@ -26,15 +26,15 @@ class JackClient(jack.Client):
 
         for _ in range(100):
             try:
-                log.info("Connecting to Jack...")
+                log.info("[yellow]Connecting to Jack...[/yellow]")
                 super().__init__(name=name, no_start_server=True)
-                log.info("Connected to Jack!")
+                log.info("[green]Connected to Jack![/green]")
                 break
             except jack.JackOpenError:
                 time.sleep(0.1)
 
         else:
-            log.error("Can't connect to Jack")
+            log.error("[red]Can't connect to Jack[/red]")
             raise typer.Exit(1)
 
         self._set_stream_handlers()
@@ -58,10 +58,15 @@ class JackClient(jack.Client):
         self._block_streams()
 
     def connect(self, source: PortName, destination: PortName) -> None:  # type: ignore
-        source_name = str(source)
-        destination_name = str(destination)
-        super().connect(source_name, destination_name)
-        log.info(f"Connected ports: {source_name} -> {destination_name}")
+        src_name = str(source)
+        dest_name = str(destination)
+
+        super().connect(src_name, dest_name)
+
+        log.info(
+            f"Connected ports: [bold green]{src_name}[/bold green] ->"
+            + f" [bold green]{dest_name}[/bold green]"
+        )
 
     def get_port_by_name(self, name: PortName) -> jack.Port:  # type: ignore
         return super().get_port_by_name(str(name))

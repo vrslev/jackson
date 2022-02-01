@@ -95,4 +95,7 @@ class MessagingClient:
 
         response = await self._retry(_connect, times=3, delay=0.5)
         data = self._handle_response(response, ConnectResponse)
-        log.info(f"Connected ports on server: {data.source} -> {data.destination}")
+        log.info(
+            f"Connected ports on server: [bold cyan]{data.source}[/bold cyan]"
+            + f" -> [bold cyan]{data.destination}[/bold cyan]"
+        )
