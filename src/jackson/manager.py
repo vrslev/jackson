@@ -2,9 +2,9 @@ from abc import ABC, abstractmethod
 
 import anyio
 import asyncer
+import jack_server
 from asyncer._main import TaskGroup
 
-import jack_server
 from jackson.services import jacktrip
 from jackson.services.jack_server import JackServer
 from jackson.services.messaging.client import MessagingClient

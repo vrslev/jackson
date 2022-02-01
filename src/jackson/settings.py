@@ -1,10 +1,9 @@
 from ipaddress import IPv4Address
 from typing import IO
 
+import jack_server
 import yaml
 from pydantic import BaseModel, BaseSettings
-
-import jack_server
 
 
 class _YamlBaseSettings(BaseSettings):
