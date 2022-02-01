@@ -143,7 +143,7 @@ class PortConnector:
     def deinit(self):
         self.jack_client.deactivate()
 
-    async def start_queue(self):
+    async def run_queue(self):
         async with asyncer.create_task_group() as task_group:
             while True:
                 callback = await self.callback_queue.get()

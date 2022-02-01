@@ -88,7 +88,7 @@ class Client(_BaseManager):
 
     async def start_port_connector_queue(self):
         assert self.port_connector
-        return await self.port_connector.start_queue()
+        return await self.port_connector.run_queue()
 
     async def start_jacktrip(self):
         assert self.port_connector
