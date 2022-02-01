@@ -1,5 +1,4 @@
 import contextlib
-import itertools
 import shlex
 from ipaddress import IPv4Address
 from typing import Callable
@@ -123,30 +122,3 @@ async def start_client(
         "--udprt",
     ]
     await _run_jacktrip(cmd)
-
-
-_BridgePort = int
-_reserved_send_ports: set[_BridgePort] = set()
-_reserved_receive_ports: set[_BridgePort] = set()
-
-
-def _get_first_available_port(reserved_ports: set[_BridgePort]) -> int:
-    for idx in itertools.count(start=1):
-        if idx in reserved_ports:
-            continue
-        reserved_ports.add(idx)
-        return idx
-
-    raise NotImplementedError
-
-
-def get_first_available_send_port(limit: int):
-    if len(_reserved_send_ports) >= limit:
-        raise RuntimeError("Limit of available send ports exceeded.")
-    return _get_first_available_port(_reserved_send_ports)
-
-
-def get_first_available_receive_port(limit: int):
-    if len(_reserved_receive_ports) >= limit:
-        raise RuntimeError("Limit of available receive ports exceeded.")
-    return _get_first_available_port(_reserved_receive_ports)
