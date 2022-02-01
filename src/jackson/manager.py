@@ -85,7 +85,6 @@ class Client(_BaseManager):
             inputs_limit=inputs_limit,
             outputs_limit=outputs_limit,
         )
-        self.port_connector.init()
 
     async def start_port_connector_queue(self):
         assert self.port_connector

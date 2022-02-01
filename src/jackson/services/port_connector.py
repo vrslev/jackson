@@ -52,7 +52,10 @@ class PortConnector:
             Callable[[], Coroutine[Any, Any, None]]
         ] = asyncio.Queue()
         self.messaging_client = messaging_client
-        self.jack_client = None
+
+        self.jack_client = JackClient("PortConnector")
+        self.jack_client.set_port_registration_callback(self.port_registration_callback)
+        self.jack_client.activate()
 
     def build_connection_map(
         self, ports_from_config: ClientPorts, inputs_limit: int, outputs_limit: int
@@ -108,8 +111,6 @@ class PortConnector:
         return receive, send
 
     async def _connect_ports(self, connection: PortConnection):
-        assert self.jack_client
-
         remote_source, remote_destination = connection.get_remote_connection()
 
         await self.messaging_client.connect(
@@ -139,14 +140,8 @@ class PortConnector:
 
         self.callback_queue.put_nowait(task)
 
-    def init(self):
-        self.jack_client = JackClient("PortConnector")
-        self.jack_client.set_port_registration_callback(self.port_registration_callback)
-        self.jack_client.activate()
-
     def deinit(self):
-        if self.jack_client:
-            self.jack_client.deactivate()
+        self.jack_client.deactivate()
 
     async def start_queue(self):
         async with asyncer.create_task_group() as task_group:
