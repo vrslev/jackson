@@ -79,7 +79,7 @@ async def _run_jacktrip(cmd: list[str]):
     await program.run_forever()
 
 
-async def start_server(*, port: int):
+async def run_server(*, port: int):
     cmd: list[str] = [
         "jacktrip",
         "--jacktripserver",
@@ -91,7 +91,7 @@ async def start_server(*, port: int):
     await _run_jacktrip(cmd)
 
 
-async def start_client(
+async def run_client(
     *,
     server_host: IPv4Address,
     server_port: int,

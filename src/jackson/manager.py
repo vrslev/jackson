@@ -47,9 +47,7 @@ class Server(_BaseManager):
     async def start(self, task_group: TaskGroup):
         self.jack_server.start()
 
-        task_group.soonify(jacktrip.start_server)(
-            port=self.settings.server.jacktrip_port
-        )
+        task_group.soonify(jacktrip.run_server)(port=self.settings.server.jacktrip_port)
         task_group.soonify(self.messaging_server.start)()
         task_group.soonify(uvicorn_signal_handler)(task_group.cancel_scope)
 
@@ -90,7 +88,7 @@ class Client(_BaseManager):
         assert self.port_connector
         receive_count, send_count = self.port_connector.count_receive_send_channels()
 
-        return await jacktrip.start_client(
+        return await jacktrip.run_client(
             server_host=self.settings.server.host,
             server_port=self.settings.server.jacktrip_port,
             receive_channels=receive_count,
