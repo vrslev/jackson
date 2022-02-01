@@ -1,11 +1,10 @@
 import signal
 from functools import lru_cache
-from typing import Any, cast
+from typing import Any
 
 import anyio
 import jack
-import jack_server
-import uvicorn  # type: ignore
+import uvicorn
 from fastapi import Body, Depends, FastAPI, HTTPException, status
 from pydantic import BaseModel
 
@@ -22,10 +21,6 @@ from jackson.services.port_connection import ClientShould, PortName
 
 app = FastAPI()
 log = get_configured_logger(__name__, "HttpServer")
-
-# Configure uvicorn loggers
-for logger_name in ("uvicorn.error", "uvicorn.access"):
-    get_configured_logger(logger_name, "HttpServer")
 
 
 class StructuredHTTPException(HTTPException):
@@ -52,7 +47,7 @@ def get_jack_client():
 def init(client: JackClient = Depends(get_jack_client)):
     inputs = client.get_ports("system:.*", is_input=True)
     outputs = client.get_ports("system:.*", is_output=True)
-    rate = cast(jack_server.SampleRate, client.samplerate)
+    rate = client.samplerate
 
     return InitResponse(inputs=len(inputs), outputs=len(outputs), rate=rate)
 
@@ -97,12 +92,17 @@ def connect(
 
 class MessagingServer(uvicorn.Server):
     def __init__(self, app: FastAPI) -> None:
-        super().__init__(
-            uvicorn.Config(app=app, host="0.0.0.0", workers=1, log_config=None)
-        )
+        self._started = False
+
+        # Configure uvicorn loggers
+        for logger_name in ("uvicorn.error", "uvicorn.access"):
+            get_configured_logger(logger_name, "HttpServer")
+
+        config = uvicorn.Config(app=app, host="0.0.0.0", workers=1, log_config=None)
+        super().__init__(config)
+
         self.config.load()
         self.lifespan = self.config.lifespan_class(self.config)
-        self._started = False
 
     async def start(self):
         self._started = True

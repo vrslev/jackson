@@ -1,6 +1,8 @@
 import time
+from typing import cast
 
 import jack
+import jack_server
 import typer
 
 from jackson.logging import (
@@ -60,3 +62,7 @@ class JackClient(jack.Client):
         destination_name = str(destination)
         super().connect(source_name, destination_name)
         log.info(f"Connected ports: {source_name} -> {destination_name}")
+
+    @property
+    def samplerate(self) -> jack_server.SampleRate:
+        return cast(jack_server.SampleRate, super().samplerate)
