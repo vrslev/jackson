@@ -5,10 +5,10 @@ from typing import Any, Callable, Coroutine
 import asyncer
 import jack
 
+from jackson.api.client import MessagingClient
+from jackson.jack_client import JackClient
 from jackson.logging import get_configured_logger
-from jackson.services.jack_client import JackClient
-from jackson.services.messaging.client import MessagingClient
-from jackson.services.port_connection import PortConnection, PortName
+from jackson.port_connection import PortConnection, PortName
 from jackson.settings import ClientPorts
 
 log = get_configured_logger(__name__, "PortConnector")

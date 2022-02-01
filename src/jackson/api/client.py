@@ -7,15 +7,15 @@ import anyio
 import httpx
 from pydantic import AnyHttpUrl, BaseModel
 
-from jackson.logging import get_configured_logger
-from jackson.services.messaging.models import (
+from jackson.api.models import (
     ConnectResponse,
     InitResponse,
     PlaybackPortAlreadyHasConnections,
     PortName,
     PortNotFound,
 )
-from jackson.services.port_connection import ClientShould
+from jackson.logging import get_configured_logger
+from jackson.port_connection import ClientShould
 
 log = get_configured_logger(__name__, "HttpClient")
 

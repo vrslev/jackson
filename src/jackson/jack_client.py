@@ -10,7 +10,7 @@ from jackson.logging import (
     get_configured_logger,
     silent_jack_stream_handler,
 )
-from jackson.services.port_connection import PortName
+from jackson.port_connection import PortName
 
 log = get_configured_logger(__name__, "JackClient")
 log.addFilter(JackClientFilter())

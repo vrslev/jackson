@@ -5,13 +5,13 @@ import asyncer
 import jack_server
 from asyncer._main import TaskGroup
 
-from jackson.services import jacktrip
-from jackson.services.jack_server import JackServer
-from jackson.services.messaging.client import MessagingClient
-from jackson.services.messaging.server import MessagingServer
-from jackson.services.messaging.server import app as messaging_app
-from jackson.services.messaging.server import uvicorn_signal_handler
-from jackson.services.port_connector import PortConnector
+from jackson import jacktrip
+from jackson.api.client import MessagingClient
+from jackson.api.server import MessagingServer
+from jackson.api.server import app as messaging_app
+from jackson.api.server import uvicorn_signal_handler
+from jackson.jack_server import JackServer
+from jackson.port_connector import PortConnector
 from jackson.settings import ClientSettings, ServerSettings
 
 

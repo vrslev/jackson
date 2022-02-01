@@ -8,16 +8,16 @@ import uvicorn
 from fastapi import Body, Depends, FastAPI, HTTPException, status
 from pydantic import BaseModel
 
-from jackson.logging import get_configured_logger
-from jackson.services.jack_client import JackClient
-from jackson.services.messaging.models import (
+from jackson.api.models import (
     ConnectResponse,
     InitResponse,
     PlaybackPortAlreadyHasConnections,
     PortDirectionType,
     PortNotFound,
 )
-from jackson.services.port_connection import ClientShould, PortName
+from jackson.jack_client import JackClient
+from jackson.logging import get_configured_logger
+from jackson.port_connection import ClientShould, PortName
 
 app = FastAPI()
 log = get_configured_logger(__name__, "HttpServer")

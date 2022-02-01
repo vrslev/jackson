@@ -3,7 +3,7 @@ from typing import Literal
 import jack_server
 from pydantic import BaseModel
 
-from jackson.services.port_connection import PortName
+from jackson.port_connection import PortName
 
 
 class InitResponse(BaseModel):
