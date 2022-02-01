@@ -4,22 +4,21 @@ from typing import Any, cast
 
 import anyio
 import jack
+import jack_server
 import uvicorn  # type: ignore
 from fastapi import Body, Depends, FastAPI, HTTPException, status
 from pydantic import BaseModel
 
-import jack_server
 from jackson.logging import get_configured_logger
 from jackson.services.jack_client import JackClient
-from jackson.services.models import (
-    ClientShould,
+from jackson.services.messaging.models import (
     ConnectResponse,
     InitResponse,
     PlaybackPortAlreadyHasConnections,
     PortDirectionType,
-    PortName,
     PortNotFound,
 )
+from jackson.services.port_connection import ClientShould, PortName
 
 app = FastAPI()
 log = get_configured_logger(__name__, "HttpServer")

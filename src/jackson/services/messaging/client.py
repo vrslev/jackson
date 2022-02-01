@@ -7,14 +7,14 @@ from pydantic import AnyHttpUrl, BaseModel
 from pydantic.dataclasses import dataclass
 
 from jackson.logging import get_configured_logger
-from jackson.services.models import (
-    ClientShould,
+from jackson.services.messaging.models import (
     ConnectResponse,
     InitResponse,
     PlaybackPortAlreadyHasConnections,
     PortName,
     PortNotFound,
 )
+from jackson.services.port_connection import ClientShould
 
 log = get_configured_logger(__name__, "HttpClient")
 

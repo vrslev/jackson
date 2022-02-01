@@ -2,8 +2,6 @@ from typing import Literal, cast
 
 from pydantic import BaseModel
 
-import jack_server
-
 PortType = Literal["send", "receive", "capture", "playback"]
 
 
@@ -27,28 +25,24 @@ class PortName(BaseModel, frozen=True):
         return cls(client=client, type=cast(PortType, type_), idx=int(idx))
 
 
-class InitResponse(BaseModel):
-    inputs: int
-    outputs: int
-    rate: jack_server.SampleRate
+ClientShould = Literal["send", "receive"]
 
 
-PortDirectionType = Literal["source", "destination"]
-
-
-class PortNotFound(BaseModel):
-    type: PortDirectionType
-    name: PortName
-
-
-class PlaybackPortAlreadyHasConnections(BaseModel):
-    port_name: PortName
-    connection_names: list[str]
-
-
-class ConnectResponse(BaseModel):
+class PortConnection(BaseModel, frozen=True):
+    client_should: ClientShould
     source: PortName
+    local_bridge: PortName
+    remote_bridge: PortName
     destination: PortName
 
+    def get_local_connection(self):
+        if self.client_should == "send":
+            return self.source, self.local_bridge
+        else:
+            return self.local_bridge, self.destination
 
-ClientShould = Literal["send", "receive"]
+    def get_remote_connection(self):
+        if self.client_should == "send":
+            return self.remote_bridge, self.destination
+        else:
+            return self.source, self.remote_bridge

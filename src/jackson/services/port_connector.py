@@ -3,36 +3,15 @@ from typing import Any, Callable, Coroutine
 
 import asyncer
 import jack
-from pydantic import BaseModel
 
 from jackson.logging import get_configured_logger
 from jackson.services import jacktrip
 from jackson.services.jack_client import JackClient
 from jackson.services.messaging.client import MessagingClient
-from jackson.services.models import ClientShould, PortName
+from jackson.services.port_connection import PortConnection, PortName
 from jackson.settings import ClientPorts
 
 log = get_configured_logger(__name__, "PortConnector")
-
-
-class PortConnection(BaseModel, frozen=True):
-    client_should: ClientShould
-    source: PortName
-    local_bridge: PortName
-    remote_bridge: PortName
-    destination: PortName
-
-    def get_local_connection(self):
-        if self.client_should == "send":
-            return self.source, self.local_bridge
-        else:
-            return self.local_bridge, self.destination
-
-    def get_remote_connection(self):
-        if self.client_should == "send":
-            return self.remote_bridge, self.destination
-        else:
-            return self.source, self.remote_bridge
 
 
 class PortConnector:
