@@ -85,7 +85,9 @@ def connect(
             ),
         )
 
-    jack_client.connect(source, destination)
+    jack_client.connect(
+        source, destination
+    )  # TODO: Check if ports already connected. It will prevent issues with multiple sessions
     return ConnectResponse(source=source, destination=destination)
 
 
