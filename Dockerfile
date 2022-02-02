@@ -28,7 +28,8 @@ RUN apt-get update \
     libqt5network5 \
     && rm -rf /var/lib/apt/lists/*
 
-RUN echo "@audio  -  rtprio  99" | tee -a /etc/security/limits.conf
+RUN echo "@audio  -  rtprio  99" | tee -a /etc/security/limits.conf \
+    && echo "@audio   -  memlock    unlimited" | tee -a /etc/security/limits.conf
 
 COPY --from=jacktrip_builder /jacktrip/builddir/jacktrip /usr/local/bin/
 
