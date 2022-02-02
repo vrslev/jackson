@@ -21,8 +21,8 @@ class PortNotFound(BaseModel):
 
 
 class PlaybackPortAlreadyHasConnections(BaseModel):
-    port_name: PortName
-    connection_names: list[str]
+    port: PortName
+    connections: list[PortName]
 
 
 class FailedToConnectPorts(BaseModel):

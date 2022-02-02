@@ -99,10 +99,11 @@ class MessagingClient:
             "destination": destination.dict(),
             "client_should": client_should,
         }
-        _connect = partial(self.client.patch, "/connect", json=payload)  # type: ignore
 
+        _connect = partial(self.client.patch, "/connect", json=payload)  # type: ignore
         response = await self._retry(_connect, times=3, delay=0.5)
         data = self._handle_response(response, ConnectResponse)
+
         log.info(
             f"Connected ports on server: [bold cyan]{data.source}[/bold cyan]"
             + f" -> [bold cyan]{data.destination}[/bold cyan]"

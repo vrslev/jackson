@@ -73,17 +73,16 @@ async def connect(
 ):
     # TODO: Validate (check if allowed) source and destination
     get_port_or_fail(jack_client, type="source", name=source)
-    destination_port = get_port_or_fail(
-        jack_client, type="destination", name=destination
-    )
+    dest_port = get_port_or_fail(jack_client, type="destination", name=destination)
 
     if client_should == "send" and (
-        connections := jack_client.get_all_connections(destination_port)
+        connections := jack_client.get_all_connections(dest_port)
     ):
         raise StructuredHTTPException(
             status.HTTP_409_CONFLICT,
             PlaybackPortAlreadyHasConnections(
-                port_name=destination, connection_names=[p.name for p in connections]
+                port=destination,
+                connections=[PortName.parse(p.name) for p in connections],
             ),
         )
 
