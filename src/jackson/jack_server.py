@@ -29,3 +29,8 @@ class JackServer(jack_server.Server):
         jack_server.set_error_function(silent_jack_stream_handler)
 
         super().stop()
+
+
+if __name__ == "__main__":
+    JackServer(driver="coreaudio", device="BlackHole16ch_UID", rate=48000).start()
+    input()

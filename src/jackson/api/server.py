@@ -21,6 +21,8 @@ from jackson.port_connection import ClientShould, PortName
 
 app = FastAPI()
 log = get_configured_logger(__name__, "HttpServer")
+uvicorn_err_log = get_configured_logger("uvicorn.error", "HttpServer")
+uvicorn_access_log = get_configured_logger("uvicorn.access", "HttpServer")
 
 
 class StructuredHTTPException(HTTPException):
@@ -94,9 +96,6 @@ def connect(
 class MessagingServer(uvicorn.Server):
     def __init__(self, app: FastAPI) -> None:
         self._started = False
-
-        for name in ("uvicorn.error", "uvicorn.access"):
-            get_configured_logger(name, "HttpServer")
 
         config = uvicorn.Config(app=app, host="0.0.0.0", workers=1, log_config=None)
         super().__init__(config)

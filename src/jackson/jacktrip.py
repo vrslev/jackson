@@ -11,12 +11,14 @@ from anyio.streams.text import TextReceiveStream
 
 from jackson.logging import JackTripFilter, get_configured_logger
 
+log = get_configured_logger(__name__, "JackTrip")
+log.addFilter(JackTripFilter())
+
 
 class _Program:
-    def __init__(self, pretty_name: str, cmd: list[str]) -> None:
+    def __init__(self, cmd: list[str]) -> None:
         self.cmd = cmd
         self.name = cmd[0]
-        self.log = get_configured_logger(f"{__name__}.{self.name}", pretty_name)
 
     async def _restream_stream(
         self, stream: ByteReceiveStream | None, handler: Callable[[str], None]
@@ -30,7 +32,7 @@ class _Program:
 
     @contextlib.asynccontextmanager
     async def _start(self):
-        self.log.info(
+        log.info(
             f"Starting [bold blue]{self.name}[/bold blue]..."
             + f" [italic]({shlex.join(self.cmd)})[/italic]"
         )
@@ -38,10 +40,10 @@ class _Program:
         async with await anyio.open_process(self.cmd) as process:
             async with asyncer.create_task_group() as task_group:
                 task_group.soonify(self._restream_stream)(
-                    stream=process.stderr, handler=self.log.error
+                    stream=process.stderr, handler=log.error
                 )
                 task_group.soonify(self._restream_stream)(
-                    stream=process.stdout, handler=self.log.info
+                    stream=process.stdout, handler=log.info
                 )
                 yield process
 
@@ -54,7 +56,7 @@ class _Program:
         # Otherwise RuntimeError('Event loop is closed') is being called
         process._process._transport.close()  # type: ignore
 
-        self.log.info(f"Exited with code {code}")
+        log.info(f"Exited with code {code}")
         return code
 
     async def run_forever(self):
@@ -74,8 +76,7 @@ class _Program:
 
 
 async def _run_jacktrip(cmd: list[str]):
-    program = _Program("JackTrip", cmd)
-    program.log.addFilter(JackTripFilter())
+    program = _Program(cmd)
     await program.run_forever()
 
 
