@@ -1,4 +1,6 @@
 __pycache__
 .venv
+.DS_Store
+
 config.client.yaml
 config.server.yaml
