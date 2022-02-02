@@ -25,7 +25,7 @@ def server_command(
         jackson.jack_server.log.disabled = True
         jackson.jacktrip.log.disabled = True
 
-    asyncer.runnify(server.run, backend_options={"use_uvloop": True})()
+    asyncer.runnify(server.run, backend_options={"use_uvloop": False})()
 
 
 @app.command("client")
