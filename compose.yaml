@@ -12,3 +12,4 @@ services:
       rtprio: 99
     cap_add:
       - SYS_NICE
+    privileged: True
