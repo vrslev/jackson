@@ -12,7 +12,7 @@ app = typer.Typer()
 def server_command(config: typer.FileText = Option("config.server.yaml")):
     settings = ServerSettings.from_yaml(config)
     server = Server(settings)
-    asyncer.runnify(server.run)()
+    asyncer.runnify(server.run, backend_options={"use_uvloop": True})()
 
 
 @app.command("client")
@@ -22,7 +22,7 @@ def client_command(
 ):
     settings = ClientSettings.from_yaml(config)
     client = Client(settings=settings, start_jack=not no_jack)
-    asyncer.runnify(client.run)()
+    asyncer.runnify(client.run, backend_options={"use_uvloop": True})()
 
 
 if __name__ == "__main__":
