@@ -2,7 +2,7 @@
 FROM python:3.10-slim as jacktrip_builder
 
 RUN apt-get update \
-    && apt-get install --no-install-recommends -y \
+    && DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y \
     build-essential qtbase5-dev autoconf automake libtool make libjack-jackd2-dev git help2man \
     && rm -rf /var/lib/apt/lists/*
 
@@ -22,7 +22,7 @@ RUN pip install --no-cache-dir -U pip poetry \
     && venv/bin/pip install --no-cache-dir -r /tmp/requirements.txt
 
 RUN apt-get update \
-    && apt-get install --no-install-recommends -y \
+    && DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y \
     jackd2 \
     # required for JackTrip
     libqt5network5 \
