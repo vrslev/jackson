@@ -23,7 +23,7 @@ RUN pip install --no-cache-dir -U pip poetry \
 
 RUN apt-get update \
     && apt-get install --no-install-recommends -y \
-    libjack-jackd2-0 \
+    jackd2 \
     # required for JackTrip
     libqt5network5 \
     && rm -rf /var/lib/apt/lists/*
