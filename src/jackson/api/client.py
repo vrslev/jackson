@@ -27,7 +27,7 @@ class ServerError(Exception):
     data: BaseModel
 
     def __str__(self) -> str:
-        return f"{self.message}: {self.data.dict()}"
+        return f"{self.message} ({self.data})"
 
 
 _T = TypeVar("_T", bound=BaseModel)
@@ -37,11 +37,11 @@ class MessagingClient:
     def __init__(self, host: IPv4Address, port: int) -> None:
         base_url = AnyHttpUrl.build(scheme="http", host=str(host), port=str(port))
         self.client = httpx.AsyncClient(base_url=base_url)
-        self.exc_message_to_model: dict[str, type[BaseModel]] = {
-            "Playback port already has connections": PlaybackPortAlreadyHasConnections,
-            "Port not found": PortNotFound,
-            "Failed to connect ports": FailedToConnectPorts,
-        }
+        self.known_errors: tuple[type[BaseModel], ...] = (
+            PlaybackPortAlreadyHasConnections,
+            PortNotFound,
+            FailedToConnectPorts,
+        )
 
     def _handle_exceptions(self, data: dict[str, Any]):
         if "detail" not in data:
@@ -51,7 +51,13 @@ class MessagingClient:
             raise RuntimeError(data)
 
         detail = data["detail"]
-        model = self.exc_message_to_model.get(detail["message"])
+
+        model = None
+        for m in self.known_errors:
+            if m.__name__ == detail["message"]:
+                model = m
+                break
+
         if model is None:
             raise RuntimeError(data)
 

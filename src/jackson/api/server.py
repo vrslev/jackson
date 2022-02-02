@@ -30,13 +30,15 @@ class StructuredHTTPException(HTTPException):
     def __init__(
         self,
         status_code: int,
-        message: str,
         data: BaseModel | None = None,
         headers: dict[str, Any] | None = None,
     ) -> None:
         super().__init__(
             status_code=status_code,
-            detail={"message": message, "data": data.dict() if data else None},
+            detail={
+                "message": data.__class__.__name__,
+                "data": data.dict() if data else None,
+            },
             headers=headers,
         )
 
@@ -59,9 +61,7 @@ def get_port_or_fail(jack_client: JackClient, type: PortDirectionType, name: Por
     try:
         return jack_client.get_port_by_name(name)
     except jack.JackError:
-        raise StructuredHTTPException(
-            404, message="Port not found", data=PortNotFound(type=type, name=name)
-        )
+        raise StructuredHTTPException(404, PortNotFound(type=type, name=name))
 
 
 @app.patch("/connect", response_model=ConnectResponse)
@@ -82,8 +82,7 @@ async def connect(
     ):
         raise StructuredHTTPException(
             status.HTTP_409_CONFLICT,
-            message="Playback port already has connections",
-            data=PlaybackPortAlreadyHasConnections(
+            PlaybackPortAlreadyHasConnections(
                 port_name=destination, connection_names=[p.name for p in connections]
             ),
         )
@@ -94,8 +93,7 @@ async def connect(
     except jack.JackError:
         raise StructuredHTTPException(
             status.HTTP_424_FAILED_DEPENDENCY,
-            message="Failed to connect ports",
-            data=FailedToConnectPorts(source=source, destination=destination),
+            FailedToConnectPorts(source=source, destination=destination),
         )
 
     return ConnectResponse(source=source, destination=destination)
