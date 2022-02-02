@@ -1,6 +1,7 @@
 import time
 from typing import cast
 
+import anyio
 import jack
 import jack_server
 import typer
@@ -74,3 +75,34 @@ class JackClient(jack.Client):
     @property
     def samplerate(self) -> jack_server.SampleRate:
         return cast(jack_server.SampleRate, super().samplerate)
+
+    async def connect_retry(self, source: PortName, destination: PortName) -> None:
+        """Connect ports for sure.
+
+        Several issues could come up while connecting JACK ports.
+
+        1. "Cannot connect ports owned by inactive clients: "MyName" is not active"
+            This means that client is not initialized yet.
+
+        2. "Unknown destination port in attempted (dis)connection src_name  dst_name"
+            I.e. port is not initialized yet.
+        """
+
+        exc = None
+        dest_name = str(destination)
+
+        for _ in range(100):
+            try:
+                connections = self.get_all_connections(self.get_port_by_name(source))
+                if any(p.name == dest_name for p in connections):
+                    return
+
+                self.connect(source, destination)
+                return
+
+            except jack.JackError as e:
+                exc = e
+                await anyio.sleep(0.1)
+
+        assert exc
+        raise exc

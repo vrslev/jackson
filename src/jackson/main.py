@@ -21,9 +21,9 @@ def server_command(
         import jackson.jack_server
         import jackson.jacktrip
 
+        jackson.api.server.uvicorn_access_log.disabled = True
         jackson.jack_server.log.disabled = True
         jackson.jacktrip.log.disabled = True
-        jackson.api.server.uvicorn_access_log.disabled = True
 
     asyncer.runnify(server.run, backend_options={"use_uvloop": True})()
 

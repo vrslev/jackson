@@ -10,6 +10,7 @@ from pydantic import BaseModel
 
 from jackson.api.models import (
     ConnectResponse,
+    FailedToConnectPorts,
     InitResponse,
     PlaybackPortAlreadyHasConnections,
     PortDirectionType,
@@ -46,7 +47,7 @@ def get_jack_client():
 
 
 @app.get("/init", response_model=InitResponse)
-def init(jack_client: JackClient = Depends(get_jack_client)):
+async def init(jack_client: JackClient = Depends(get_jack_client)):
     inputs = jack_client.get_ports("system:.*", is_input=True)
     outputs = jack_client.get_ports("system:.*", is_output=True)
     rate = jack_client.samplerate
@@ -64,7 +65,7 @@ def get_port_or_fail(jack_client: JackClient, type: PortDirectionType, name: Por
 
 
 @app.patch("/connect", response_model=ConnectResponse)
-def connect(
+async def connect(
     source: PortName,
     destination: PortName,
     client_should: ClientShould = Body(...),
@@ -87,9 +88,16 @@ def connect(
             ),
         )
 
-    jack_client.connect(
-        source, destination
-    )  # TODO: Check if ports already connected. It will prevent issues with multiple sessions
+    # TODO: Check if ports already connected. It will prevent issues with multiple sessions
+    try:
+        await jack_client.connect_retry(source, destination)
+    except jack.JackError:
+        raise StructuredHTTPException(
+            status.HTTP_424_FAILED_DEPENDENCY,
+            message="Failed to connect ports",
+            data=FailedToConnectPorts(source=source, destination=destination),
+        )
+
     return ConnectResponse(source=source, destination=destination)
 
 

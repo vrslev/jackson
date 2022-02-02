@@ -25,6 +25,11 @@ class PlaybackPortAlreadyHasConnections(BaseModel):
     connection_names: list[str]
 
 
+class FailedToConnectPorts(BaseModel):
+    source: PortName
+    destination: PortName
+
+
 class ConnectResponse(BaseModel):
     source: PortName
     destination: PortName

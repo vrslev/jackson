@@ -9,6 +9,7 @@ from pydantic import AnyHttpUrl, BaseModel
 
 from jackson.api.models import (
     ConnectResponse,
+    FailedToConnectPorts,
     InitResponse,
     PlaybackPortAlreadyHasConnections,
     PortName,
@@ -39,6 +40,7 @@ class MessagingClient:
         self.exc_message_to_model: dict[str, type[BaseModel]] = {
             "Playback port already has connections": PlaybackPortAlreadyHasConnections,
             "Port not found": PortNotFound,
+            "Failed to connect ports": FailedToConnectPorts,
         }
 
     def _handle_exceptions(self, data: dict[str, Any]):
