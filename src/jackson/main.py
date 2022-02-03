@@ -2,9 +2,6 @@ import asyncer
 import typer
 from typer.params import Option
 
-from jackson.manager import Client, Server
-from jackson.settings import ClientSettings, ServerSettings
-
 app = typer.Typer()
 
 
@@ -13,6 +10,13 @@ def server_command(
     config: typer.FileText = Option("config.server.yaml"),
     no_workers_output: bool = Option(False, "--no-workers-output"),
 ):
+    import jackson.logging
+
+    jackson.logging.MODE = "server"
+
+    from jackson.manager import Server
+    from jackson.settings import ServerSettings
+
     settings = ServerSettings.from_yaml(config)
     server = Server(settings)
 
@@ -33,6 +37,13 @@ def client_command(
     config: typer.FileText = Option("config.client.yaml"),
     no_jack: bool = Option(False, "--no-jack"),
 ):
+    import jackson.logging
+
+    jackson.logging.MODE = "client"
+
+    from jackson.manager import Client
+    from jackson.settings import ClientSettings
+
     settings = ClientSettings.from_yaml(config)
     client = Client(settings=settings, start_jack=not no_jack)
     asyncer.runnify(client.run, backend_options={"use_uvloop": True})()

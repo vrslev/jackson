@@ -4,3 +4,4 @@ __pycache__
 
 config.client.yaml
 config.server.yaml
+log/
