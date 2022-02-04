@@ -98,6 +98,11 @@ async def connect(
     return ConnectResponse(source=source, destination=destination)
 
 
+# @app.on_event("shutdown") # type: ignore
+# def on_shutdown():
+#     get_jack_client.cache_clear()
+
+
 class MessagingServer(uvicorn.Server):
     def __init__(self, app: FastAPI) -> None:
         self._started = False

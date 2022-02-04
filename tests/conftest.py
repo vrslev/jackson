@@ -1,23 +1,19 @@
+import logging
 from asyncio import Queue
 from typing import Literal
 
 import anyio
-import asyncer
-import rich
+import pytest
+from _pytest.logging import LogCaptureFixture
 from asyncer._main import TaskGroup
 
-import jackson.logging
 from jackson.jack_client import JackClient
-from jackson.port_connection import PortConnection, PortName
-
-jackson.logging.MODE = "test"
-
-
 from jackson.manager import Client, Server
+from jackson.port_connection import PortConnection, PortName
 from jackson.settings import ClientSettings, ServerSettings
 
-connection_map_queue: Queue[dict[PortName, PortConnection]] = Queue()
-exit_queue: Queue[Literal["server", "client"]] = Queue()
+ConnectionMapQueue = Queue[dict[PortName, PortConnection]]
+ExitQueue = Queue[Literal["server", "client"]]
 
 
 def ports_are_connected(client: JackClient, source: PortName, destination: PortName):
@@ -52,19 +48,39 @@ def validate_connections(connection_map: dict[PortName, PortConnection]):
         raise RuntimeError(f"There are missing connections: {missing_connections}")
 
 
-class TestingServer(Server):
+class CustomServer(Server):
+    def __init__(
+        self,
+        settings: ServerSettings,
+        exit_queue: ExitQueue,
+        connection_map_queue: ConnectionMapQueue,
+    ):
+        super().__init__(settings)
+        self.exit_queue = exit_queue
+        self.connection_map_queue = connection_map_queue
+
     async def check_connections(self):
-        connection_map = await connection_map_queue.get()
+        connection_map = await self.connection_map_queue.get()
         validate_connections(connection_map)
-        await exit_queue.put("server")
+        await self.exit_queue.put("server")
 
     async def start(self, task_group: TaskGroup):
         await super().start(task_group)
         task_group.soonify(self.check_connections)()
 
 
-class TestingClient(Client):
-    count: int = 0
+class CustomClient(Client):
+    def __init__(
+        self,
+        settings: ClientSettings,
+        start_jack: bool,
+        exit_queue: ExitQueue,
+        connection_map_queue: ConnectionMapQueue,
+    ) -> None:
+        super().__init__(settings, start_jack)
+        self.count = 0
+        self.exit_queue = exit_queue
+        self.connection_map_queue = connection_map_queue
 
     def patch_connect_ports_on_both_ends(self):
         assert self.port_connector
@@ -90,59 +106,62 @@ class TestingClient(Client):
         while not self.count == len(self.port_connector.connection_map):
             await anyio.sleep(0.0001)
 
-        await connection_map_queue.put(self.port_connector.connection_map)
+        await self.connection_map_queue.put(self.port_connector.connection_map)
         validate_connections(self.port_connector.connection_map)
-        exit_queue.put_nowait("client")
+        self.exit_queue.put_nowait("client")
 
     async def start(self, task_group: TaskGroup):
         await super().start(task_group)
         task_group.soonify(self.check_connections)()
 
-
-def get_server():
-    with open("tests/config.server.test.yaml") as f:
-        settings = ServerSettings.from_yaml(f)
-    return TestingServer(settings)
-
-
-def get_client():
-    with open("tests/config.client.test.yaml") as f:
-        settings = ClientSettings.from_yaml(f)
-    return TestingClient(settings, start_jack=False)
-
-
-async def async_main():
-    server = get_server()
-    client = get_client()
-
-    async with asyncer.create_task_group() as task_group:
-        task_group.soonify(server.run)()
-
+    async def run(self, server: CustomServer):  # type: ignore
         while not server.messaging_server._started:
             await anyio.sleep(0.0001)
-
-        task_group.soonify(client.run)()
-
-        server_ok = False
-        client_ok = False
-
-        while True:
-            value = await exit_queue.get()
-            if value == "server":
-                server_ok = True
-            else:
-                client_ok = True
-
-            if server_ok and client_ok:
-                task_group.cancel_scope.cancel()
-                return 0
+        return await super().run()
 
 
-def main():
-    code = asyncer.runnify(async_main)()
-    if code == 0:
-        rich.print("[bold green]Test passed![/bold green]")
+@pytest.fixture(scope="function")
+def exit_queue() -> ExitQueue:
+    return Queue()
 
 
-if __name__ == "__main__":
-    main()
+@pytest.fixture(scope="function")
+def connection_map_queue() -> ConnectionMapQueue:
+    return Queue()
+
+
+@pytest.fixture(scope="function")
+def server(exit_queue: ExitQueue, connection_map_queue: ConnectionMapQueue):
+    with open("tests/config.server.test.yaml") as f:
+        settings = ServerSettings.from_yaml(f)
+    return CustomServer(settings, exit_queue, connection_map_queue)
+
+
+@pytest.fixture
+def client_settings():
+    with open("tests/config.client.test.yaml") as f:
+        return ClientSettings.from_yaml(f)
+
+
+@pytest.fixture(scope="function")
+def client(
+    client_settings: ClientSettings,
+    exit_queue: ExitQueue,
+    connection_map_queue: ConnectionMapQueue,
+):
+    return CustomClient(
+        client_settings,
+        start_jack=False,
+        exit_queue=exit_queue,
+        connection_map_queue=connection_map_queue,
+    )
+
+
+@pytest.fixture
+def anyio_backend():
+    return "asyncio"
+
+
+@pytest.fixture(autouse=True)
+def caplog_config(caplog: LogCaptureFixture):
+    caplog.set_level(logging.INFO)
