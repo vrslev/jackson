@@ -24,9 +24,6 @@ class RichMarkupStripFormatter(logging.Formatter):
 def get_configured_logger(name: str, prog_name: str):
     short_name = prog_name.ljust(8)[:8]
 
-    assert MODE
-    os.makedirs(f"log/{MODE}", exist_ok=True)
-
     logger = logging.getLogger(name)
 
     if sys.stdout.isatty():
@@ -35,14 +32,16 @@ def get_configured_logger(name: str, prog_name: str):
         )
         logger.addHandler(print_handler)
 
-    file_handler = RotatingFileHandler(
-        f"log/{MODE}/{name}.log", maxBytes=5 * 1024 * 1024, backupCount=5
-    )
-    formatter = RichMarkupStripFormatter(
-        "%(asctime)s  %(levelname)s  %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
-    )
-    file_handler.setFormatter(formatter)
-    logger.addHandler(file_handler)
+    if MODE:
+        os.makedirs(f"log/{MODE}", exist_ok=True)
+        file_handler = RotatingFileHandler(
+            f"log/{MODE}/{name}.log", maxBytes=5 * 1024 * 1024, backupCount=5
+        )
+        formatter = RichMarkupStripFormatter(
+            "%(asctime)s  %(levelname)s  %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
+        )
+        file_handler.setFormatter(formatter)
+        logger.addHandler(file_handler)
 
     return logger
 
