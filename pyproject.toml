@@ -7,16 +7,16 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "^3.10"
-typer = "^0.4.0"
-pydantic = {extras = ["dotenv"], version = "^1.9.0"}
-JACK-Client = "^0.5.3"
-PyYAML = "^6.0"
-asyncer = "^0.0.1"
-fastapi = "^0.71.0"
-uvicorn = {extras = ["standard"], version = "^0.17.1"}
-httpx = "^0.21.3"
-rich = "^11.0.0"
-jack-server = "^0.0.2"
+typer = "0.4.0"
+pydantic = {extras = ["dotenv"], version = "1.9.0"}
+JACK-Client = "0.5.3"
+PyYAML = "6.0"
+asyncer = "0.0.1"
+fastapi = "0.71.0"
+uvicorn = {extras = ["standard"], version = "0.17.1"}
+httpx = "0.21.3"
+rich = "11.0.0"
+jack-server = "0.0.3"
 
 [tool.poetry.scripts]
 jackson = "jackson.main:app"

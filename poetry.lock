@@ -305,7 +305,7 @@ numpy = ["numpy"]
 
 [[package]]
 name = "jack-server"
-version = "0.0.2"
+version = "0.0.3"
 description = "Control JACK server with Python"
 category = "main"
 optional = false
@@ -508,7 +508,7 @@ idna2008 = ["idna"]
 
 [[package]]
 name = "rich"
-version = "11.1.0"
+version = "11.0.0"
 description = "Render rich text, tables, progress bars, syntax highlighting, markdown and more to the terminal"
 category = "main"
 optional = false
@@ -595,7 +595,7 @@ python-versions = ">=3.6"
 
 [[package]]
 name = "uvicorn"
-version = "0.17.4"
+version = "0.17.1"
 description = "The lightning-fast ASGI server."
 category = "main"
 optional = false
@@ -666,7 +666,7 @@ python-versions = ">=3.7"
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.10"
-content-hash = "ebd06cd64a8edb5da557dc769c636b85e868d27f1731968a1bbb6214fcc2d7c9"
+content-hash = "eeae1245864e2ed5b2daed2db3d811a74c503221b42d9a0f37f9bcaa04289310"
 
 [metadata.files]
 anyio = [
@@ -879,8 +879,8 @@ jack-client = [
     {file = "JACK_Client-0.5.3-py3-none-any.whl", hash = "sha256:0214d9366e0a65bf0a99866990aae5a443afb3c283006d236d8cebcb769a59b8"},
 ]
 jack-server = [
-    {file = "jack-server-0.0.2.tar.gz", hash = "sha256:9dbcf57254baad6a01bb6d8f5302f0f5dd11ede11c47f2bf367d348fb5a5df12"},
-    {file = "jack_server-0.0.2-py3-none-any.whl", hash = "sha256:50b4352ff39836062e28d81a76e90d2bf15e3ce22d88a74388f16acef5f5a100"},
+    {file = "jack-server-0.0.3.tar.gz", hash = "sha256:e28f4138298b7d6ade20c51c8255fb4de74bc743202ee5737ada1f48979d2568"},
+    {file = "jack_server-0.0.3-py3-none-any.whl", hash = "sha256:2731db8bf029a4118d9c6e5903c9b275ae8fc99acbe902cc52be6c380abb0827"},
 ]
 mypy-extensions = [
     {file = "mypy_extensions-0.4.3-py2.py3-none-any.whl", hash = "sha256:090fedd75945a69ae91ce1303b5824f428daf5a028d2f6ab8a299250a846f15d"},
@@ -1015,8 +1015,8 @@ rfc3986 = [
     {file = "rfc3986-1.5.0.tar.gz", hash = "sha256:270aaf10d87d0d4e095063c65bf3ddbc6ee3d0b226328ce21e036f946e421835"},
 ]
 rich = [
-    {file = "rich-11.1.0-py3-none-any.whl", hash = "sha256:365ebcdbfb3aa8d4b0ed2490e0fbf7b886a39d14eb7ea5fb7aece950835e1eed"},
-    {file = "rich-11.1.0.tar.gz", hash = "sha256:43e03d8eec12e21beaecc22c828a41c4247356414a12d5879834863d4ad53816"},
+    {file = "rich-11.0.0-py3-none-any.whl", hash = "sha256:d7a8086aa1fa7e817e3bba544eee4fd82047ef59036313147759c11475f0dafd"},
+    {file = "rich-11.0.0.tar.gz", hash = "sha256:c32a8340b21c75931f157466fefe81ae10b92c36a5ea34524dff3767238774a4"},
 ]
 six = [
     {file = "six-1.16.0-py2.py3-none-any.whl", hash = "sha256:8abb2f1d86890a2dfb989f9a77cfcfd3e47c2a354b01111771326f8aa26e0254"},
@@ -1047,8 +1047,8 @@ typing-extensions = [
     {file = "typing_extensions-4.0.1.tar.gz", hash = "sha256:4ca091dea149f945ec56afb48dae714f21e8692ef22a395223bcd328961b6a0e"},
 ]
 uvicorn = [
-    {file = "uvicorn-0.17.4-py3-none-any.whl", hash = "sha256:e85872d84fb651cccc4c5d2a71cf7ead055b8fb4d8f1e78e36092282c0cf2aec"},
-    {file = "uvicorn-0.17.4.tar.gz", hash = "sha256:25850bbc86195a71a6477b3e4b3b7b4c861fb687fb96912972ce5324472b1011"},
+    {file = "uvicorn-0.17.1-py3-none-any.whl", hash = "sha256:8b16d9ecb76500f7804184f182835fe8a2b54716d3b0b6bb2da0b2b192f62c73"},
+    {file = "uvicorn-0.17.1.tar.gz", hash = "sha256:dffbacb8cc25d924d68d231d2c478c4fe6727c36537d8de21e5de591b37afc41"},
 ]
 uvloop = [
     {file = "uvloop-0.16.0-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:6224f1401025b748ffecb7a6e2652b17768f30b1a6a3f7b44660e5b5b690b12d"},
