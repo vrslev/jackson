@@ -100,12 +100,6 @@ async def run_client(
     send_channels: int,
     remote_name: str,
 ):
-    """
-    Args:
-        remote_name: Name by which server identifies a client
-        client_name: Name of JACK Client
-    """
-
     cmd: list[str] = [
         "jacktrip",
         "--pingtoserver",
