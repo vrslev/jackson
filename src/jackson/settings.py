@@ -15,7 +15,7 @@ class _YamlBaseSettings(BaseSettings):
 
 class _BaseAudio(BaseModel):
     driver: str
-    device: str
+    device: str | None
 
 
 class _ServerAudio(_BaseAudio):
