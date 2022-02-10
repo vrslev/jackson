@@ -11,6 +11,7 @@ from jackson.api.server import MessagingServer
 from jackson.api.server import app as messaging_app
 from jackson.api.server import uvicorn_signal_handler
 from jackson.jack_server import JackServer
+from jackson.port_connection import build_connection_map
 from jackson.port_connector import PortConnector
 from jackson.settings import ClientSettings, ServerSettings
 
@@ -75,14 +76,17 @@ class Client(_BaseManager):
         )
         self.jack_server.start()
 
-    def init_port_connector(self, inputs_limit: int, outputs_limit: int):
-        self.port_connector = PortConnector(
+    def setup_port_connector(self, inputs_limit: int, outputs_limit: int):
+        map = build_connection_map(
             client_name=self.settings.name,
             ports=self.settings.ports,
-            messaging_client=self.messaging_client,
             inputs_limit=inputs_limit,
             outputs_limit=outputs_limit,
         )
+        self.port_connector = PortConnector(
+            connection_map=map, messaging_client=self.messaging_client
+        )
+        self.port_connector.start_jack_client()
 
     async def start_jacktrip(self):
         assert self.port_connector
@@ -102,7 +106,7 @@ class Client(_BaseManager):
         if self.start_jack:
             self.start_jack_server(init_resp.rate)
 
-        self.init_port_connector(init_resp.inputs, init_resp.outputs)
+        self.setup_port_connector(init_resp.inputs, init_resp.outputs)
         assert self.port_connector
 
         task_group.soonify(self.port_connector.run_queue)()

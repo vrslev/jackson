@@ -8,82 +8,22 @@ import jack
 from jackson.api.client import MessagingClient
 from jackson.jack_client import JackClient
 from jackson.logging import get_logger
-from jackson.port_connection import PortConnection, PortName
-from jackson.settings import ClientPorts
+from jackson.port_connection import ConnectionMap, PortConnection, PortName
 
 log = get_logger(__name__, "PortConnector")
 
 
 class PortConnector:
     def __init__(
-        self,
-        *,
-        client_name: str,
-        ports: ClientPorts,
-        messaging_client: MessagingClient,
-        inputs_limit: int,
-        outputs_limit: int,
+        self, *, connection_map: ConnectionMap, messaging_client: MessagingClient
     ) -> None:
-        self.client_name = client_name
         self.messaging_client = messaging_client
+        self.connection_map = connection_map
         self.callback_queue: asyncio.Queue[
             Callable[[], Coroutine[None, None, None]]
         ] = asyncio.Queue()
 
-        self._build_connection_map(ports, inputs_limit, outputs_limit)
-        self._setup_jack_client()
-
-    def _build_connection_map(
-        self, ports_from_config: ClientPorts, inputs_limit: int, outputs_limit: int
-    ):
-        connections: list[PortConnection] = []
-        prev_send_port_idx = 0
-        prev_receive_port_idx = 0
-
-        # Resolve send ports
-        for src_idx, dest_idx in ports_from_config.send.items():
-            bridge_idx = prev_send_port_idx + 1
-            prev_send_port_idx = bridge_idx
-            if bridge_idx > inputs_limit:
-                raise RuntimeError("Limit of available send ports exceeded.")
-
-            conn = PortConnection(
-                client_should="send",
-                source=PortName(client="system", type="capture", idx=src_idx),
-                local_bridge=PortName(client="JackTrip", type="send", idx=bridge_idx),
-                remote_bridge=PortName(
-                    client=self.client_name, type="receive", idx=bridge_idx
-                ),
-                destination=PortName(client="system", type="playback", idx=dest_idx),
-            )
-            connections.append(conn)
-
-        # Resolve receive ports
-        for dest_idx, src_idx in ports_from_config.receive.items():
-            bridge_idx = prev_receive_port_idx + 1
-            prev_receive_port_idx = bridge_idx
-            if bridge_idx > outputs_limit:
-                raise RuntimeError("Limit of available receive ports exceeded.")
-
-            conn = PortConnection(
-                client_should="receive",
-                source=PortName(client="system", type="capture", idx=src_idx),
-                remote_bridge=PortName(
-                    client=self.client_name, type="send", idx=bridge_idx
-                ),
-                local_bridge=PortName(
-                    client="JackTrip", type="receive", idx=bridge_idx
-                ),
-                destination=PortName(client="system", type="playback", idx=dest_idx),
-            )
-            connections.append(conn)
-
-        RegisteredJackTripPort = PortName
-        self.connection_map: dict[RegisteredJackTripPort, PortConnection] = {
-            conn.local_bridge: conn for conn in connections
-        }
-
-    def _setup_jack_client(self):
+    def start_jack_client(self):
         self.jack_client = JackClient("PortConnector")
         self.jack_client.set_port_registration_callback(
             self._port_registration_callback

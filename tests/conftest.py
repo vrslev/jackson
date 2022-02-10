@@ -95,7 +95,7 @@ class CustomClient(Client):
         self.port_connector._connect_on_both_ends = connect_ports_on_both_ends_override
 
     def init_port_connector(self, inputs_limit: int, outputs_limit: int):
-        super().init_port_connector(inputs_limit, outputs_limit)
+        super().setup_port_connector(inputs_limit, outputs_limit)
         self.patch_connect_ports_on_both_ends()
 
     async def check_connections(self):
