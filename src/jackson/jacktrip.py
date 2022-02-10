@@ -50,6 +50,7 @@ class _Program:
     async def _close(self, process: Process):
         if process.returncode is None:
             process.terminate()
+
         await process.wait()
         code = process.returncode
 
@@ -69,19 +70,19 @@ class _Program:
                     return await self._close(process)
 
             else:
-                if (code := await self._close(process)) == 0:
+                code = await self._close(process)
+                if code == 0:
                     await self.run_forever()
                 else:
                     raise typer.Exit(code or 0)
 
 
 async def _run_jacktrip(cmd: list[str]):
-    program = _Program(cmd)
-    await program.run_forever()
+    await _Program(cmd).run_forever()
 
 
-async def run_server(*, port: int):
-    cmd: list[str] = [
+def _build_server_cmd(*, port: int):
+    return [
         "jacktrip",
         "--jacktripserver",
         "--bindport",
@@ -89,10 +90,14 @@ async def run_server(*, port: int):
         "--nojackportsconnect",
         "--udprt",
     ]
+
+
+async def run_server(*, port: int):
+    cmd = _build_server_cmd(port=port)
     await _run_jacktrip(cmd)
 
 
-async def run_client(
+def _build_client_cmd(
     *,
     server_host: IPv4Address,
     server_port: int,
@@ -100,7 +105,7 @@ async def run_client(
     send_channels: int,
     remote_name: str,
 ):
-    cmd: list[str] = [
+    return [
         "jacktrip",
         "--pingtoserver",
         str(server_host),
@@ -118,4 +123,21 @@ async def run_client(
         "--nojackportsconnect",
         "--udprt",
     ]
+
+
+async def run_client(
+    *,
+    server_host: IPv4Address,
+    server_port: int,
+    receive_channels: int,
+    send_channels: int,
+    remote_name: str,
+):
+    cmd = _build_client_cmd(
+        server_host=server_host,
+        server_port=server_port,
+        receive_channels=receive_channels,
+        send_channels=send_channels,
+        remote_name=remote_name,
+    )
     await _run_jacktrip(cmd)
