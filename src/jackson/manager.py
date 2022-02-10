@@ -118,7 +118,7 @@ class Client(_BaseManager):
         await self.messaging_client.client.aclose()
 
         if self.port_connector:
-            self.port_connector.stop()
+            self.port_connector.stop_jack_client()
 
         if self.start_jack and self.jack_server:
             self.jack_server.stop()

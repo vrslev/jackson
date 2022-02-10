@@ -30,13 +30,16 @@ class PortConnector:
         )
         self.jack_client.activate()
 
-    def _log_port_registration(self, name: str, registered: bool):
+    def stop_jack_client(self):
+        self.jack_client.deactivate()
+
+    def _log_registration(self, name: str, registered: bool):
         if registered:
             log.info(f"Registered port: [green]{name}[/green]")
         else:
             log.info(f"Unregistered port: [red]{name}[/red]")
 
-    def _port_should_connect(self, name: PortName, registered: bool):
+    def _should_connect(self, name: PortName, registered: bool):
         return registered and name in self.connection_map
 
     async def _connect_on_both_ends(self, connection: PortConnection):
@@ -45,23 +48,19 @@ class PortConnector:
         )
         self.jack_client.connect(*connection.get_local_connection())
 
-    def _schedule_port_connection(self, name: PortName):
-        conn = self.connection_map[name]
-        func = partial(self._connect_on_both_ends, connection=conn)
+    def _schedule_connecting(self, name: PortName):
+        func = partial(self._connect_on_both_ends, self.connection_map[name])
         self.callback_queue.put_nowait(func)
 
     def _port_registration_callback(self, port: jack.Port, registered: bool):
-        self._log_port_registration(port.name, registered)
+        self._log_registration(port.name, registered)
         port_name = PortName.parse(port.name)
 
-        if self._port_should_connect(port_name, registered):
-            self._schedule_port_connection(port_name)
+        if self._should_connect(port_name, registered):
+            self._schedule_connecting(port_name)
 
     async def run_queue(self):
         async with asyncer.create_task_group() as task_group:
             while True:
                 callback = await self.callback_queue.get()
                 task_group.soonify(callback)()
-
-    def stop(self):
-        self.jack_client.deactivate()
