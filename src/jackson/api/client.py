@@ -91,19 +91,22 @@ class MessagingClient:
         response = await self.client.get("/init")  # type: ignore
         return self._handle_response(response, InitResponse)
 
-    async def connect(
+    def _build_connect_payload(
         self, source: PortName, destination: PortName, client_should: ClientShould
     ):
-        payload = {
+        return {
             "source": source.dict(),
             "destination": destination.dict(),
             "client_should": client_should,
         }
 
+    async def connect(
+        self, source: PortName, destination: PortName, client_should: ClientShould
+    ):
+        payload = self._build_connect_payload(source, destination, client_should)
         _connect = partial(self.client.patch, "/connect", json=payload)  # type: ignore
         response = await self._retry(_connect, times=3, delay=0.5)
         data = self._handle_response(response, ConnectResponse)
-
         log.info(
             f"Connected ports on server: [bold cyan]{data.source}[/bold cyan]"
             + f" -> [bold cyan]{data.destination}[/bold cyan]"

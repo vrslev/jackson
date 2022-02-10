@@ -64,6 +64,35 @@ def get_port_or_fail(jack_client: JackClient, type: PortDirectionType, name: Por
         raise StructuredHTTPException(404, PortNotFound(type=type, name=name))
 
 
+def validate_playback_port_has_no_connections(
+    jack_client: JackClient, destination_name: PortName, client_should: ClientShould
+):
+    port = get_port_or_fail(jack_client, type="destination", name=destination_name)
+
+    if client_should == "send" and (
+        connections := jack_client.get_all_connections(port)
+    ):
+        raise StructuredHTTPException(
+            status.HTTP_409_CONFLICT,
+            PlaybackPortAlreadyHasConnections(
+                port=destination_name,
+                connections=[PortName.parse(p.name) for p in connections],
+            ),
+        )
+
+
+async def retry_connect_ports(
+    jack_client: JackClient, source: PortName, destination: PortName
+):
+    try:
+        await jack_client.connect_retry(source, destination)
+    except jack.JackError:
+        raise StructuredHTTPException(
+            status.HTTP_424_FAILED_DEPENDENCY,
+            FailedToConnectPorts(source=source, destination=destination),
+        )
+
+
 @app.patch("/connect", response_model=ConnectResponse)
 async def connect(
     source: PortName,
@@ -73,28 +102,8 @@ async def connect(
 ):
     # TODO: Validate (check if allowed) source and destination
     get_port_or_fail(jack_client, type="source", name=source)
-    dest_port = get_port_or_fail(jack_client, type="destination", name=destination)
-
-    if client_should == "send" and (
-        connections := jack_client.get_all_connections(dest_port)
-    ):
-        raise StructuredHTTPException(
-            status.HTTP_409_CONFLICT,
-            PlaybackPortAlreadyHasConnections(
-                port=destination,
-                connections=[PortName.parse(p.name) for p in connections],
-            ),
-        )
-
-    # TODO: Check if ports already connected. It will prevent issues with multiple sessions
-    try:
-        await jack_client.connect_retry(source, destination)
-    except jack.JackError:
-        raise StructuredHTTPException(
-            status.HTTP_424_FAILED_DEPENDENCY,
-            FailedToConnectPorts(source=source, destination=destination),
-        )
-
+    validate_playback_port_has_no_connections(jack_client, destination, client_should)
+    await retry_connect_ports(jack_client, source, destination)
     return ConnectResponse(source=source, destination=destination)
 
 
