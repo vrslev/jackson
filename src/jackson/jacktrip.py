@@ -1,5 +1,6 @@
 import contextlib
 import shlex
+from dataclasses import dataclass
 from ipaddress import IPv4Address
 from typing import Callable
 
@@ -15,50 +16,50 @@ log = get_logger(__name__, "JackTrip")
 log.addFilter(JackTripFilter())
 
 
+async def _restream_stream(
+    stream: ByteReceiveStream | None, handler: Callable[[str], None]
+):
+    if not stream:
+        return
+
+    async for text in TextReceiveStream(stream):
+        for line in text.splitlines():
+            handler(line.strip())
+
+
+async def _close_process(process: Process):
+    if process.returncode is None:
+        process.terminate()
+
+    await process.wait()
+    code = process.returncode
+
+    # Otherwise RuntimeError('Event loop is closed') is being called
+    process._process._transport.close()  # type: ignore
+
+    log.info(f"Exited with code {code}")
+    return code
+
+
+@dataclass
 class _Program:
-    def __init__(self, cmd: list[str]) -> None:
-        self.cmd = cmd
-        self.name = cmd[0]
+    cmd: list[str]
 
-    async def _restream_stream(
-        self, stream: ByteReceiveStream | None, handler: Callable[[str], None]
-    ):
-        if not stream:
-            return
-
-        async for text in TextReceiveStream(stream):
-            for line in text.splitlines():
-                handler(line.strip())
-
-    @contextlib.asynccontextmanager
-    async def _start(self):
+    def _log_starting(self):
         log.info(
-            f"Starting [bold blue]{self.name}[/bold blue]..."
+            f"Starting [bold blue]{self.cmd[0]}[/bold blue]..."
             + f" [italic]({shlex.join(self.cmd)})[/italic]"
         )
 
+    @contextlib.asynccontextmanager
+    async def _start(self):
+        self._log_starting()
+
         async with await anyio.open_process(self.cmd) as process:
-            async with asyncer.create_task_group() as task_group:
-                task_group.soonify(self._restream_stream)(
-                    stream=process.stderr, handler=log.error
-                )
-                task_group.soonify(self._restream_stream)(
-                    stream=process.stdout, handler=log.info
-                )
+            async with asyncer.create_task_group() as tg:
+                tg.soonify(_restream_stream)(process.stderr, log.error)
+                tg.soonify(_restream_stream)(process.stdout, log.info)
                 yield process
-
-    async def _close(self, process: Process):
-        if process.returncode is None:
-            process.terminate()
-
-        await process.wait()
-        code = process.returncode
-
-        # Otherwise RuntimeError('Event loop is closed') is being called
-        process._process._transport.close()  # type: ignore
-
-        log.info(f"Exited with code {code}")
-        return code
 
     async def run_forever(self):
         async with self._start() as process:
@@ -67,10 +68,10 @@ class _Program:
 
             except anyio.get_cancelled_exc_class():
                 with anyio.CancelScope(shield=True):
-                    return await self._close(process)
+                    await _close_process(process)
 
-            else:
-                code = await self._close(process)
+            else:  # Exited by itself
+                code = await _close_process(process)
                 if code == 0:
                     await self.run_forever()
                 else:
@@ -78,12 +79,12 @@ class _Program:
 
 
 async def _run_jacktrip(cmd: list[str]):
+    cmd.insert(0, "jacktrip")
     await _Program(cmd).run_forever()
 
 
 def _build_server_cmd(*, port: int):
     return [
-        "jacktrip",
         "--jacktripserver",
         "--bindport",
         str(port),
@@ -106,7 +107,6 @@ def _build_client_cmd(
     remote_name: str,
 ):
     return [
-        "jacktrip",
         "--pingtoserver",
         str(server_host),
         "--receivechannels",
