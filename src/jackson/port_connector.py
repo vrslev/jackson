@@ -1,6 +1,6 @@
 import asyncio
 from functools import partial
-from typing import Any, Callable, Coroutine
+from typing import Callable, Coroutine
 
 import asyncer
 import jack
@@ -25,18 +25,13 @@ class PortConnector:
         outputs_limit: int,
     ) -> None:
         self.client_name = client_name
-        self._build_connection_map(ports, inputs_limit, outputs_limit)
-
-        self.callback_queue: asyncio.Queue[
-            Callable[[], Coroutine[Any, Any, None]]
-        ] = asyncio.Queue()
         self.messaging_client = messaging_client
+        self.callback_queue: asyncio.Queue[
+            Callable[[], Coroutine[None, None, None]]
+        ] = asyncio.Queue()
 
-        self.jack_client = JackClient("PortConnector")
-        self.jack_client.set_port_registration_callback(
-            self._port_registration_callback
-        )
-        self.jack_client.activate()
+        self._build_connection_map(ports, inputs_limit, outputs_limit)
+        self._setup_jack_client()
 
     def _build_connection_map(
         self, ports_from_config: ClientPorts, inputs_limit: int, outputs_limit: int
@@ -88,30 +83,41 @@ class PortConnector:
             conn.local_bridge: conn for conn in connections
         }
 
-    async def _connect_ports_on_both_ends(self, connection: PortConnection):
+    def _setup_jack_client(self):
+        self.jack_client = JackClient("PortConnector")
+        self.jack_client.set_port_registration_callback(
+            self._port_registration_callback
+        )
+        self.jack_client.activate()
+
+    def _log_port_registration(self, name: str, registered: bool):
+        if registered:
+            log.info(f"Registered port: [green]{name}[/green]")
+        else:
+            log.info(f"Unregistered port: [red]{name}[/red]")
+
+    def _port_should_connect(self, name: PortName, registered: bool):
+        return registered and name in self.connection_map
+
+    def _schedule_port_connection(self, name: PortName):
+        conn = self.connection_map[name]
+        func = partial(self._connect_on_both_ends, connection=conn)
+        self.callback_queue.put_nowait(func)
+
+    def _port_registration_callback(self, port: jack.Port, registered: bool):
+        self._log_port_registration(port.name, registered)
+        port_name = PortName.parse(port.name)
+
+        if self._port_should_connect(port_name, registered):
+            self._schedule_port_connection(port_name)
+
+    async def _connect_on_both_ends(self, connection: PortConnection):
         await self.messaging_client.connect(
-            *connection.get_remote_connection(),
-            client_should=connection.client_should,
+            *connection.get_remote_connection(), connection.client_should
         )
         self.jack_client.connect(*connection.get_local_connection())
 
-    def _port_registration_callback(self, port: jack.Port, register: bool):
-        port_name = PortName.parse(port.name)
-
-        if not register:
-            log.info(f"Unregistered port: [red]{port_name}[/red]")
-            return  # We don't want to do anything if port unregistered
-
-        log.info(f"Registered port: [green]{port_name}[/green]")
-
-        if port_name not in self.connection_map:
-            return
-
-        conn = self.connection_map[port_name]
-        self.callback_queue.put_nowait(partial(self._connect_ports_on_both_ends, conn))
-
-    def count_receive_send_channels(self):
-        # Required for JackTrip
+    def count_receive_send_channels(self):  # Required for JackTrip
         receive, send = 0, 0
 
         for connection in self.connection_map.values():

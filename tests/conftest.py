@@ -86,15 +86,13 @@ class CustomClient(Client):
         assert self.port_connector
 
         # pyright: reportPrivateUsage = false
-        prev_func = self.port_connector._connect_ports_on_both_ends
+        prev_func = self.port_connector._connect_on_both_ends
 
         async def connect_ports_on_both_ends_override(connection: PortConnection):
             await prev_func(connection)
             self.count += 1
 
-        self.port_connector._connect_ports_on_both_ends = (
-            connect_ports_on_both_ends_override
-        )
+        self.port_connector._connect_on_both_ends = connect_ports_on_both_ends_override
 
     def init_port_connector(self, inputs_limit: int, outputs_limit: int):
         super().init_port_connector(inputs_limit, outputs_limit)
