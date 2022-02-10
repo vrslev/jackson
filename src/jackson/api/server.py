@@ -44,7 +44,7 @@ class StructuredHTTPException(HTTPException):
 
 @lru_cache
 def get_jack_client():
-    return JackClient("MessagingServer")
+    return JackClient("APIServer")
 
 
 @app.get("/init", response_model=InitResponse)
@@ -111,7 +111,7 @@ async def connect(
 #     get_jack_client.cache_clear()
 
 
-class MessagingServer(uvicorn.Server):
+class APIServer(uvicorn.Server):
     def __init__(self, app: FastAPI) -> None:
         self._started = False
 

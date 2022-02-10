@@ -24,7 +24,7 @@ class _ServerAudio(_BaseAudio):
 
 class _BaseServer(BaseModel):
     jacktrip_port: int
-    messaging_port: int
+    api_port: int
 
 
 class _ServerServer(_BaseServer):

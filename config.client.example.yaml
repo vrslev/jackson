@@ -6,7 +6,7 @@ audio:
 
 server:
   jacktrip_port: 4464
-  messaging_port: 8000
+  api_port: 8000
   host: 192.168.0.12
 
 ports:

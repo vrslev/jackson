@@ -7,9 +7,9 @@ import jack_server
 from asyncer._main import TaskGroup
 
 from jackson import jacktrip
-from jackson.api.client import MessagingClient
-from jackson.api.server import MessagingServer
-from jackson.api.server import app as messaging_app
+from jackson.api.client import APIClient
+from jackson.api.server import APIServer
+from jackson.api.server import app as api_app
 from jackson.api.server import uvicorn_signal_handler
 from jackson.jack_server import JackServer
 from jackson.port_connection import build_connection_map, count_receive_send_channels
@@ -17,7 +17,7 @@ from jackson.port_connector import PortConnector
 from jackson.settings import ClientSettings, ServerSettings
 
 
-class _BaseManager(ABC):
+class BaseManager(ABC):
     @abstractmethod
     async def start(self, task_group: TaskGroup):
         ...
@@ -37,12 +37,10 @@ class _BaseManager(ABC):
 
 
 @dataclass
-class Server(_BaseManager):
+class Server(BaseManager):
     settings: ServerSettings
     jack_server_: JackServer = field(init=False)
-    messaging_server: MessagingServer = field(
-        init=False
-    )  # TODO: rename messaging to API
+    api_server: APIServer = field(init=False)
 
     def __post_init__(self):
         self.jack_server_ = JackServer(
@@ -50,31 +48,31 @@ class Server(_BaseManager):
             device=self.settings.audio.device,
             rate=self.settings.audio.sample_rate,
         )
-        self.messaging_server = MessagingServer(messaging_app)
+        self.api_server = APIServer(api_app)
 
     async def start(self, task_group: TaskGroup):
         self.jack_server_.start()
 
         task_group.soonify(jacktrip.run_server)(port=self.settings.server.jacktrip_port)
-        task_group.soonify(self.messaging_server.start)()
+        task_group.soonify(self.api_server.start)()
         task_group.soonify(uvicorn_signal_handler)(task_group.cancel_scope)
 
     async def stop(self):
-        await self.messaging_server.stop()
+        await self.api_server.stop()
         self.jack_server_.stop()
 
 
 @dataclass
-class Client(_BaseManager):
+class Client(BaseManager):
     settings: ClientSettings
     start_jack: bool
     jack_server_: JackServer | None = field(default=None, init=False)
     port_connector: PortConnector | None = field(default=None, init=False)
-    messaging_client: MessagingClient = field(init=False)
+    api_client: APIClient = field(init=False)
 
     def __post_init__(self):
-        self.messaging_client = MessagingClient(
-            host=self.settings.server.host, port=self.settings.server.messaging_port
+        self.api_client = APIClient(
+            host=self.settings.server.host, port=self.settings.server.api_port
         )
 
     def start_jack_server(self, rate: jack_server.SampleRate):
@@ -93,7 +91,7 @@ class Client(_BaseManager):
             outputs_limit=outputs_limit,
         )
         self.port_connector = PortConnector(
-            connection_map=map, connect_on_server=self.messaging_client.connect
+            connection_map=map, connect_on_server=self.api_client.connect
         )
         self.port_connector.start_jack_client()
 
@@ -112,7 +110,7 @@ class Client(_BaseManager):
         )
 
     async def start(self, task_group: TaskGroup):
-        init_resp = await self.messaging_client.init()
+        init_resp = await self.api_client.init()
 
         if self.start_jack:
             self.start_jack_server(init_resp.rate)
@@ -124,7 +122,7 @@ class Client(_BaseManager):
         task_group.soonify(self.start_jacktrip)()
 
     async def stop(self):
-        await self.messaging_client.aclose()
+        await self.api_client.aclose()
 
         if self.port_connector:
             self.port_connector.stop_jack_client()

@@ -113,7 +113,7 @@ class CustomClient(Client):
         task_group.soonify(self.check_connections)()
 
     async def run(self, server: CustomServer):
-        while not server.messaging_server._started:
+        while not server.api_server._started:
             await anyio.sleep(0.0001)
         return await super().run()
 

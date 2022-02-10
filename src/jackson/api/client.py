@@ -106,7 +106,7 @@ def _log_connection(source: PortName, destination: PortName):
     )
 
 
-class MessagingClient(httpx.AsyncClient):
+class APIClient(httpx.AsyncClient):
     status_code: int
 
     def __init__(self, host: IPv4Address, port: int) -> None:
