@@ -55,7 +55,7 @@ class JackClient(jack.Client):
 
         self._block_streams()
 
-    def connect(self, source: PortName, destination: PortName) -> None:  # type: ignore
+    def connect(self, source: PortName, destination: PortName) -> None:
         src_name, dest_name = str(source), str(destination)
         super().connect(src_name, dest_name)
         log.info(
@@ -63,7 +63,7 @@ class JackClient(jack.Client):
             + f" [bold green]{dest_name}[/bold green]"
         )
 
-    def get_port_by_name(self, name: PortName) -> jack.Port:  # type: ignore
+    def get_port_by_name(self, name: PortName) -> jack.Port:
         return super().get_port_by_name(str(name))
 
     @property

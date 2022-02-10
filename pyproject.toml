@@ -36,6 +36,9 @@ ignore = [".venv"]
 typeCheckingMode = "strict"
 reportUnnecessaryTypeIgnoreComment = "warning"
 reportMissingTypeStubs = false
+reportIncompatibleMethodOverride = false
+reportUninitializedInstanceVariable = "warning"
+reportImplicitStringConcatenation = "warning"
 
 [tool.black]
 target-version = ["py310"]
