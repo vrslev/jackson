@@ -12,11 +12,10 @@ from jackson.api.models import (
     FailedToConnectPorts,
     InitResponse,
     PlaybackPortAlreadyHasConnections,
-    PortName,
     PortNotFound,
 )
 from jackson.logging import get_logger
-from jackson.port_connection import ClientShould
+from jackson.port_connection import ClientShould, PortName
 
 log = get_logger(__name__, "HttpClient")
 

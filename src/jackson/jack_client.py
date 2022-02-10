@@ -13,6 +13,16 @@ log = get_logger(__name__, "JackClient")
 log.addFilter(JackClientFilter())
 
 
+def _block_streams():
+    jack.set_info_function(silent_jack_stream_handler)
+    jack.set_error_function(silent_jack_stream_handler)
+
+
+def _set_stream_handlers():
+    jack.set_info_function(log.info)
+    jack.set_error_function(log.error)
+
+
 class JackClient(jack.Client):
     def _init_or_fail(self, name: str):
         for _ in range(100):
@@ -33,17 +43,9 @@ class JackClient(jack.Client):
         # if it wasn't activated. Otherwise causes segfault.
         self._activated = False
 
-        self._block_streams()
+        _block_streams()
         self._init_or_fail(name=name)
-        self._set_stream_handlers()
-
-    def _block_streams(self):
-        jack.set_info_function(silent_jack_stream_handler)
-        jack.set_error_function(silent_jack_stream_handler)
-
-    def _set_stream_handlers(self):
-        jack.set_info_function(log.info)
-        jack.set_error_function(log.error)
+        _set_stream_handlers()
 
     def activate(self) -> None:
         super().activate()
@@ -53,7 +55,7 @@ class JackClient(jack.Client):
         if self._activated:
             super().deactivate(ignore_errors=ignore_errors)
 
-        self._block_streams()
+        _block_streams()
 
     def connect(self, source: PortName, destination: PortName) -> None:
         src_name, dest_name = str(source), str(destination)
