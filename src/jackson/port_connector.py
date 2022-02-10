@@ -1,4 +1,5 @@
 import asyncio
+from dataclasses import dataclass, field
 from functools import partial
 from typing import Callable, Coroutine, Protocol
 
@@ -24,15 +25,14 @@ class _ConnectOnServer(Protocol):
         ...
 
 
+@dataclass
 class PortConnector:
-    def __init__(
-        self, *, connection_map: ConnectionMap, connect_on_server: _ConnectOnServer
-    ) -> None:
-        self.connect_on_server = connect_on_server
-        self.connection_map = connection_map
-        self.callback_queue: asyncio.Queue[
-            Callable[[], Coroutine[None, None, None]]
-        ] = asyncio.Queue()
+    connection_map: ConnectionMap
+    connect_on_server: _ConnectOnServer
+    callback_queue: asyncio.Queue[Callable[[], Coroutine[None, None, None]]] = field(
+        default_factory=asyncio.Queue
+    )
+    jack_client: JackClient = field(init=False)
 
     def start_jack_client(self):
         self.jack_client = JackClient("PortConnector")
