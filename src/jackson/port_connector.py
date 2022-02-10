@@ -57,17 +57,6 @@ class PortConnector:
         )
         self.jack_client.connect(*connection.get_local_connection())
 
-    def count_receive_send_channels(self):  # Required for JackTrip
-        receive, send = 0, 0
-
-        for connection in self.connection_map.values():
-            if connection.client_should == "send":
-                send += 1
-            else:
-                receive += 1
-
-        return receive, send
-
     async def run_queue(self):
         async with asyncer.create_task_group() as task_group:
             while True:

@@ -119,3 +119,17 @@ def build_connection_map(
         outputs_limit=outputs_limit,
     )
     return {conn.local_bridge: conn for conn in gen}
+
+
+def count_receive_send_channels(connection_map: ConnectionMap):
+    # Required for JackTrip
+
+    receive, send = 0, 0
+
+    for connection in connection_map.values():
+        if connection.client_should == "send":
+            send += 1
+        else:
+            receive += 1
+
+    return receive, send

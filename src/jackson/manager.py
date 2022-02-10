@@ -11,7 +11,7 @@ from jackson.api.server import MessagingServer
 from jackson.api.server import app as messaging_app
 from jackson.api.server import uvicorn_signal_handler
 from jackson.jack_server import JackServer
-from jackson.port_connection import build_connection_map
+from jackson.port_connection import build_connection_map, count_receive_send_channels
 from jackson.port_connector import PortConnector
 from jackson.settings import ClientSettings, ServerSettings
 
@@ -90,7 +90,9 @@ class Client(_BaseManager):
 
     async def start_jacktrip(self):
         assert self.port_connector
-        receive_count, send_count = self.port_connector.count_receive_send_channels()
+        receive_count, send_count = count_receive_send_channels(
+            self.port_connector.connection_map
+        )
 
         return await jacktrip.run_client(
             server_host=self.settings.server.host,
