@@ -8,6 +8,7 @@ from _pytest.logging import LogCaptureFixture
 from asyncer._main import TaskGroup
 
 from jackson.jack_client import JackClient
+from jackson.logging import configure_loggers
 from jackson.manager import Client, Server
 from jackson.port_connection import PortConnection, PortName
 from jackson.settings import ClientSettings, ServerSettings
@@ -94,7 +95,7 @@ class CustomClient(Client):
 
         self.port_connector._connect_on_both_ends = connect_ports_on_both_ends_override
 
-    def init_port_connector(self, inputs_limit: int, outputs_limit: int):
+    def setup_port_connector(self, inputs_limit: int, outputs_limit: int):
         super().setup_port_connector(inputs_limit, outputs_limit)
         self.patch_connect_ports_on_both_ends()
 
@@ -118,17 +119,17 @@ class CustomClient(Client):
         return await super().run()
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture
 def exit_queue() -> ExitQueue:
     return Queue()
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture
 def connection_map_queue() -> ConnectionMapQueue:
     return Queue()
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture
 def server(exit_queue: ExitQueue, connection_map_queue: ConnectionMapQueue):
     with open("tests/config.server.test.yaml") as f:
         settings = ServerSettings.from_yaml(f)
@@ -141,7 +142,7 @@ def client_settings():
         return ClientSettings.from_yaml(f)
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture
 def client(
     client_settings: ClientSettings,
     exit_queue: ExitQueue,
@@ -163,3 +164,8 @@ def anyio_backend():
 @pytest.fixture(autouse=True)
 def caplog_config(caplog: LogCaptureFixture):
     caplog.set_level(logging.INFO)
+
+
+@pytest.fixture(autouse=True)
+def logging_():
+    configure_loggers(None)
