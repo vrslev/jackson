@@ -24,13 +24,13 @@ class RichMarkupStripFormatter(logging.Formatter):
 def get_configured_logger(name: str, prog_name: str):
     short_name = prog_name.ljust(8)[:8]
 
-    logger = logging.getLogger(name)
+    log = logging.getLogger(name)
 
     if sys.stdout.isatty():
         print_handler = RichHandler(
             log_time_format=f"[%X] [{short_name}] ", markup=True, rich_tracebacks=True
         )
-        logger.addHandler(print_handler)
+        log.addHandler(print_handler)
 
     if MODE:
         os.makedirs(f"log/{MODE}", exist_ok=True)
@@ -41,12 +41,12 @@ def get_configured_logger(name: str, prog_name: str):
             "%(asctime)s  %(levelname)s  %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
         )
         file_handler.setFormatter(formatter)
-        logger.addHandler(file_handler)
+        log.addHandler(file_handler)
 
-    return logger
+    return log
 
 
-def silent_jack_stream_handler(message: str):
+def silent_jack_stream_handler(message: str) -> None:
     pass
 
 
