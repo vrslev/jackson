@@ -4,7 +4,6 @@ import sys
 from logging.handlers import RotatingFileHandler
 from typing import Literal
 
-import rich
 import rich.traceback
 from rich.logging import RichHandler
 from rich.text import Text
