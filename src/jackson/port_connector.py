@@ -1,23 +1,34 @@
 import asyncio
 from functools import partial
-from typing import Callable, Coroutine
+from typing import Callable, Coroutine, Protocol
 
 import asyncer
 import jack
 
-from jackson.api.client import MessagingClient
 from jackson.jack_client import JackClient
 from jackson.logging import get_logger
-from jackson.port_connection import ConnectionMap, PortConnection, PortName
+from jackson.port_connection import (
+    ClientShould,
+    ConnectionMap,
+    PortConnection,
+    PortName,
+)
 
 log = get_logger(__name__, "PortConnector")
 
 
+class _ConnectOnServer(Protocol):
+    async def __call__(
+        self, source: PortName, destination: PortName, client_should: ClientShould
+    ) -> None:
+        ...
+
+
 class PortConnector:
     def __init__(
-        self, *, connection_map: ConnectionMap, messaging_client: MessagingClient
+        self, *, connection_map: ConnectionMap, connect_on_server: _ConnectOnServer
     ) -> None:
-        self.messaging_client = messaging_client
+        self.connect_on_server = connect_on_server
         self.connection_map = connection_map
         self.callback_queue: asyncio.Queue[
             Callable[[], Coroutine[None, None, None]]
@@ -43,7 +54,7 @@ class PortConnector:
         return registered and name in self.connection_map
 
     async def _connect_on_both_ends(self, connection: PortConnection):
-        await self.messaging_client.connect(
+        await self.connect_on_server(
             *connection.get_remote_connection(), connection.client_should
         )
         self.jack_client.connect(*connection.get_local_connection())

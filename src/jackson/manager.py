@@ -84,7 +84,7 @@ class Client(_BaseManager):
             outputs_limit=outputs_limit,
         )
         self.port_connector = PortConnector(
-            connection_map=map, messaging_client=self.messaging_client
+            connection_map=map, connect_on_server=self.messaging_client.connect
         )
         self.port_connector.start_jack_client()
 
