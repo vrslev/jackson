@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from dataclasses import dataclass, field
 
 import anyio
 import asyncer
@@ -35,10 +36,16 @@ class _BaseManager(ABC):
                     await self.stop()
 
 
+@dataclass
 class Server(_BaseManager):
-    def __init__(self, settings: ServerSettings):
-        self.settings = settings
-        self.jack_server = JackServer(
+    settings: ServerSettings
+    jack_server_: JackServer = field(init=False)
+    messaging_server: MessagingServer = field(
+        init=False
+    )  # TODO: rename messaging to API
+
+    def __post_init__(self):
+        self.jack_server_ = JackServer(
             driver=self.settings.audio.driver,
             device=self.settings.audio.device,
             rate=self.settings.audio.sample_rate,
@@ -46,7 +53,7 @@ class Server(_BaseManager):
         self.messaging_server = MessagingServer(messaging_app)
 
     async def start(self, task_group: TaskGroup):
-        self.jack_server.start()
+        self.jack_server_.start()
 
         task_group.soonify(jacktrip.run_server)(port=self.settings.server.jacktrip_port)
         task_group.soonify(self.messaging_server.start)()
@@ -54,27 +61,29 @@ class Server(_BaseManager):
 
     async def stop(self):
         await self.messaging_server.stop()
-        self.jack_server.stop()
+        self.jack_server_.stop()
 
 
+@dataclass
 class Client(_BaseManager):
-    def __init__(self, settings: ClientSettings, start_jack: bool) -> None:
-        self.settings = settings
-        self.start_jack = start_jack
-        self.jack_server = None
-        self.port_connector = None
+    settings: ClientSettings
+    start_jack: bool
+    jack_server_: JackServer | None = field(default=None, init=False)
+    port_connector: PortConnector | None = field(default=None, init=False)
+    messaging_client: MessagingClient = field(init=False)
 
+    def __post_init__(self):
         self.messaging_client = MessagingClient(
-            host=settings.server.host, port=settings.server.messaging_port
+            host=self.settings.server.host, port=self.settings.server.messaging_port
         )
 
     def start_jack_server(self, rate: jack_server.SampleRate):
-        self.jack_server = JackServer(
+        self.jack_server_ = JackServer(
             driver=self.settings.audio.driver,
             device=self.settings.audio.device,
             rate=rate,
         )
-        self.jack_server.start()
+        self.jack_server_.start()
 
     def setup_port_connector(self, inputs_limit: int, outputs_limit: int):
         map = build_connection_map(
@@ -120,5 +129,5 @@ class Client(_BaseManager):
         if self.port_connector:
             self.port_connector.stop_jack_client()
 
-        if self.start_jack and self.jack_server:
-            self.jack_server.stop()
+        if self.start_jack and self.jack_server_:
+            self.jack_server_.stop()
