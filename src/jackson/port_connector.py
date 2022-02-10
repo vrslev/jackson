@@ -39,6 +39,12 @@ class PortConnector:
     def _port_should_connect(self, name: PortName, registered: bool):
         return registered and name in self.connection_map
 
+    async def _connect_on_both_ends(self, connection: PortConnection):
+        await self.messaging_client.connect(
+            *connection.get_remote_connection(), connection.client_should
+        )
+        self.jack_client.connect(*connection.get_local_connection())
+
     def _schedule_port_connection(self, name: PortName):
         conn = self.connection_map[name]
         func = partial(self._connect_on_both_ends, connection=conn)
@@ -50,12 +56,6 @@ class PortConnector:
 
         if self._port_should_connect(port_name, registered):
             self._schedule_port_connection(port_name)
-
-    async def _connect_on_both_ends(self, connection: PortConnection):
-        await self.messaging_client.connect(
-            *connection.get_remote_connection(), connection.client_should
-        )
-        self.jack_client.connect(*connection.get_local_connection())
 
     async def run_queue(self):
         async with asyncer.create_task_group() as task_group:
