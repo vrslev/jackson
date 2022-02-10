@@ -23,6 +23,13 @@ def _set_stream_handlers():
     jack.set_error_function(log.error)
 
 
+def _log_connection(source: str, destination: str):
+    log.info(
+        f"Connected ports: [bold green]{source}[/bold green] ->"
+        + f" [bold green]{destination}[/bold green]"
+    )
+
+
 class JackClient(jack.Client):
     def _init_or_fail(self, name: str):
         for _ in range(100):
@@ -30,13 +37,12 @@ class JackClient(jack.Client):
                 log.info("[yellow]Connecting to Jack...[/yellow]")
                 super().__init__(name=name, no_start_server=True)
                 log.info("[green]Connected to Jack![/green]")
-                break
+                return
             except jack.JackOpenError:
                 time.sleep(0.1)
 
-        else:
-            log.error("[red]Can't connect to Jack[/red]")
-            raise typer.Exit(1)
+        log.error("[red]Can't connect to Jack[/red]")
+        raise typer.Exit(1)
 
     def __init__(self, name: str) -> None:
         # Attribute exists so we don't call client.deactivate() on shutdown
@@ -54,16 +60,12 @@ class JackClient(jack.Client):
     def deactivate(self, ignore_errors: bool = True) -> None:
         if self._activated:
             super().deactivate(ignore_errors=ignore_errors)
-
         _block_streams()
 
     def connect(self, source: PortName, destination: PortName) -> None:
         src_name, dest_name = str(source), str(destination)
         super().connect(src_name, dest_name)
-        log.info(
-            f"Connected ports: [bold green]{src_name}[/bold green] ->"
-            + f" [bold green]{dest_name}[/bold green]"
-        )
+        _log_connection(src_name, dest_name)
 
     def get_port_by_name(self, name: PortName) -> jack.Port:
         return super().get_port_by_name(str(name))
