@@ -98,6 +98,9 @@ class JackTripFilter(MessageFilter):
     }
 
     def filter(self, record: logging.LogRecord) -> bool:
+        if all(c == "-" for c in record.msg):
+            return False
+
         if all(c == "=" for c in record.msg):
             return False
 
