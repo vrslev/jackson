@@ -21,7 +21,7 @@ def get_logger(name: str, prog_name: str):
     return logging.getLogger(name)
 
 
-class RichMarkupStripFormatter(logging.Formatter):
+class _RichMarkupStripFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
         msg = super().format(record)
         return Text.from_markup(msg).plain
@@ -41,7 +41,7 @@ def _configure_logger(mode: _Mode, logger: logging.Logger, prog_name: str):
     file_handler = RotatingFileHandler(
         f"log/{mode}/{logger.name}.log", maxBytes=5 * 1024 * 1024, backupCount=5
     )
-    formatter = RichMarkupStripFormatter(
+    formatter = _RichMarkupStripFormatter(
         "%(asctime)s  %(levelname)s  %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
     )
     file_handler.setFormatter(formatter)
