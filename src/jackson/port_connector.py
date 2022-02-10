@@ -7,11 +7,11 @@ import jack
 
 from jackson.api.client import MessagingClient
 from jackson.jack_client import JackClient
-from jackson.logging import get_configured_logger
+from jackson.logging import get_logger
 from jackson.port_connection import PortConnection, PortName
 from jackson.settings import ClientPorts
 
-log = get_configured_logger(__name__, "PortConnector")
+log = get_logger(__name__, "PortConnector")
 
 
 class PortConnector:

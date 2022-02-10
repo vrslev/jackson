@@ -15,10 +15,10 @@ from jackson.api.models import (
     PortName,
     PortNotFound,
 )
-from jackson.logging import get_configured_logger
+from jackson.logging import get_logger
 from jackson.port_connection import ClientShould
 
-log = get_configured_logger(__name__, "HttpClient")
+log = get_logger(__name__, "HttpClient")
 
 
 @dataclass

@@ -6,14 +6,10 @@ import jack
 import jack_server
 import typer
 
-from jackson.logging import (
-    JackClientFilter,
-    get_configured_logger,
-    silent_jack_stream_handler,
-)
+from jackson.logging import JackClientFilter, get_logger, silent_jack_stream_handler
 from jackson.port_connection import PortName
 
-log = get_configured_logger(__name__, "JackClient")
+log = get_logger(__name__, "JackClient")
 log.addFilter(JackClientFilter())
 
 

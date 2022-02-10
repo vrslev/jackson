@@ -9,9 +9,9 @@ import typer
 from anyio.abc import ByteReceiveStream, Process
 from anyio.streams.text import TextReceiveStream
 
-from jackson.logging import JackTripFilter, get_configured_logger
+from jackson.logging import JackTripFilter, get_logger
 
-log = get_configured_logger(__name__, "JackTrip")
+log = get_logger(__name__, "JackTrip")
 log.addFilter(JackTripFilter())
 
 

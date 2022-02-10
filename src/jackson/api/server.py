@@ -17,13 +17,13 @@ from jackson.api.models import (
     PortNotFound,
 )
 from jackson.jack_client import JackClient
-from jackson.logging import get_configured_logger
+from jackson.logging import get_logger
 from jackson.port_connection import ClientShould, PortName
 
 app = FastAPI()
-log = get_configured_logger(__name__, "HttpServer")
-uvicorn_err_log = get_configured_logger("uvicorn.error", "HttpServer")
-uvicorn_access_log = get_configured_logger("uvicorn.access", "HttpServer")
+log = get_logger(__name__, "HttpServer")
+uvicorn_err_log = get_logger("uvicorn.error", "HttpServer")
+uvicorn_access_log = get_logger("uvicorn.access", "HttpServer")
 
 
 class StructuredHTTPException(HTTPException):

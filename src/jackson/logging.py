@@ -12,7 +12,13 @@ from rich.text import Text
 rich.traceback.install(show_locals=True)
 logging.basicConfig(level=logging.INFO, handlers=[], datefmt="%m/%d/%Y %I:%M:%S %p")
 
-MODE: Literal["server", "client"] | None = None
+_Mode = Literal["server", "client", None]
+_logger_name_to_prog_name: dict[str, str] = {}
+
+
+def get_logger(name: str, prog_name: str):
+    _logger_name_to_prog_name[name] = prog_name.ljust(8)[:8]
+    return logging.getLogger(name)
 
 
 class RichMarkupStripFormatter(logging.Formatter):
@@ -21,29 +27,31 @@ class RichMarkupStripFormatter(logging.Formatter):
         return Text.from_markup(msg).plain
 
 
-def get_configured_logger(name: str, prog_name: str):
-    short_name = prog_name.ljust(8)[:8]
-
-    log = logging.getLogger(name)
-
+def _configure_logger(mode: _Mode, logger: logging.Logger, prog_name: str):
     if sys.stdout.isatty():
         print_handler = RichHandler(
-            log_time_format=f"[%X] [{short_name}] ", markup=True, rich_tracebacks=True
+            log_time_format=f"[%X] [{prog_name}] ", markup=True, rich_tracebacks=True
         )
-        log.addHandler(print_handler)
+        logger.addHandler(print_handler)
 
-    if MODE:
-        os.makedirs(f"log/{MODE}", exist_ok=True)
-        file_handler = RotatingFileHandler(
-            f"log/{MODE}/{name}.log", maxBytes=5 * 1024 * 1024, backupCount=5
-        )
-        formatter = RichMarkupStripFormatter(
-            "%(asctime)s  %(levelname)s  %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
-        )
-        file_handler.setFormatter(formatter)
-        log.addHandler(file_handler)
+    if not mode:
+        return
 
-    return log
+    os.makedirs(f"log/{mode}", exist_ok=True)
+    file_handler = RotatingFileHandler(
+        f"log/{mode}/{logger.name}.log", maxBytes=5 * 1024 * 1024, backupCount=5
+    )
+    formatter = RichMarkupStripFormatter(
+        "%(asctime)s  %(levelname)s  %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
+    )
+    file_handler.setFormatter(formatter)
+    logger.addHandler(file_handler)
+
+
+def configure_loggers(mode: _Mode):
+    for name, prog_name in _logger_name_to_prog_name.items():
+        logger = logging.getLogger(name)
+        _configure_logger(mode, logger, prog_name)
 
 
 def silent_jack_stream_handler(message: str) -> None:
