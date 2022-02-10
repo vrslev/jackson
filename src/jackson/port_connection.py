@@ -123,7 +123,6 @@ def build_connection_map(
 
 def count_receive_send_channels(connection_map: ConnectionMap):
     # Required for JackTrip
-
     receive, send = 0, 0
 
     for connection in connection_map.values():

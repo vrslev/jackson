@@ -115,7 +115,7 @@ class Client(_BaseManager):
         task_group.soonify(self.start_jacktrip)()
 
     async def stop(self):
-        await self.messaging_client.client.aclose()
+        await self.messaging_client.aclose()
 
         if self.port_connector:
             self.port_connector.stop_jack_client()
