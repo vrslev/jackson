@@ -34,16 +34,16 @@ class JackClient(jack.Client):
     def _init_or_fail(self, name: str, server_name: str):
         for _ in range(100):
             try:
-                log.info("[yellow]Connecting to Jack...[/yellow]")
+                log.info(f"[yellow]Connecting to {server_name}...[/yellow]")
                 super().__init__(
                     name=name, no_start_server=True, servername=server_name
                 )
-                log.info("[green]Connected to Jack![/green]")
+                log.info(f"[green]Connected to {server_name}![/green]")
                 return
             except jack.JackOpenError:
                 time.sleep(0.1)
 
-        log.error("[red]Can't connect to Jack[/red]")
+        log.error(f"[red]Can't connect to {server_name}[/red]")
         raise typer.Exit(1)
 
     def __init__(self, name: str, *, server_name: str) -> None:
