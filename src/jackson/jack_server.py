@@ -21,6 +21,7 @@ class JackServer(jack_server.Server):
     def __init__(
         self, *, driver: str, device: str | None, rate: jack_server.SampleRate
     ):
+        _set_stream_handlers()
         super().__init__(driver=driver, device=device, rate=rate, sync=True)
 
     def _start_or_exit(self):
@@ -30,7 +31,6 @@ class JackServer(jack_server.Server):
             raise typer.Exit(1)
 
     def start(self):
-        _set_stream_handlers()
         self._start_or_exit()
 
     def stop(self):
