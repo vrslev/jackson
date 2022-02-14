@@ -1,4 +1,5 @@
 import contextlib
+import os
 import shlex
 from dataclasses import dataclass
 from ipaddress import IPv4Address
@@ -44,6 +45,7 @@ async def _close_process(process: Process):
 @dataclass
 class _Program:
     cmd: list[str]
+    env: dict[str, str]
 
     def _log_starting(self):
         log.info(
@@ -55,7 +57,10 @@ class _Program:
     async def _start(self):
         self._log_starting()
 
-        async with await anyio.open_process(self.cmd) as process:
+        env = dict(os.environ)
+        env.update(self.env)
+
+        async with await anyio.open_process(self.cmd, env=env) as process:
             async with asyncer.create_task_group() as tg:
                 tg.soonify(_restream_stream)(process.stderr, log.error)
                 tg.soonify(_restream_stream)(process.stdout, log.info)
@@ -78,9 +83,10 @@ class _Program:
                     raise typer.Exit(code or 0)
 
 
-async def _run_jacktrip(cmd: list[str]):
+async def _run_jacktrip(cmd: list[str], jack_server_name: str):
     cmd.insert(0, "jacktrip")
-    await _Program(cmd).run_forever()
+    env = {"JACK_DEFAULT_SERVER": jack_server_name}
+    await _Program(cmd=cmd, env=env).run_forever()
 
 
 def _build_server_cmd(*, port: int):
@@ -93,9 +99,9 @@ def _build_server_cmd(*, port: int):
     ]
 
 
-async def run_server(*, port: int):
+async def run_server(*, jack_server_name: str, port: int):
     cmd = _build_server_cmd(port=port)
-    await _run_jacktrip(cmd)
+    await _run_jacktrip(cmd, jack_server_name)
 
 
 CLIENT_NAME = "JackTrip"
@@ -130,6 +136,7 @@ def _build_client_cmd(
 
 async def run_client(
     *,
+    jack_server_name: str,
     server_host: IPv4Address,
     server_port: int,
     receive_channels: int,
@@ -143,4 +150,4 @@ async def run_client(
         send_channels=send_channels,
         remote_name=remote_name,
     )
-    await _run_jacktrip(cmd)
+    await _run_jacktrip(cmd, jack_server_name)

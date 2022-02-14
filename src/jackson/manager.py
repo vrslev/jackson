@@ -41,20 +41,26 @@ class Server(BaseManager):
     settings: ServerSettings
     jack_server_: JackServer = field(init=False)
     api_server: APIServer = field(init=False)
+    jack_server_name: str = field(default="JacksonServer", init=False)
 
     def __post_init__(self):
         self.jack_server_ = JackServer(
+            name=self.jack_server_name,
             driver=self.settings.audio.driver,
             device=self.settings.audio.device,
             rate=self.settings.audio.sample_rate,
             period=self.settings.audio.buffer_size,
         )
+        api_app.state.jack_server_name = self.jack_server_name
         self.api_server = APIServer(api_app)
 
     async def start(self, task_group: TaskGroup):
         self.jack_server_.start()
 
-        task_group.soonify(jacktrip.run_server)(port=self.settings.server.jacktrip_port)
+        task_group.soonify(jacktrip.run_server)(
+            jack_server_name=self.jack_server_name,
+            port=self.settings.server.jacktrip_port,
+        )
         task_group.soonify(self.api_server.start)()
         task_group.soonify(uvicorn_signal_handler)(task_group.cancel_scope)
 
@@ -70,6 +76,7 @@ class Client(BaseManager):
     jack_server_: JackServer | None = field(default=None, init=False)
     port_connector: PortConnector | None = field(default=None, init=False)
     api_client: APIClient = field(init=False)
+    jack_server_name: str = field(default="JacksonClient", init=False)
 
     def __post_init__(self):
         self.api_client = APIClient(
@@ -78,6 +85,7 @@ class Client(BaseManager):
 
     def start_jack_server(self, rate: jack_server.SampleRate, period: int):
         self.jack_server_ = JackServer(
+            name=self.jack_server_name,
             driver=self.settings.audio.driver,
             device=self.settings.audio.device,
             rate=rate,
@@ -92,18 +100,23 @@ class Client(BaseManager):
             inputs_limit=inputs_limit,
             outputs_limit=outputs_limit,
         )
+
         self.port_connector = PortConnector(
-            connection_map=map, connect_on_server=self.api_client.connect
+            jack_server_name=self.jack_server_name,
+            connection_map=map,
+            connect_on_server=self.api_client.connect,
         )
         self.port_connector.start_jack_client()
 
     async def start_jacktrip(self):
         assert self.port_connector
+
         receive_count, send_count = count_receive_send_channels(
             self.port_connector.connection_map
         )
 
         return await jacktrip.run_client(
+            jack_server_name=self.jack_server_name,
             server_host=self.settings.server.host,
             server_port=self.settings.server.jacktrip_port,
             receive_channels=receive_count,

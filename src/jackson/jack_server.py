@@ -1,6 +1,6 @@
 import jack_server
 import typer
-from jack_server._server import _SetByJack  # type: ignore
+from jack_server._server import SetByJack_
 
 from jackson.logging import JackServerFilter, get_logger, silent_jack_stream_handler
 
@@ -22,6 +22,7 @@ class JackServer(jack_server.Server):
     def __init__(
         self,
         *,
+        name: str,
         driver: str,
         device: str | None,
         rate: jack_server.SampleRate,
@@ -29,8 +30,9 @@ class JackServer(jack_server.Server):
     ):
         _set_stream_handlers()
         super().__init__(
+            name=name,
             driver=driver,
-            device=device or _SetByJack,
+            device=device or SetByJack_,
             rate=rate,
             period=period,
             sync=True,

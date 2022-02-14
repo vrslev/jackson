@@ -1,6 +1,6 @@
 import signal
 from functools import lru_cache
-from typing import Any
+from typing import Any, cast
 
 import anyio
 import jack
@@ -44,7 +44,8 @@ class StructuredHTTPException(HTTPException):
 
 @lru_cache
 def get_jack_client():
-    return JackClient("APIServer")
+    server_name = cast(str, app.state.jack_server_name)
+    return JackClient("APIServer", server_name=server_name)
 
 
 @app.get("/init", response_model=InitResponse)

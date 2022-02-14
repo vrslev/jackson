@@ -27,6 +27,7 @@ class _ConnectOnServer(Protocol):
 
 @dataclass
 class PortConnector:
+    jack_server_name: str
     connection_map: ConnectionMap
     connect_on_server: _ConnectOnServer
     callback_queue: asyncio.Queue[Callable[[], Coroutine[None, None, None]]] = field(
@@ -35,7 +36,9 @@ class PortConnector:
     jack_client: JackClient = field(init=False)
 
     def start_jack_client(self):
-        self.jack_client = JackClient("PortConnector")
+        self.jack_client = JackClient(
+            "PortConnector", server_name=self.jack_server_name
+        )
         self.jack_client.set_port_registration_callback(
             self._port_registration_callback
         )

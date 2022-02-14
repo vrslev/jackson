@@ -31,11 +31,13 @@ def _log_connection(source: str, destination: str):
 
 
 class JackClient(jack.Client):
-    def _init_or_fail(self, name: str):
+    def _init_or_fail(self, name: str, server_name: str):
         for _ in range(100):
             try:
                 log.info("[yellow]Connecting to Jack...[/yellow]")
-                super().__init__(name=name, no_start_server=True)
+                super().__init__(
+                    name=name, no_start_server=True, servername=server_name
+                )
                 log.info("[green]Connected to Jack![/green]")
                 return
             except jack.JackOpenError:
@@ -44,13 +46,13 @@ class JackClient(jack.Client):
         log.error("[red]Can't connect to Jack[/red]")
         raise typer.Exit(1)
 
-    def __init__(self, name: str) -> None:
+    def __init__(self, name: str, *, server_name: str) -> None:
         # Attribute exists so we don't call client.deactivate() on shutdown
         # if it wasn't activated. Otherwise causes segfault.
         self._activated = False
 
         _block_streams()
-        self._init_or_fail(name=name)
+        self._init_or_fail(name=name, server_name=server_name)
         _set_stream_handlers()
 
     def activate(self) -> None:
