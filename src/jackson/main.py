@@ -9,8 +9,8 @@ from jackson.settings import ClientSettings, ServerSettings
 app = typer.Typer()
 
 
-@app.command("server")
-def server_command(
+@app.command()
+def server(
     config: typer.FileText = Option("config.server.yaml"),
     no_workers_output: bool = Option(False, "--no-workers-output"),
 ):
@@ -31,8 +31,8 @@ def server_command(
     asyncer.runnify(server.run)()
 
 
-@app.command("client")
-def client_command(
+@app.command()
+def client(
     config: typer.FileText = Option("config.client.yaml"),
     no_jack: bool = Option(False, "--no-jack"),
 ):
