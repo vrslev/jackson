@@ -20,6 +20,7 @@ class _BaseAudio(BaseModel):
 
 class _ServerAudio(_BaseAudio):
     sample_rate: jack_server.SampleRate
+    buffer_size: int  # In samples
 
 
 class _BaseServer(BaseModel):

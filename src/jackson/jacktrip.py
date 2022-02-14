@@ -117,7 +117,7 @@ def _build_client_cmd(
         "--peerport",
         str(server_port),
         "--clientname",
-        "JackTrip",
+        "JackTrip",  # TODO :Add global JACKTRIPNAME
         "--remotename",
         remote_name,
         "--nojackportsconnect",

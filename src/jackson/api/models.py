@@ -10,6 +10,7 @@ class InitResponse(BaseModel):
     inputs: int
     outputs: int
     rate: jack_server.SampleRate
+    buffer_size: int
 
 
 PortDirectionType = Literal["source", "destination"]

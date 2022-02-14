@@ -51,9 +51,13 @@ def get_jack_client():
 async def init(jack_client: JackClient = Depends(get_jack_client)):
     inputs = jack_client.get_ports("system:.*", is_input=True)
     outputs = jack_client.get_ports("system:.*", is_output=True)
-    rate = jack_client.samplerate
 
-    return InitResponse(inputs=len(inputs), outputs=len(outputs), rate=rate)
+    return InitResponse(
+        inputs=len(inputs),
+        outputs=len(outputs),
+        rate=jack_client.samplerate,
+        buffer_size=jack_client.blocksize,
+    )
 
 
 def get_port_or_fail(jack_client: JackClient, type: PortDirectionType, name: PortName):

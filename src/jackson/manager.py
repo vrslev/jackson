@@ -47,6 +47,7 @@ class Server(BaseManager):
             driver=self.settings.audio.driver,
             device=self.settings.audio.device,
             rate=self.settings.audio.sample_rate,
+            period=self.settings.audio.buffer_size,
         )
         self.api_server = APIServer(api_app)
 
@@ -75,11 +76,12 @@ class Client(BaseManager):
             host=self.settings.server.host, port=self.settings.server.api_port
         )
 
-    def start_jack_server(self, rate: jack_server.SampleRate):
+    def start_jack_server(self, rate: jack_server.SampleRate, period: int):
         self.jack_server_ = JackServer(
             driver=self.settings.audio.driver,
             device=self.settings.audio.device,
             rate=rate,
+            period=period,
         )
         self.jack_server_.start()
 
@@ -113,7 +115,7 @@ class Client(BaseManager):
         init_resp = await self.api_client.init()
 
         if self.start_jack:
-            self.start_jack_server(init_resp.rate)
+            self.start_jack_server(rate=init_resp.rate, period=init_resp.buffer_size)
 
         self.setup_port_connector(init_resp.inputs, init_resp.outputs)
         assert self.port_connector
