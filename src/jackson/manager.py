@@ -36,12 +36,16 @@ class BaseManager(ABC):
                     await self.stop()
 
 
+DEFAULT_SERVER_JACK_SERVER = "JacksonServer"
+DEFAULT_CLIENT_JACK_SERVER = "JacksonCLient"
+
+
 @dataclass
 class Server(BaseManager):
     settings: ServerSettings
     jack_server_: JackServer = field(init=False)
     api_server: APIServer = field(init=False)
-    jack_server_name: str = field(default="JacksonServer", init=False)
+    jack_server_name: str = field(default=DEFAULT_SERVER_JACK_SERVER, init=False)
 
     def __post_init__(self):
         self.jack_server_ = JackServer(
@@ -76,7 +80,7 @@ class Client(BaseManager):
     jack_server_: JackServer | None = field(default=None, init=False)
     port_connector: PortConnector | None = field(default=None, init=False)
     api_client: APIClient = field(init=False)
-    jack_server_name: str = field(default="JacksonClient", init=False)
+    jack_server_name: str = field(default=DEFAULT_CLIENT_JACK_SERVER, init=False)
 
     def __post_init__(self):
         self.api_client = APIClient(
@@ -129,6 +133,8 @@ class Client(BaseManager):
 
         if self.start_jack:
             self.start_jack_server(rate=init_resp.rate, period=init_resp.buffer_size)
+        else:
+            self.jack_server_name = DEFAULT_SERVER_JACK_SERVER
 
         self.setup_port_connector(init_resp.inputs, init_resp.outputs)
         assert self.port_connector
