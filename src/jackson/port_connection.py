@@ -80,14 +80,16 @@ def _build_validate_connections(
 ):
     prev_bridge = 0
 
-    for source, destination in ports.items():
+    for local, remote in ports.items():
         bridge = prev_bridge + 1
         prev_bridge = bridge
         _validate_channel_limit(client_should=client_should, bridge=bridge, limit=limit)
 
         if client_should == "send":
+            source, destination = local, remote
             func = _get_send_connection
         else:
+            source, destination = remote, local
             func = _get_receive_connection
 
         yield func(client=client, source=source, destination=destination, bridge=bridge)
