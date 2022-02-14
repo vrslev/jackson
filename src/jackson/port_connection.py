@@ -2,6 +2,7 @@ from typing import Literal, cast
 
 from pydantic import BaseModel
 
+from jackson import jacktrip
 from jackson.settings import ClientPorts
 
 PortType = Literal["send", "receive", "capture", "playback"]
@@ -59,7 +60,7 @@ def _get_send_connection(client: str, source: int, destination: int, bridge: int
     return PortConnection(
         client_should="send",
         source=PortName(client="system", type="capture", idx=source),
-        local_bridge=PortName(client="JackTrip", type="send", idx=bridge),
+        local_bridge=PortName(client=jacktrip.CLIENT_NAME, type="send", idx=bridge),
         remote_bridge=PortName(client=client, type="receive", idx=bridge),
         destination=PortName(client="system", type="playback", idx=destination),
     )
@@ -70,7 +71,7 @@ def _get_receive_connection(client: str, source: int, destination: int, bridge: 
         client_should="receive",
         source=PortName(client="system", type="capture", idx=source),
         remote_bridge=PortName(client=client, type="send", idx=bridge),
-        local_bridge=PortName(client="JackTrip", type="receive", idx=bridge),
+        local_bridge=PortName(client=jacktrip.CLIENT_NAME, type="receive", idx=bridge),
         destination=PortName(client="system", type="playback", idx=destination),
     )
 

@@ -98,6 +98,9 @@ async def run_server(*, port: int):
     await _run_jacktrip(cmd)
 
 
+CLIENT_NAME = "JackTrip"
+
+
 def _build_client_cmd(
     *,
     server_host: IPv4Address,
@@ -117,7 +120,7 @@ def _build_client_cmd(
         "--peerport",
         str(server_port),
         "--clientname",
-        "JackTrip",  # TODO :Add global JACKTRIPNAME
+        CLIENT_NAME,
         "--remotename",
         remote_name,
         "--nojackportsconnect",
