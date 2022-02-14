@@ -28,8 +28,10 @@ def ports_are_connected(client: JackClient, source: PortName, destination: PortN
     return connected
 
 
-def validate_connections(connection_map: dict[PortName, PortConnection]):
-    client = JackClient("ConnectionsTester")
+def validate_connections(
+    connection_map: dict[PortName, PortConnection], jack_server_name: str
+):
+    client = JackClient("ConnectionsTester", server_name=jack_server_name)
     missing_connections: list[tuple[PortName, PortName]] | None = None
 
     while missing_connections is None or len(missing_connections) == len(
@@ -62,7 +64,7 @@ class CustomServer(Server):
 
     async def check_connections(self):
         connection_map = await self.connection_map_queue.get()
-        validate_connections(connection_map)
+        validate_connections(connection_map, jack_server_name=self.jack_server_name)
         await self.exit_queue.put("server")
 
     async def start(self, task_group: TaskGroup):
@@ -106,7 +108,7 @@ class CustomClient(Client):
             await anyio.sleep(0.0001)
 
         await self.connection_map_queue.put(self.port_connector.connection_map)
-        validate_connections(self.port_connector.connection_map)
+        validate_connections(self.port_connector.connection_map, self.jack_server_name)
         self.exit_queue.put_nowait("client")
 
     async def start(self, task_group: TaskGroup):
@@ -150,7 +152,7 @@ def client(
 ):
     return CustomClient(
         client_settings,
-        start_jack=False,
+        start_jack=True,  # TODO: Fix tests with multiple jack servers
         exit_queue=exit_queue,
         connection_map_queue=connection_map_queue,
     )
