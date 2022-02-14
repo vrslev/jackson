@@ -33,7 +33,7 @@ class PortConnector:
     callback_queue: asyncio.Queue[Callable[[], Coroutine[None, None, None]]] = field(
         default_factory=asyncio.Queue
     )
-    jack_client: JackClient = field(init=False)
+    jack_client: JackClient | None = field(default=None, init=False)
 
     def start_jack_client(self):
         self.jack_client = JackClient(
@@ -45,7 +45,8 @@ class PortConnector:
         self.jack_client.activate()
 
     def stop_jack_client(self):
-        self.jack_client.deactivate()
+        if self.jack_client:
+            self.jack_client.deactivate()
 
     def _log_registration(self, name: str, registered: bool):
         if registered:
@@ -57,6 +58,7 @@ class PortConnector:
         return registered and name in self.connection_map
 
     async def _connect_on_both_ends(self, connection: PortConnection):
+        assert self.jack_client
         await self.connect_on_server(
             *connection.get_remote_connection(), connection.client_should
         )
