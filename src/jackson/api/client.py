@@ -7,13 +7,7 @@ import anyio
 import httpx
 from pydantic import AnyHttpUrl, BaseModel
 
-from jackson.api.models import (
-    ConnectResponse,
-    FailedToConnectPorts,
-    InitResponse,
-    PlaybackPortAlreadyHasConnections,
-    PortNotFound,
-)
+from jackson.api import models
 from jackson.logging import get_logger
 from jackson.port_connection import ClientShould, PortName
 
@@ -30,9 +24,9 @@ class ServerError(Exception):
 
 
 _known_errors: tuple[type[BaseModel], ...] = (
-    PlaybackPortAlreadyHasConnections,
-    PortNotFound,
-    FailedToConnectPorts,
+    models.PlaybackPortAlreadyHasConnections,
+    models.PortNotFound,
+    models.FailedToConnectPorts,
 )
 
 
@@ -115,7 +109,7 @@ class APIClient(httpx.AsyncClient):
 
     async def init(self):
         response = await self.get("/init")
-        return _handle_response(response, InitResponse)
+        return _handle_response(response, models.InitResponse)
 
     async def connect(
         self, source: PortName, destination: PortName, client_should: ClientShould
@@ -124,5 +118,5 @@ class APIClient(httpx.AsyncClient):
         func = partial(self.patch, "/connect", json=payload)
 
         response = await _retry_request(func)
-        data = _handle_response(response, ConnectResponse)
+        data = _handle_response(response, models.ConnectResponse)
         _log_connection(data.source, data.destination)
