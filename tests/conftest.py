@@ -5,7 +5,7 @@ from typing import Literal
 import anyio
 import pytest
 from _pytest.logging import LogCaptureFixture
-from asyncer._main import TaskGroup
+from anyio.abc import TaskGroup
 
 from jackson.jack_client import JackClient
 from jackson.logging import configure_loggers
@@ -69,7 +69,7 @@ class CustomServer(Server):
 
     async def start(self, task_group: TaskGroup):
         await super().start(task_group)
-        task_group.soonify(self.check_connections)()
+        task_group.start_soon(self.check_connections)
 
 
 class CustomClient(Client):
@@ -113,7 +113,7 @@ class CustomClient(Client):
 
     async def start(self, task_group: TaskGroup):
         await super().start(task_group)
-        task_group.soonify(self.check_connections)()
+        task_group.start_soon(self.check_connections)
 
     async def run(self, server: CustomServer):
         while not server.api_server._started:

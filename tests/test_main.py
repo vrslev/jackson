@@ -1,4 +1,4 @@
-import asyncer
+import anyio
 import pytest
 
 from tests.conftest import CustomClient, CustomServer, ExitQueue
@@ -21,9 +21,9 @@ async def wait_for_success(exit_queue: ExitQueue):
 
 @pytest.mark.anyio
 async def test_ok(server: CustomServer, client: CustomClient, exit_queue: ExitQueue):
-    async with asyncer.create_task_group() as task_group:
-        task_group.soonify(server.run)()
-        task_group.soonify(client.run)(server)
+    async with anyio.create_task_group() as task_group:
+        task_group.start_soon(server.run)
+        task_group.start_soon(lambda: client.run(server))
 
         await wait_for_success(exit_queue)
         task_group.cancel_scope.cancel()

@@ -3,7 +3,7 @@ from dataclasses import dataclass, field
 from functools import partial
 from typing import Callable, Coroutine, Protocol
 
-import asyncer
+import anyio
 import jack
 
 from jackson.jack_client import JackClient
@@ -76,7 +76,7 @@ class PortConnector:
             self._schedule_connecting(port_name)
 
     async def run_queue(self):
-        async with asyncer.create_task_group() as task_group:
+        async with anyio.create_task_group() as task_group:
             while True:
                 callback = await self.callback_queue.get()
-                task_group.soonify(callback)()
+                task_group.start_soon(callback)

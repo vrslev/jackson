@@ -1,4 +1,4 @@
-import asyncer
+import anyio
 import typer
 from typer.params import Option
 
@@ -28,7 +28,7 @@ def server(
         jackson.jack_server.log.disabled = True
         jackson.jacktrip.log.disabled = True
 
-    asyncer.runnify(server.run)()
+    anyio.run(server.run)
 
 
 @app.command()
@@ -41,7 +41,7 @@ def client(
     settings = ClientSettings.from_yaml(config)
     client = Client(settings=settings, start_jack=not no_jack)
 
-    asyncer.runnify(client.run, backend_options={"use_uvloop": True})()
+    anyio.run(client.run, backend_options={"use_uvloop": True})
 
 
 if __name__ == "__main__":

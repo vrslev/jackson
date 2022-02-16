@@ -2,9 +2,8 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 
 import anyio
-import asyncer
 import jack_server
-from asyncer._main import TaskGroup
+from anyio.abc import TaskGroup
 
 from jackson import jacktrip
 from jackson.api.client import APIClient
@@ -27,7 +26,7 @@ class BaseManager(ABC):
         ...
 
     async def run(self):
-        async with asyncer.create_task_group() as task_group:
+        async with anyio.create_task_group() as task_group:
             try:
                 await self.start(task_group)
                 await anyio.sleep_forever()
@@ -61,12 +60,14 @@ class Server(BaseManager):
     async def start(self, task_group: TaskGroup):
         self.jack_server_.start()
 
-        task_group.soonify(jacktrip.run_server)(
-            jack_server_name=self.jack_server_name,
-            port=self.settings.server.jacktrip_port,
+        task_group.start_soon(
+            lambda: jacktrip.run_server(
+                jack_server_name=self.jack_server_name,
+                port=self.settings.server.jacktrip_port,
+            )
         )
-        task_group.soonify(self.api_server.start)()
-        task_group.soonify(uvicorn_signal_handler)(task_group.cancel_scope)
+        task_group.start_soon(self.api_server.start)
+        task_group.start_soon(lambda: uvicorn_signal_handler(task_group.cancel_scope))
 
     async def stop(self):
         await self.api_server.stop()
@@ -139,8 +140,8 @@ class Client(BaseManager):
         self.setup_port_connector(init_resp.inputs, init_resp.outputs)
         assert self.port_connector
 
-        task_group.soonify(self.port_connector.run_queue)()
-        task_group.soonify(self.start_jacktrip)()
+        task_group.start_soon(self.port_connector.run_queue)
+        task_group.start_soon(self.start_jacktrip)
 
     async def stop(self):
         await self.api_client.aclose()

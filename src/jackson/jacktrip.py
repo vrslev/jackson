@@ -6,7 +6,6 @@ from ipaddress import IPv4Address
 from typing import Callable
 
 import anyio
-import asyncer
 import typer
 from anyio.abc import ByteReceiveStream, Process
 from anyio.streams.text import TextReceiveStream
@@ -61,9 +60,9 @@ class _Program:
         env.update(self.env)
 
         async with await anyio.open_process(self.cmd, env=env) as process:
-            async with asyncer.create_task_group() as tg:
-                tg.soonify(_restream_stream)(process.stderr, log.error)
-                tg.soonify(_restream_stream)(process.stdout, log.info)
+            async with anyio.create_task_group() as tg:
+                tg.start_soon(lambda: _restream_stream(process.stderr, log.error))
+                tg.start_soon(lambda: _restream_stream(process.stdout, log.error))
                 yield process
 
     async def run_forever(self):
