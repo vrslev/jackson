@@ -38,15 +38,15 @@ def _configure_logger(mode: _Mode, logger: logging.Logger, prog_name: str):
     if not mode:
         return
 
-    os.makedirs(f"log/{mode}", exist_ok=True)
-    file_handler = RotatingFileHandler(
-        f"log/{mode}/{logger.name}.log", maxBytes=5 * 1024 * 1024, backupCount=5
-    )
-    formatter = _RichMarkupStripFormatter(
-        "%(asctime)s  %(levelname)s  %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
-    )
-    file_handler.setFormatter(formatter)
-    logger.addHandler(file_handler)
+    # os.makedirs(f"log/{mode}", exist_ok=True) # TODO: uncomment
+    # file_handler = RotatingFileHandler(
+    #     f"log/{mode}/{logger.name}.log", maxBytes=5 * 1024 * 1024, backupCount=5
+    # )
+    # formatter = _RichMarkupStripFormatter(
+    #     "%(asctime)s  %(levelname)s  %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
+    # )
+    # file_handler.setFormatter(formatter)
+    # logger.addHandler(file_handler)
 
 
 def configure_loggers(mode: _Mode):
