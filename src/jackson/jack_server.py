@@ -31,11 +31,12 @@ class JackServer(jack_server.Server):
         _set_stream_handlers()
         super().__init__(
             name=name,
+            sync=True,
+            realtime=True,
             driver=driver,
             device=device or SetByJack_,
             rate=rate,
             period=period,
-            sync=True,
         )
 
     def _start_or_exit(self):
