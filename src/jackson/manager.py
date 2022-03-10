@@ -8,9 +8,7 @@ from jack_server._server import SetByJack_
 
 from jackson import jacktrip
 from jackson.api.client import APIClient
-from jackson.api.server import APIServer
-from jackson.api.server import app as api_app
-from jackson.api.server import uvicorn_signal_handler
+from jackson.api.server import APIServer, uvicorn_signal_handler
 from jackson.jack_server import (
     block_jack_server_streams,
     set_jack_server_stream_handlers,
@@ -39,71 +37,70 @@ class BaseManager(ABC):
                     await self.stop()
 
 
-DEFAULT_SERVER_JACK_SERVER = "JacksonServer"
+DEFAULT_SERVER_JACK_SERVER = "JacksonServer"  # TODO: Move to settings
 DEFAULT_CLIENT_JACK_SERVER = "JacksonClient"
 
 
 @dataclass
 class Server(BaseManager):
     settings: ServerSettings
-    jack_server_: jack_server.Server = field(init=False)
-    api_server: APIServer = field(init=False)
-    jack_server_name: str = field(default=DEFAULT_SERVER_JACK_SERVER, init=False)
+    jack: jack_server.Server = field(init=False)
+    jack_name: str = field(default=DEFAULT_SERVER_JACK_SERVER, init=False)
+    api: APIServer = field(init=False)
 
     def __post_init__(self):
         set_jack_server_stream_handlers()
-        self.jack_server_ = jack_server.Server(
-            name=self.jack_server_name,
+        self.jack = jack_server.Server(
+            name=self.jack_name,
             driver=self.settings.audio.driver,
             device=self.settings.audio.device or SetByJack_,
             rate=self.settings.audio.sample_rate,
             period=self.settings.audio.buffer_size,
         )
-        api_app.state.jack_server_name = self.jack_server_name
-        self.api_server = APIServer(api_app)
+        self.api = APIServer(self.jack_name)
 
     async def start(self, task_group: TaskGroup):
-        self.jack_server_.start()
+        self.jack.start()
 
         task_group.start_soon(
             lambda: jacktrip.run_server(
-                jack_server_name=self.jack_server_name,
+                jack_server_name=self.jack_name,
                 port=self.settings.server.jacktrip_port,
             )
         )
-        task_group.start_soon(self.api_server.start)
+        task_group.start_soon(self.api.start)
         task_group.start_soon(lambda: uvicorn_signal_handler(task_group.cancel_scope))
 
     async def stop(self):
-        await self.api_server.stop()
+        await self.api.stop()
         block_jack_server_streams()
-        self.jack_server_.stop()
+        self.jack.stop()
 
 
 @dataclass
 class Client(BaseManager):
     settings: ClientSettings
     start_jack: bool
-    jack_server_: jack_server.Server | None = field(default=None, init=False)
+    jack: jack_server.Server | None = field(default=None, init=False)
+    jack_name: str = field(default=DEFAULT_CLIENT_JACK_SERVER, init=False)
+    api: APIClient = field(init=False)
     port_connector: PortConnector | None = field(default=None, init=False)
-    api_client: APIClient = field(init=False)
-    jack_server_name: str = field(default=DEFAULT_CLIENT_JACK_SERVER, init=False)
 
     def __post_init__(self):
-        self.api_client = APIClient(
+        self.api = APIClient(
             host=self.settings.server.host, port=self.settings.server.api_port
         )
 
     def start_jack_server(self, rate: jack_server.SampleRate, period: int):
         set_jack_server_stream_handlers()
-        self.jack_server_ = jack_server.Server(
-            name=self.jack_server_name,
+        self.jack = jack_server.Server(
+            name=self.jack_name,
             driver=self.settings.audio.driver,
             device=self.settings.audio.device or SetByJack_,
             rate=rate,
             period=period,
         )
-        self.jack_server_.start()
+        self.jack.start()
 
     def get_port_connector(self, inputs_limit: int, outputs_limit: int):
         map = build_connection_map(
@@ -114,20 +111,19 @@ class Client(BaseManager):
         )
 
         return PortConnector(
-            jack_server_name=self.jack_server_name,
+            jack_server_name=self.jack_name,
             connection_map=map,
-            connect_on_server=self.api_client.connect,
+            connect_on_server=self.api.connect,
         )
 
     async def start_jacktrip(self):
         assert self.port_connector
-
         receive_count, send_count = count_receive_send_channels(
             self.port_connector.connection_map
         )
 
         return await jacktrip.run_client(
-            jack_server_name=self.jack_server_name,
+            jack_server_name=self.jack_name,
             server_host=self.settings.server.host,
             server_port=self.settings.server.jacktrip_port,
             receive_channels=receive_count,
@@ -136,26 +132,26 @@ class Client(BaseManager):
         )
 
     async def start(self, task_group: TaskGroup):
-        init_resp = await self.api_client.init()
+        init_resp = await self.api.init()
 
         if self.start_jack:
             self.start_jack_server(rate=init_resp.rate, period=init_resp.buffer_size)
         else:
-            self.jack_server_name = DEFAULT_SERVER_JACK_SERVER
+            self.jack_name = DEFAULT_SERVER_JACK_SERVER
 
         self.port_connector = self.get_port_connector(
             init_resp.inputs, init_resp.outputs
         )
 
-        task_group.start_soon(self.port_connector.wait_and_connect)
+        task_group.start_soon(self.port_connector.wait_and_run)
         task_group.start_soon(self.start_jacktrip)
 
     async def stop(self):
-        await self.api_client.client.aclose()
+        await self.api.client.aclose()
 
         if self.port_connector:
             self.port_connector.deactivate()
 
-        if self.start_jack and self.jack_server_:
+        if self.start_jack and self.jack:
             block_jack_server_streams()
-            self.jack_server_.stop()
+            self.jack.stop()

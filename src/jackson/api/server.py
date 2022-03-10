@@ -112,11 +112,12 @@ async def connect(
 
 @dataclass
 class APIServer:
-    app: FastAPI
+    jack_server_name: str
     server: uvicorn.Server = field(init=False)
     _started: bool = field(default=False, init=False)
 
     def __post_init__(self) -> None:
+        app.state.jack_server_name = self.jack_server_name
         config = uvicorn.Config(app=app, host="0.0.0.0", workers=1, log_config=None)
         self.server = uvicorn.Server(config)
         self.server.config.load()

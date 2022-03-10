@@ -40,7 +40,7 @@ class PortConnector:
             self.client.deactivate()
             self.client_activated = False
 
-    async def wait_and_connect(self):
+    async def wait_and_run(self):
         await self.ready.wait()
         await self.connect()
         self.deactivate()
