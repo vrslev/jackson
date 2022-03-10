@@ -45,36 +45,35 @@ async def init(jack_client: JackClient = Depends(get_jack_client)):
 
 
 def get_port_or_fail(
-    jack_client: JackClient, type: models.PortDirectionType, name: PortName
+    client: JackClient, type: models.PortDirectionType, name: PortName
 ):
     try:
-        return jack_client.get_port_by_name(str(name))
+        return client.get_port_by_name(str(name))
     except jack.JackError:
         raise StructuredHTTPException(404, models.PortNotFound(type=type, name=name))
 
 
 def validate_playback_port_has_no_connections(
-    jack_client: JackClient, destination_name: PortName, client_should: ClientShould
+    client: JackClient, name: PortName, client_should: ClientShould
 ):
-    port = get_port_or_fail(jack_client, type="destination", name=destination_name)
+    port = get_port_or_fail(client, type="destination", name=name)
 
     if client_should != "send":
         return
 
-    if not (connections := jack_client.get_all_connections(port)):
+    if not (connections := client.get_all_connections(port)):
         return
 
-    data = models.PlaybackPortAlreadyHasConnections(
-        port=destination_name, connections=[PortName.parse(p.name) for p in connections]
-    )
+    port_names = [PortName.parse(p.name) for p in connections]
+    data = models.PlaybackPortAlreadyHasConnections(port=name, connections=port_names)
     raise StructuredHTTPException(status.HTTP_409_CONFLICT, data)
 
 
 async def retry_connect_ports(
-    jack_client: JackClient, source: PortName, destination: PortName
+    client: JackClient, source: PortName, destination: PortName
 ):
     try:
-        await jack_client.connect_retry(str(source), str(destination))
+        await client.connect_retry(str(source), str(destination))
     except jack.JackError:
         raise StructuredHTTPException(
             status.HTTP_424_FAILED_DEPENDENCY,
@@ -89,7 +88,9 @@ async def connect_ports(
     client_should: ClientShould,
 ):
     get_port_or_fail(client, type="source", name=source)
-    validate_playback_port_has_no_connections(client, destination, client_should)
+    validate_playback_port_has_no_connections(
+        client, name=destination, client_should=client_should
+    )
     await retry_connect_ports(client, source, destination)
 
 
@@ -98,17 +99,15 @@ async def connect(
     connections: list[models.Connection],
     jack_client: JackClient = Depends(get_jack_client),
 ):
+    # TODO: Validate (check if allowed) source and destination
     for conn in connections:
         await connect_ports(
-            jack_client, conn.source, conn.destination, conn.client_should
+            jack_client,
+            source=conn.source,
+            destination=conn.destination,
+            client_should=conn.client_should,
         )
-    # TODO: Validate (check if allowed) source and destination
     return models.ConnectResponse()
-
-
-# @app.on_event("shutdown") # type: ignore
-# def on_shutdown():
-#     get_jack_client.cache_clear()
 
 
 @dataclass

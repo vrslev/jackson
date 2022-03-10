@@ -31,11 +31,11 @@ class FailedToConnectPorts(BaseModel):
     destination: PortName
 
 
-class ConnectResponse(BaseModel):
-    pass
-
-
 class Connection(BaseModel):
     source: PortName
     destination: PortName
     client_should: ClientShould
+
+
+class ConnectResponse(BaseModel):
+    pass
