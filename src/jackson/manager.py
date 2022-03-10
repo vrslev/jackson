@@ -1,5 +1,5 @@
-from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
+from typing import Protocol
 
 import anyio
 import jack_server
@@ -18,12 +18,10 @@ from jackson.port_connector import PortConnector
 from jackson.settings import ClientSettings, ServerSettings
 
 
-class BaseManager(ABC):
-    @abstractmethod
+class BaseManager(Protocol):
     async def start(self, task_group: TaskGroup):
         ...
 
-    @abstractmethod
     async def stop(self):
         ...
 
@@ -37,34 +35,29 @@ class BaseManager(ABC):
                     await self.stop()
 
 
-DEFAULT_SERVER_JACK_SERVER = "JacksonServer"  # TODO: Move to settings
-DEFAULT_CLIENT_JACK_SERVER = "JacksonClient"
-
-
 @dataclass
 class Server(BaseManager):
     settings: ServerSettings
     jack: jack_server.Server = field(init=False)
-    jack_name: str = field(default=DEFAULT_SERVER_JACK_SERVER, init=False)
     api: APIServer = field(init=False)
 
     def __post_init__(self):
         set_jack_server_stream_handlers()
         self.jack = jack_server.Server(
-            name=self.jack_name,
+            name=self.settings.audio.jack_server_name,
             driver=self.settings.audio.driver,
             device=self.settings.audio.device or SetByJack_,
             rate=self.settings.audio.sample_rate,
             period=self.settings.audio.buffer_size,
         )
-        self.api = APIServer(self.jack_name)
+        self.api = APIServer(self.settings.audio.jack_server_name)
 
     async def start(self, task_group: TaskGroup):
         self.jack.start()
 
         task_group.start_soon(
             lambda: jacktrip.run_server(
-                jack_server_name=self.jack_name,
+                jack_server_name=self.settings.audio.jack_server_name,
                 port=self.settings.server.jacktrip_port,
             )
         )
@@ -80,9 +73,7 @@ class Server(BaseManager):
 @dataclass
 class Client(BaseManager):
     settings: ClientSettings
-    start_jack: bool
     jack: jack_server.Server | None = field(default=None, init=False)
-    jack_name: str = field(default=DEFAULT_CLIENT_JACK_SERVER, init=False)
     api: APIClient = field(init=False)
     port_connector: PortConnector | None = field(default=None, init=False)
 
@@ -94,7 +85,7 @@ class Client(BaseManager):
     def start_jack_server(self, rate: jack_server.SampleRate, period: int):
         set_jack_server_stream_handlers()
         self.jack = jack_server.Server(
-            name=self.jack_name,
+            name=self.settings.get_jack_server_name(),
             driver=self.settings.audio.driver,
             device=self.settings.audio.device or SetByJack_,
             rate=rate,
@@ -110,9 +101,8 @@ class Client(BaseManager):
             inputs_limit=inputs_limit,
             outputs_limit=outputs_limit,
         )
-
         return PortConnector(
-            jack_name=self.jack_name,
+            jack_name=self.settings.get_jack_server_name(),
             connection_map=map,
             connect_on_server=self.api.connect,
         )
@@ -124,7 +114,7 @@ class Client(BaseManager):
         )
 
         return await jacktrip.run_client(
-            jack_server_name=self.jack_name,
+            jack_server_name=self.settings.get_jack_server_name(),
             server_host=self.settings.server.host,
             server_port=self.settings.server.jacktrip_port,
             receive_channels=receive_count,
@@ -135,10 +125,8 @@ class Client(BaseManager):
     async def start(self, task_group: TaskGroup):
         init_resp = await self.api.init()
 
-        if self.start_jack:
+        if self.settings.start_jack:
             self.start_jack_server(rate=init_resp.rate, period=init_resp.buffer_size)
-        else:
-            self.jack_name = DEFAULT_SERVER_JACK_SERVER
 
         self.port_connector = self.get_port_connector(
             init_resp.inputs, init_resp.outputs
@@ -153,6 +141,6 @@ class Client(BaseManager):
         if self.port_connector:
             self.port_connector.deactivate()
 
-        if self.start_jack and self.jack:
+        if self.settings.start_jack and self.jack:
             block_jack_server_streams()
             self.jack.stop()

@@ -24,6 +24,6 @@ def client(
     no_jack: bool = Option(False, "--no-jack"),
 ):
     configure_loggers("client")
-    settings = ClientSettings(**yaml.safe_load(config))
-    client = Client(settings=settings, start_jack=not no_jack)
+    settings = ClientSettings(**yaml.safe_load(config), start_jack=not no_jack)
+    client = Client(settings=settings)
     anyio.run(client.run, backend_options={"use_uvloop": True})
