@@ -9,15 +9,15 @@ from jackson.port_connection import ConnectionMap
 
 @dataclass
 class PortConnector:
-    jack_server_name: str
+    jack_name: str
     connection_map: ConnectionMap
     connect_on_server: Callable[[ConnectionMap], Coroutine[None, None, None]]
     ready: anyio.Event = field(default_factory=anyio.Event, init=False)
-    client_activated = False
+    client_activated: bool = field(default=False, init=False)
     client: JackClient = field(init=False)
 
     def __post_init__(self):
-        self.client = JackClient("PortConnector", server_name=self.jack_server_name)
+        self.client = JackClient("PortConnector", server_name=self.jack_name)
         self.client.set_client_registration_callback(self.client_registration_callback)
         self.client.activate()
         self.client_activated = True

@@ -112,7 +112,7 @@ class Client(BaseManager):
         )
 
         return PortConnector(
-            jack_server_name=self.jack_name,
+            jack_name=self.jack_name,
             connection_map=map,
             connect_on_server=self.api.connect,
         )
