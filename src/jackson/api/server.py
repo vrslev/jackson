@@ -5,7 +5,7 @@ from functools import lru_cache
 import anyio
 import jack
 import uvicorn
-from fastapi import Body, Depends, FastAPI, HTTPException, status
+from fastapi import Depends, FastAPI, HTTPException, status
 from pydantic import BaseModel
 
 from jackson.api import models
@@ -70,47 +70,11 @@ def validate_playback_port_has_no_connections(
     raise StructuredHTTPException(status.HTTP_409_CONFLICT, data)
 
 
-async def connect_retry(
-    client: JackClient, source: PortName, destination: PortName
-) -> None:
-    """Connect ports for sure.
-
-    Several issues could come up while connecting JACK ports.
-
-    1. "Cannot connect ports owned by inactive clients: "MyName" is not active"
-        This means that client is not initialized yet.
-
-    2. "Unknown destination port in attempted (dis)connection src_name  dst_name"
-        I.e. port is not initialized yet.
-    """
-
-    exc = None
-    dest_name = str(destination)
-
-    for _ in range(100):
-        try:
-            connections = client.get_all_connections(
-                client.get_port_by_name(str(source))
-            )
-            if any(p.name == dest_name for p in connections):
-                return
-
-            client.connect(str(source), str(destination))
-            return
-
-        except jack.JackError as e:
-            exc = e
-            await anyio.sleep(0.1)
-
-    assert exc
-    raise exc
-
-
 async def retry_connect_ports(
     jack_client: JackClient, source: PortName, destination: PortName
 ):
     try:
-        await connect_retry(jack_client, source, destination)
+        await jack_client.connect_retry(str(source), str(destination))
     except jack.JackError:
         raise StructuredHTTPException(
             status.HTTP_424_FAILED_DEPENDENCY,
@@ -118,18 +82,28 @@ async def retry_connect_ports(
         )
 
 
-@app.patch("/connect", response_model=models.ConnectResponse)
-async def connect(
+async def connect_ports(
+    client: JackClient,
     source: PortName,
     destination: PortName,
-    client_should: ClientShould = Body(...),
+    client_should: ClientShould,
+):
+    get_port_or_fail(client, type="source", name=source)
+    validate_playback_port_has_no_connections(client, destination, client_should)
+    await retry_connect_ports(client, source, destination)
+
+
+@app.patch("/connect")
+async def connect(
+    connections: list[models.Connection],
     jack_client: JackClient = Depends(get_jack_client),
 ):
+    for conn in connections:
+        await connect_ports(
+            jack_client, conn.source, conn.destination, conn.client_should
+        )
     # TODO: Validate (check if allowed) source and destination
-    get_port_or_fail(jack_client, type="source", name=source)
-    validate_playback_port_has_no_connections(jack_client, destination, client_should)
-    await retry_connect_ports(jack_client, source, destination)
-    return models.ConnectResponse(source=source, destination=destination)
+    return models.ConnectResponse()
 
 
 # @app.on_event("shutdown") # type: ignore

@@ -9,7 +9,7 @@ from pydantic import AnyHttpUrl, BaseModel
 
 from jackson.api import models
 from jackson.logging import get_logger
-from jackson.port_connection import ClientShould, PortName
+from jackson.port_connection import ConnectionMap
 
 log = get_logger(__name__, "HttpClient")
 
@@ -83,21 +83,12 @@ async def _retry_request(
     return response
 
 
-def _build_connect_payload(
-    source: PortName, destination: PortName, client_should: ClientShould
-):
-    return {
-        "source": source.dict(),
-        "destination": destination.dict(),
-        "client_should": client_should,
-    }
-
-
-def _log_connection(source: PortName, destination: PortName):
-    log.info(
-        f"Connected ports on server: [bold cyan]{source}[/bold cyan]"
-        + f" -> [bold cyan]{destination}[/bold cyan]"
-    )
+def _get_connections(map: ConnectionMap):
+    for connection in map.values():
+        src, dest = connection.get_remote_connection()
+        yield models.Connection(
+            source=src, destination=dest, client_should=connection.client_should
+        ).dict()
 
 
 @dataclass(init=False)
@@ -112,12 +103,9 @@ class APIClient:
         response = await self.client.get("/init")
         return models.InitResponse(**_handle_response(response))
 
-    async def connect(
-        self, source: PortName, destination: PortName, client_should: ClientShould
-    ):
-        payload = _build_connect_payload(source, destination, client_should)
+    async def connect(self, connection_map: ConnectionMap):
+        payload = list(_get_connections(connection_map))
         func = partial(self.client.patch, "/connect", json=payload)
 
         response = await _retry_request(func)
-        data = models.ConnectResponse(**_handle_response(response))
-        _log_connection(data.source, data.destination)
+        models.ConnectResponse(**_handle_response(response))
