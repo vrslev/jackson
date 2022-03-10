@@ -5,7 +5,7 @@ RUN apt-get update \
     build-essential qtbase5-dev autoconf automake libtool make libjack-jackd2-dev git help2man \
     && rm -rf /var/lib/apt/lists/*
 
-RUN git clone --recurse-submodules --branch v1.5.1 https://github.com/jacktrip/jacktrip \
+RUN git clone --recurse-submodules --branch v1.5.2 https://github.com/jacktrip/jacktrip \
     && cd jacktrip \
     && ./build -config nogui
 
