@@ -1,6 +1,5 @@
 import signal
 from functools import lru_cache
-from typing import cast
 
 import anyio
 import jack
@@ -19,26 +18,16 @@ uvicorn_access_log = get_logger("uvicorn.access", "HttpServer")
 
 
 class StructuredHTTPException(HTTPException):
-    def __init__(
-        self,
-        status_code: int,
-        data: BaseModel | None = None,
-        headers: dict[str, str] | None = None,
-    ) -> None:
+    def __init__(self, status_code: int, data: BaseModel) -> None:
         super().__init__(
             status_code=status_code,
-            detail={
-                "message": data.__class__.__name__,
-                "data": data.dict() if data else None,
-            },
-            headers=headers,
+            detail={"message": data.__class__.__name__, "data": data.dict()},
         )
 
 
 @lru_cache
 def get_jack_client():
-    server_name = cast(str, app.state.jack_server_name)
-    return JackClient("APIServer", server_name=server_name)
+    return JackClient("APIServer", server_name=app.state.jack_server_name)
 
 
 @app.get("/init", response_model=models.InitResponse)
@@ -58,7 +47,7 @@ def get_port_or_fail(
     jack_client: JackClient, type: models.PortDirectionType, name: PortName
 ):
     try:
-        return jack_client.get_port_by_name(name)
+        return jack_client.get_port_by_name(str(name))
     except jack.JackError:
         raise StructuredHTTPException(404, models.PortNotFound(type=type, name=name))
 
@@ -68,23 +57,59 @@ def validate_playback_port_has_no_connections(
 ):
     port = get_port_or_fail(jack_client, type="destination", name=destination_name)
 
-    if client_should == "send" and (
-        connections := jack_client.get_all_connections(port)
-    ):
-        raise StructuredHTTPException(
-            status.HTTP_409_CONFLICT,
-            models.PlaybackPortAlreadyHasConnections(
-                port=destination_name,
-                connections=[PortName.parse(p.name) for p in connections],
-            ),
-        )
+    if client_should != "send":
+        return
+
+    if not (connections := jack_client.get_all_connections(port)):
+        return
+
+    data = models.PlaybackPortAlreadyHasConnections(
+        port=destination_name, connections=[PortName.parse(p.name) for p in connections]
+    )
+    raise StructuredHTTPException(status.HTTP_409_CONFLICT, data)
+
+
+async def connect_retry(
+    client: JackClient, source: PortName, destination: PortName
+) -> None:
+    """Connect ports for sure.
+
+    Several issues could come up while connecting JACK ports.
+
+    1. "Cannot connect ports owned by inactive clients: "MyName" is not active"
+        This means that client is not initialized yet.
+
+    2. "Unknown destination port in attempted (dis)connection src_name  dst_name"
+        I.e. port is not initialized yet.
+    """
+
+    exc = None
+    dest_name = str(destination)
+
+    for _ in range(100):
+        try:
+            connections = client.get_all_connections(
+                client.get_port_by_name(str(source))
+            )
+            if any(p.name == dest_name for p in connections):
+                return
+
+            client.connect(source, destination)
+            return
+
+        except jack.JackError as e:
+            exc = e
+            await anyio.sleep(0.1)
+
+    assert exc
+    raise exc
 
 
 async def retry_connect_ports(
     jack_client: JackClient, source: PortName, destination: PortName
 ):
     try:
-        await jack_client.connect_retry(source, destination)
+        await connect_retry(jack_client, source, destination)
     except jack.JackError:
         raise StructuredHTTPException(
             status.HTTP_424_FAILED_DEPENDENCY,
