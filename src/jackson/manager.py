@@ -4,13 +4,17 @@ from dataclasses import dataclass, field
 import anyio
 import jack_server
 from anyio.abc import TaskGroup
+from jack_server._server import SetByJack_
 
 from jackson import jacktrip
 from jackson.api.client import APIClient
 from jackson.api.server import APIServer
 from jackson.api.server import app as api_app
 from jackson.api.server import uvicorn_signal_handler
-from jackson.jack_server import JackServer
+from jackson.jack_server import (
+    block_jack_server_streams,
+    set_jack_server_stream_handlers,
+)
 from jackson.port_connection import build_connection_map, count_receive_send_channels
 from jackson.port_connector import PortConnector
 from jackson.settings import ClientSettings, ServerSettings
@@ -42,15 +46,16 @@ DEFAULT_CLIENT_JACK_SERVER = "JacksonClient"
 @dataclass
 class Server(BaseManager):
     settings: ServerSettings
-    jack_server_: JackServer = field(init=False)
+    jack_server_: jack_server.Server = field(init=False)
     api_server: APIServer = field(init=False)
     jack_server_name: str = field(default=DEFAULT_SERVER_JACK_SERVER, init=False)
 
     def __post_init__(self):
-        self.jack_server_ = JackServer(
+        set_jack_server_stream_handlers()
+        self.jack_server_ = jack_server.Server(
             name=self.jack_server_name,
             driver=self.settings.audio.driver,
-            device=self.settings.audio.device,
+            device=self.settings.audio.device or SetByJack_,
             rate=self.settings.audio.sample_rate,
             period=self.settings.audio.buffer_size,
         )
@@ -71,6 +76,7 @@ class Server(BaseManager):
 
     async def stop(self):
         await self.api_server.stop()
+        block_jack_server_streams()
         self.jack_server_.stop()
 
 
@@ -78,7 +84,7 @@ class Server(BaseManager):
 class Client(BaseManager):
     settings: ClientSettings
     start_jack: bool
-    jack_server_: JackServer | None = field(default=None, init=False)
+    jack_server_: jack_server.Server | None = field(default=None, init=False)
     port_connector: PortConnector | None = field(default=None, init=False)
     api_client: APIClient = field(init=False)
     jack_server_name: str = field(default=DEFAULT_CLIENT_JACK_SERVER, init=False)
@@ -89,10 +95,11 @@ class Client(BaseManager):
         )
 
     def start_jack_server(self, rate: jack_server.SampleRate, period: int):
-        self.jack_server_ = JackServer(
+        set_jack_server_stream_handlers()
+        self.jack_server_ = jack_server.Server(
             name=self.jack_server_name,
             driver=self.settings.audio.driver,
-            device=self.settings.audio.device,
+            device=self.settings.audio.device or SetByJack_,
             rate=rate,
             period=period,
         )
@@ -150,4 +157,5 @@ class Client(BaseManager):
             self.port_connector.stop_jack_client()
 
         if self.start_jack and self.jack_server_:
+            block_jack_server_streams()
             self.jack_server_.stop()
