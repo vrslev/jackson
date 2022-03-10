@@ -3,7 +3,6 @@ from typing import Literal, cast
 from pydantic import BaseModel
 
 from jackson import jacktrip
-from jackson.settings import ClientPorts
 
 PortType = Literal["send", "receive", "capture", "playback"]
 
@@ -97,13 +96,15 @@ def _build_validate_connections(
 
 
 def _build_connections(
-    client_name: str, ports: ClientPorts, inputs_limit: int, outputs_limit: int
+    client_name: str,
+    receive: dict[int, int],
+    send: dict[int, int],
+    inputs_limit: int,
+    outputs_limit: int,
 ):
+    yield from _build_validate_connections(client_name, "send", send, inputs_limit)
     yield from _build_validate_connections(
-        client_name, "send", ports.send, inputs_limit
-    )
-    yield from _build_validate_connections(
-        client_name, "receive", ports.receive, outputs_limit
+        client_name, "receive", receive, outputs_limit
     )
 
 
@@ -112,12 +113,17 @@ ConnectionMap = dict[_RegisteredJackTripPort, PortConnection]
 
 
 def build_connection_map(
-    client_name: str, ports: ClientPorts, inputs_limit: int, outputs_limit: int
+    client_name: str,
+    receive: dict[int, int],
+    send: dict[int, int],
+    inputs_limit: int,
+    outputs_limit: int,
 ) -> ConnectionMap:
     """Build connection map between server and client. Is it being built on client side."""
     gen = _build_connections(
         client_name=client_name,
-        ports=ports,
+        receive=receive,
+        send=send,
         inputs_limit=inputs_limit,
         outputs_limit=outputs_limit,
     )

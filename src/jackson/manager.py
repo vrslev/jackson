@@ -105,7 +105,8 @@ class Client(BaseManager):
     def get_port_connector(self, inputs_limit: int, outputs_limit: int):
         map = build_connection_map(
             client_name=self.settings.name,
-            ports=self.settings.ports,
+            receive=self.settings.ports.receive,
+            send=self.settings.ports.send,
             inputs_limit=inputs_limit,
             outputs_limit=outputs_limit,
         )

@@ -15,6 +15,8 @@ from jackson.logging import JackTripFilter, get_logger
 log = get_logger(__name__, "JackTrip")
 log.addFilter(JackTripFilter())
 
+CLIENT_NAME = "JackTrip"
+
 
 async def _restream_stream(
     stream: ByteReceiveStream | None, handler: Callable[[str], None]
@@ -101,9 +103,6 @@ def _build_server_cmd(*, port: int):
 async def run_server(*, jack_server_name: str, port: int):
     cmd = _build_server_cmd(port=port)
     await _run_jacktrip(cmd, jack_server_name)
-
-
-CLIENT_NAME = "JackTrip"
 
 
 def _build_client_cmd(

@@ -1,16 +1,7 @@
 from ipaddress import IPv4Address
-from typing import IO
 
 import jack_server
-import yaml
 from pydantic import BaseModel, BaseSettings
-
-
-class _YamlBaseSettings(BaseSettings):
-    @classmethod
-    def from_yaml(cls, file: IO[str]):
-        content = yaml.safe_load(file)
-        return cls(**content)
 
 
 class _BaseAudio(BaseModel):
@@ -28,17 +19,9 @@ class _BaseServer(BaseModel):
     api_port: int
 
 
-class _ServerServer(_BaseServer):
-    pass
-
-
-class ServerSettings(_YamlBaseSettings):
+class ServerSettings(BaseSettings):
     audio: _ServerAudio
-    server: _ServerServer
-
-
-class _ClientAudio(_BaseAudio):
-    pass
+    server: _BaseServer
 
 
 class _ClientServer(_BaseServer):
@@ -50,8 +33,8 @@ class ClientPorts(BaseModel):
     send: dict[int, int]
 
 
-class ClientSettings(_YamlBaseSettings):
+class ClientSettings(BaseSettings):
     name: str
-    audio: _ClientAudio
+    audio: _BaseAudio
     server: _ClientServer
     ports: ClientPorts

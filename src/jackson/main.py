@@ -1,5 +1,6 @@
 import anyio
 import typer
+import yaml
 from typer.params import Option
 
 from jackson.logging import configure_loggers
@@ -16,7 +17,7 @@ def server(
 ):
     configure_loggers("server")
 
-    settings = ServerSettings.from_yaml(config)
+    settings = ServerSettings(**yaml.safe_load(config))
     server = Server(settings)
 
     if no_workers_output:
@@ -38,7 +39,7 @@ def client(
 ):
     configure_loggers("client")
 
-    settings = ClientSettings.from_yaml(config)
+    settings = ClientSettings(**yaml.safe_load(config))
     client = Client(settings=settings, start_jack=not no_jack)
 
     anyio.run(client.run, backend_options={"use_uvloop": True})
