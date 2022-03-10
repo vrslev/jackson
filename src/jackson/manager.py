@@ -19,7 +19,7 @@ from jackson.settings import ClientSettings, ServerSettings
 
 
 class BaseManager(Protocol):
-    async def start(self, task_group: TaskGroup):
+    async def start(self, tg: TaskGroup):
         ...
 
     async def stop(self):
@@ -52,17 +52,17 @@ class Server(BaseManager):
         )
         self.api = APIServer(self.settings.audio.jack_server_name)
 
-    async def start(self, task_group: TaskGroup):
+    async def start(self, tg: TaskGroup):
         self.jack.start()
 
-        task_group.start_soon(
+        tg.start_soon(
             lambda: jacktrip.run_server(
                 jack_server_name=self.settings.audio.jack_server_name,
                 port=self.settings.server.jacktrip_port,
             )
         )
-        task_group.start_soon(self.api.start)
-        task_group.start_soon(lambda: uvicorn_signal_handler(task_group.cancel_scope))
+        tg.start_soon(self.api.start)
+        tg.start_soon(lambda: uvicorn_signal_handler(tg.cancel_scope))
 
     async def stop(self):
         await self.api.stop()
@@ -82,7 +82,10 @@ class Client(BaseManager):
             host=self.settings.server.host, port=self.settings.server.api_port
         )
 
-    def start_jack_server(self, rate: jack_server.SampleRate, period: int):
+    def start_jack(self, rate: jack_server.SampleRate, period: int):
+        if not self.settings.start_jack:
+            return
+
         set_jack_server_stream_handlers()
         self.jack = jack_server.Server(
             name=self.settings.get_jack_server_name(),
@@ -93,7 +96,7 @@ class Client(BaseManager):
         )
         self.jack.start()
 
-    def get_port_connector(self, inputs_limit: int, outputs_limit: int):
+    def start_port_connector(self, inputs_limit: int, outputs_limit: int):
         map = build_connection_map(
             client_name=self.settings.name,
             receive=self.settings.ports.receive,
@@ -101,18 +104,13 @@ class Client(BaseManager):
             inputs_limit=inputs_limit,
             outputs_limit=outputs_limit,
         )
-        return PortConnector(
+        self.port_connector = PortConnector(
             jack_name=self.settings.get_jack_server_name(),
             connection_map=map,
             connect_on_server=self.api.connect,
         )
 
-    async def start_jacktrip(self):
-        assert self.port_connector
-        receive_count, send_count = count_receive_send_channels(
-            self.port_connector.connection_map
-        )
-
+    async def start_jacktrip(self, receive_count: int, send_count: int):
         return await jacktrip.run_client(
             jack_server_name=self.settings.get_jack_server_name(),
             server_host=self.settings.server.host,
@@ -122,18 +120,21 @@ class Client(BaseManager):
             remote_name=self.settings.name,
         )
 
-    async def start(self, task_group: TaskGroup):
-        init_resp = await self.api.init()
+    async def start(self, tg: TaskGroup):
+        response = await self.api.init()
 
-        if self.settings.start_jack:
-            self.start_jack_server(rate=init_resp.rate, period=init_resp.buffer_size)
-
-        self.port_connector = self.get_port_connector(
-            init_resp.inputs, init_resp.outputs
+        self.start_jack(rate=response.rate, period=response.buffer_size)
+        self.start_port_connector(
+            inputs_limit=response.inputs, outputs_limit=response.outputs
         )
 
-        task_group.start_soon(self.port_connector.wait_and_run)
-        task_group.start_soon(self.start_jacktrip)
+        assert self.port_connector
+        tg.start_soon(self.port_connector.wait_and_run)
+
+        receive_count, send_count = count_receive_send_channels(
+            self.port_connector.connection_map
+        )
+        tg.start_soon(lambda: self.start_jacktrip(receive_count, send_count))
 
     async def stop(self):
         await self.api.client.aclose()
