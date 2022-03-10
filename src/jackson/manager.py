@@ -144,7 +144,7 @@ class Client(BaseManager):
         task_group.start_soon(self.start_jacktrip)
 
     async def stop(self):
-        await self.api_client.aclose()
+        await self.api_client.client.aclose()
 
         if self.port_connector:
             self.port_connector.stop_jack_client()

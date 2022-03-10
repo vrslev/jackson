@@ -54,10 +54,10 @@ def _handle_exceptions(data: dict[str, Any]):
 _T = TypeVar("_T", bound=BaseModel)
 
 
-def _handle_response(response: httpx.Response, model: type[_T]) -> _T:
+def _handle_response(response: httpx.Response) -> Any:
     data = response.json()
     _handle_exceptions(data)
-    return model(**data)
+    return data
 
 
 # pyright: reportUnknownMemberType = false
@@ -100,23 +100,24 @@ def _log_connection(source: PortName, destination: PortName):
     )
 
 
-class APIClient(httpx.AsyncClient):
-    status_code: int
+@dataclass(init=False)
+class APIClient:
+    client: httpx.AsyncClient
 
     def __init__(self, host: IPv4Address, port: int) -> None:
         base_url = AnyHttpUrl.build(scheme="http", host=str(host), port=str(port))
-        super().__init__(base_url=base_url)
+        self.client = httpx.AsyncClient(base_url=base_url)
 
     async def init(self):
-        response = await self.get("/init")
-        return _handle_response(response, models.InitResponse)
+        response = await self.client.get("/init")
+        return models.InitResponse(**_handle_response(response))
 
     async def connect(
         self, source: PortName, destination: PortName, client_should: ClientShould
     ):
         payload = _build_connect_payload(source, destination, client_should)
-        func = partial(self.patch, "/connect", json=payload)
+        func = partial(self.client.patch, "/connect", json=payload)
 
         response = await _retry_request(func)
-        data = _handle_response(response, models.ConnectResponse)
+        data = models.ConnectResponse(**_handle_response(response))
         _log_connection(data.source, data.destination)
