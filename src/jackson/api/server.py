@@ -1,4 +1,5 @@
 import signal
+from dataclasses import dataclass, field
 from functools import lru_cache
 
 import anyio
@@ -136,24 +137,26 @@ async def connect(
 #     get_jack_client.cache_clear()
 
 
-class APIServer(uvicorn.Server):
-    def __init__(self, app: FastAPI) -> None:
-        self._started = False
+@dataclass
+class APIServer:
+    app: FastAPI
+    server: uvicorn.Server = field(init=False)
+    _started: bool = field(default=False, init=False)
 
+    def __post_init__(self) -> None:
         config = uvicorn.Config(app=app, host="0.0.0.0", workers=1, log_config=None)
-        super().__init__(config)
-
-        self.config.load()
-        self.lifespan = self.config.lifespan_class(self.config)
+        self.server = uvicorn.Server(config)
+        self.server.config.load()
+        self.server.lifespan = self.server.config.lifespan_class(self.server.config)
 
     async def start(self):
         self._started = True
-        await self.startup()  # type: ignore
+        await self.server.startup()  # type: ignore
 
     async def stop(self):
         if self._started:
-            self.should_exit = True
-            await self.shutdown()
+            self.server.should_exit = True
+            await self.server.shutdown()
 
 
 async def uvicorn_signal_handler(scope: anyio.CancelScope):
