@@ -94,7 +94,7 @@ async def connect_retry(
             if any(p.name == dest_name for p in connections):
                 return
 
-            client.connect(source, destination)
+            client.connect(str(source), str(destination))
             return
 
         except jack.JackError as e:

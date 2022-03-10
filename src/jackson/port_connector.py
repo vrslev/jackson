@@ -62,7 +62,8 @@ class PortConnector:
         await self.connect_on_server(
             *connection.get_remote_connection(), connection.client_should
         )
-        self.jack_client.connect(*connection.get_local_connection())
+        src, dest = connection.get_local_connection()
+        self.jack_client.connect(str(src), str(dest))
 
     def _schedule_connecting(self, name: PortName):
         func = partial(self._connect_on_both_ends, self.connection_map[name])

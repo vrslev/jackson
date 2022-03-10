@@ -6,7 +6,6 @@ import jack_server
 import typer
 
 from jackson.logging import JackClientFilter, get_logger, silent_jack_stream_handler
-from jackson.port_connection import PortName
 
 log = get_logger(__name__, "JackClient")
 log.addFilter(JackClientFilter())
@@ -63,10 +62,9 @@ class JackClient(jack.Client):
             super().deactivate(ignore_errors=ignore_errors)
         _block_streams()
 
-    def connect(self, source: PortName, destination: PortName) -> None:
-        src_name, dest_name = str(source), str(destination)
-        super().connect(src_name, dest_name)
-        _log_connection(src_name, dest_name)
+    def connect(self, source: str, destination: str) -> None:
+        super().connect(source, destination)
+        _log_connection(source, destination)
 
     @property
     def samplerate(self) -> jack_server.SampleRate:

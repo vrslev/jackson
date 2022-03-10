@@ -19,7 +19,7 @@ ExitQueue = Queue[Literal["server", "client"]]
 
 def ports_are_connected(client: JackClient, source: PortName, destination: PortName):
     connected = False
-    src_port = client.get_port_by_name(source)
+    src_port = client.get_port_by_name(str(source))
 
     for port in client.get_all_connections(src_port):
         if port.name == str(destination):
