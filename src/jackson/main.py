@@ -11,25 +11,11 @@ app = typer.Typer()
 
 
 @app.command()
-def server(
-    config: typer.FileText = Option("server.yaml"),
-    no_workers_output: bool = Option(False, "--no-workers-output"),
-):
+def server(config: typer.FileText = Option("server.yaml")):
     configure_loggers("server")
-
     settings = ServerSettings(**yaml.safe_load(config))
     server = Server(settings)
-
-    if no_workers_output:
-        import jackson.api.server
-        import jackson.jack_server
-        import jackson.jacktrip
-
-        jackson.api.server.uvicorn_access_log.disabled = True
-        jackson.jack_server.log.disabled = True
-        jackson.jacktrip.log.disabled = True
-
-    anyio.run(server.run)
+    anyio.run(server.run, backend_options={"use_uvloop": True})
 
 
 @app.command()
@@ -38,12 +24,6 @@ def client(
     no_jack: bool = Option(False, "--no-jack"),
 ):
     configure_loggers("client")
-
     settings = ClientSettings(**yaml.safe_load(config))
     client = Client(settings=settings, start_jack=not no_jack)
-
     anyio.run(client.run, backend_options={"use_uvloop": True})
-
-
-if __name__ == "__main__":
-    app()
