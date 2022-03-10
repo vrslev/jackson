@@ -12,7 +12,7 @@ app = typer.Typer()
 
 @app.command()
 def server(
-    config: typer.FileText = Option("config.server.yaml"),
+    config: typer.FileText = Option("server.yaml"),
     no_workers_output: bool = Option(False, "--no-workers-output"),
 ):
     configure_loggers("server")
@@ -34,7 +34,7 @@ def server(
 
 @app.command()
 def client(
-    config: typer.FileText = Option("config.client.yaml"),
+    config: typer.FileText = Option("client.yaml"),
     no_jack: bool = Option(False, "--no-jack"),
 ):
     configure_loggers("client")

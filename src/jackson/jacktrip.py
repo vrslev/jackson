@@ -43,20 +43,21 @@ async def _close_process(process: Process):
     return code
 
 
+def _log_starting(cmd: list[str]) -> None:
+    log.info(
+        f"Starting [bold blue]{cmd[0]}[/bold blue]..."
+        + f" [italic]({shlex.join(cmd)})[/italic]"
+    )
+
+
 @dataclass
 class _Program:
     cmd: list[str]
     env: dict[str, str]
 
-    def _log_starting(self):
-        log.info(
-            f"Starting [bold blue]{self.cmd[0]}[/bold blue]..."
-            + f" [italic]({shlex.join(self.cmd)})[/italic]"
-        )
-
     @contextlib.asynccontextmanager
     async def _start(self):
-        self._log_starting()
+        _log_starting(self.cmd)
 
         env = dict(os.environ)
         env.update(self.env)
