@@ -4,10 +4,7 @@ from typing import Callable, Coroutine
 import anyio
 
 from jackson.jack_client import JackClient
-from jackson.logging import get_logger
 from jackson.port_connection import ConnectionMap
-
-log = get_logger(__name__, "PortConnector")
 
 
 @dataclass

@@ -8,10 +8,7 @@ import httpx
 from pydantic import AnyHttpUrl, BaseModel
 
 from jackson.api import models
-from jackson.logging import get_logger
 from jackson.port_connection import ConnectionMap
-
-log = get_logger(__name__, "HttpClient")
 
 
 @dataclass
