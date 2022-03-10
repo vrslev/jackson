@@ -1,4 +1,4 @@
-from typing import Literal, cast
+from typing import Iterable, Literal, cast
 
 from pydantic import BaseModel
 
@@ -19,12 +19,12 @@ class PortName(BaseModel, frozen=True):
     def parse(cls, port_name: str):
         *_, type_and_idx = port_name.split(":")
 
-        type_, idx, *extra = type_and_idx.split("_")
+        type, idx, *extra = type_and_idx.split("_")
         assert not extra
 
         client = port_name.replace(f":{type_and_idx}", "")
 
-        return cls(client=client, type=cast(PortType, type_), idx=int(idx))
+        return cls(client=client, type=cast(PortType, type), idx=int(idx))
 
 
 ClientShould = Literal["send", "receive"]
@@ -50,61 +50,65 @@ class PortConnection(BaseModel, frozen=True):
             return self.source, self.remote_bridge
 
 
-def _validate_channel_limit(client_should: ClientShould, bridge: int, limit: int):
+def _build_connection(
+    client_name: str,
+    client_should: ClientShould,
+    limit: int,
+    local: int,
+    remote: int,
+    bridge: int,
+) -> PortConnection:
     if bridge > limit:
         raise RuntimeError(f"Limit of available {client_should} ports exceeded.")
 
+    if client_should == "send":
+        source_idx, destination_idx = local, remote
+        local_bridge_type, remote_bridge_type = "send", "receive"
+    else:
+        source_idx, destination_idx = remote, local
+        local_bridge_type, remote_bridge_type = "receive", "send"
 
-def _get_send_connection(client: str, source: int, destination: int, bridge: int):
     return PortConnection(
-        client_should="send",
-        source=PortName(client="system", type="capture", idx=source),
-        local_bridge=PortName(client=jacktrip.CLIENT_NAME, type="send", idx=bridge),
-        remote_bridge=PortName(client=client, type="receive", idx=bridge),
-        destination=PortName(client="system", type="playback", idx=destination),
+        client_should=client_should,
+        source=PortName(client="system", type="capture", idx=source_idx),
+        local_bridge=PortName(
+            client=jacktrip.JACK_CLIENT_NAME, type=local_bridge_type, idx=bridge
+        ),
+        remote_bridge=PortName(client=client_name, type=remote_bridge_type, idx=bridge),
+        destination=PortName(client="system", type="playback", idx=destination_idx),
     )
 
 
-def _get_receive_connection(client: str, source: int, destination: int, bridge: int):
-    return PortConnection(
-        client_should="receive",
-        source=PortName(client="system", type="capture", idx=source),
-        remote_bridge=PortName(client=client, type="send", idx=bridge),
-        local_bridge=PortName(client=jacktrip.CLIENT_NAME, type="receive", idx=bridge),
-        destination=PortName(client="system", type="playback", idx=destination),
-    )
+def _build_specific_connections(
+    client_name: str, client_should: ClientShould, limit: int, ports: dict[int, int]
+) -> Iterable[PortConnection]:
+    for idx, (local, remote) in enumerate(ports.items()):
+        bridge = idx + 1
+        yield _build_connection(
+            client_name=client_name,
+            client_should=client_should,
+            limit=limit,
+            local=local,
+            remote=remote,
+            bridge=bridge,
+        )
 
 
-def _build_validate_connections(
-    client: str, client_should: ClientShould, ports: dict[int, int], limit: int
-):
-    prev_bridge = 0
-
-    for local, remote in ports.items():
-        bridge = prev_bridge + 1
-        prev_bridge = bridge
-        _validate_channel_limit(client_should=client_should, bridge=bridge, limit=limit)
-
-        if client_should == "send":
-            source, destination = local, remote
-            func = _get_send_connection
-        else:
-            source, destination = remote, local
-            func = _get_receive_connection
-
-        yield func(client=client, source=source, destination=destination, bridge=bridge)
-
-
-def _build_connections(
+def _build_connections_gen(
     client_name: str,
     receive: dict[int, int],
     send: dict[int, int],
     inputs_limit: int,
     outputs_limit: int,
-):
-    yield from _build_validate_connections(client_name, "send", send, inputs_limit)
-    yield from _build_validate_connections(
-        client_name, "receive", receive, outputs_limit
+) -> Iterable[PortConnection]:
+    yield from _build_specific_connections(
+        client_name=client_name, client_should="send", limit=inputs_limit, ports=send
+    )
+    yield from _build_specific_connections(
+        client_name=client_name,
+        client_should="receive",
+        limit=outputs_limit,
+        ports=receive,
     )
 
 
@@ -120,7 +124,7 @@ def build_connection_map(
     outputs_limit: int,
 ) -> ConnectionMap:
     """Build connection map between server and client. Is it being built on client side."""
-    gen = _build_connections(
+    gen = _build_connections_gen(
         client_name=client_name,
         receive=receive,
         send=send,
@@ -130,7 +134,7 @@ def build_connection_map(
     return {conn.local_bridge: conn for conn in gen}
 
 
-def count_receive_send_channels(connection_map: ConnectionMap):
+def count_receive_send_channels(connection_map: ConnectionMap) -> tuple[int, int]:
     # Required for JackTrip
     receive, send = 0, 0
 

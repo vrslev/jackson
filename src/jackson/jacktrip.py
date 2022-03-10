@@ -15,7 +15,7 @@ from jackson.logging import JackTripFilter, get_logger
 log = get_logger(__name__, "JackTrip")
 log.addFilter(JackTripFilter())
 
-CLIENT_NAME = "JackTrip"
+JACK_CLIENT_NAME = "JackTrip"
 
 
 async def _restream_stream(
@@ -125,7 +125,7 @@ def _build_client_cmd(
         "--peerport",
         str(server_port),
         "--clientname",
-        CLIENT_NAME,
+        JACK_CLIENT_NAME,
         "--remotename",
         remote_name,
         "--nojackportsconnect",
