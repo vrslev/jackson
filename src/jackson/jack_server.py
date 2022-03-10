@@ -1,5 +1,4 @@
 import jack_server
-import typer
 
 from jackson.logging import JackServerFilter, get_logger, silent_jack_stream_handler
 
@@ -15,10 +14,3 @@ def set_jack_server_stream_handlers():
 def block_jack_server_streams():
     jack_server.set_info_function(silent_jack_stream_handler)
     jack_server.set_error_function(silent_jack_stream_handler)
-
-
-def start_jack_server_or_exit(server: jack_server.Server):
-    try:
-        server.start()
-    except (jack_server.ServerNotOpenedError, jack_server.ServerNotStartedError):
-        raise typer.Exit(1)
