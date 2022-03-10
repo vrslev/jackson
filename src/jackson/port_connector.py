@@ -2,8 +2,9 @@ from dataclasses import dataclass, field
 from typing import Callable, Coroutine
 
 import anyio
+import jack
 
-from jackson.jack_client import JackClient
+from jackson.jack_client import connect_ports_retry, init_jack_client
 from jackson.port_connection import ConnectionMap
 
 
@@ -14,10 +15,10 @@ class PortConnector:
     connect_on_server: Callable[[ConnectionMap], Coroutine[None, None, None]]
     ready: anyio.Event = field(default_factory=anyio.Event, init=False)
     client_activated: bool = field(default=False, init=False)
-    client: JackClient = field(init=False)
+    client: jack.Client = field(init=False)
 
     def __post_init__(self):
-        self.client = JackClient("PortConnector", server_name=self.jack_name)
+        self.client = init_jack_client("PortConnector", server_name=self.jack_name)
         self.client.set_client_registration_callback(self.client_registration_callback)
         self.client.activate()
         self.client_activated = True
@@ -29,7 +30,7 @@ class PortConnector:
     async def connect_local(self):
         for connection in self.connection_map.values():
             src, dest = connection.get_local_connection()
-            await self.client.connect_retry(str(src), str(dest))
+            await connect_ports_retry(self.client, str(src), str(dest))
 
     async def connect(self):
         await self.connect_on_server(self.connection_map)

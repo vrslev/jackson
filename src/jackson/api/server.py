@@ -1,15 +1,17 @@
 import signal
 from dataclasses import dataclass, field
 from functools import lru_cache
+from typing import cast
 
 import anyio
 import jack
+import jack_server
 import uvicorn
 from fastapi import Depends, FastAPI, HTTPException, status
 from pydantic import BaseModel
 
 from jackson.api import models
-from jackson.jack_client import JackClient
+from jackson.jack_client import connect_ports_retry, init_jack_client
 from jackson.logging import get_logger
 from jackson.port_connection import ClientShould, PortName
 
@@ -27,25 +29,25 @@ class StructuredHTTPException(HTTPException):
 
 
 @lru_cache
-def get_jack_client():
-    return JackClient("APIServer", server_name=app.state.jack_server_name)
+def get_jack_client() -> jack.Client:
+    return init_jack_client("APIServer", server_name=app.state.jack_server_name)
 
 
 @app.get("/init", response_model=models.InitResponse)
-async def init(jack_client: JackClient = Depends(get_jack_client)):
+async def init(jack_client: jack.Client = Depends(get_jack_client)):
     inputs = jack_client.get_ports("system:.*", is_input=True)
     outputs = jack_client.get_ports("system:.*", is_output=True)
 
     return models.InitResponse(
         inputs=len(inputs),
         outputs=len(outputs),
-        rate=jack_client.samplerate,
+        rate=cast(jack_server.SampleRate, jack_client.samplerate),
         buffer_size=jack_client.blocksize,
     )
 
 
 def get_port_or_fail(
-    client: JackClient, type: models.PortDirectionType, name: PortName
+    client: jack.Client, type: models.PortDirectionType, name: PortName
 ):
     try:
         return client.get_port_by_name(str(name))
@@ -54,7 +56,7 @@ def get_port_or_fail(
 
 
 def validate_playback_port_has_no_connections(
-    client: JackClient, name: PortName, client_should: ClientShould
+    client: jack.Client, name: PortName, client_should: ClientShould
 ):
     port = get_port_or_fail(client, type="destination", name=name)
 
@@ -70,10 +72,10 @@ def validate_playback_port_has_no_connections(
 
 
 async def retry_connect_ports(
-    client: JackClient, source: PortName, destination: PortName
+    client: jack.Client, source: PortName, destination: PortName
 ):
     try:
-        await client.connect_retry(str(source), str(destination))
+        await connect_ports_retry(client, str(source), str(destination))
     except jack.JackError:
         raise StructuredHTTPException(
             status.HTTP_424_FAILED_DEPENDENCY,
@@ -82,7 +84,7 @@ async def retry_connect_ports(
 
 
 async def connect_ports(
-    client: JackClient,
+    client: jack.Client,
     source: PortName,
     destination: PortName,
     client_should: ClientShould,
@@ -97,7 +99,7 @@ async def connect_ports(
 @app.patch("/connect")
 async def connect(
     connections: list[models.Connection],
-    jack_client: JackClient = Depends(get_jack_client),
+    jack_client: jack.Client = Depends(get_jack_client),
 ):
     # TODO: Validate (check if allowed) source and destination
     for conn in connections:
