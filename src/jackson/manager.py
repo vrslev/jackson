@@ -147,14 +147,14 @@ class Client(BaseManager):
             init_resp.inputs, init_resp.outputs
         )
 
-        task_group.start_soon(self.port_connector.run_queue)
+        task_group.start_soon(self.port_connector.wait_and_connect)
         task_group.start_soon(self.start_jacktrip)
 
     async def stop(self):
         await self.api_client.client.aclose()
 
         if self.port_connector:
-            self.port_connector.stop_jack_client()
+            self.port_connector.deactivate()
 
         if self.start_jack and self.jack_server_:
             block_jack_server_streams()

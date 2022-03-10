@@ -47,15 +47,6 @@ class JackClient(jack.Client):
         self._init_or_fail(name=name, server_name=server_name)
         _set_stream_handlers()
 
-    def activate(self) -> None:
-        super().activate()
-        self._activated = True
-
-    def deactivate(self, ignore_errors: bool = True) -> None:
-        if self._activated:
-            super().deactivate(ignore_errors=ignore_errors)
-        _block_streams()
-
     def connect(self, source: str, destination: str) -> None:
         super().connect(source, destination)
         log.info(

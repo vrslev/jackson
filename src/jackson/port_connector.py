@@ -1,4 +1,3 @@
-import asyncio
 from dataclasses import dataclass, field
 from typing import Callable, Coroutine
 
@@ -16,41 +15,35 @@ class PortConnector:
     jack_server_name: str
     connection_map: ConnectionMap
     connect_on_server: Callable[[ConnectionMap], Coroutine[None, None, None]]
-    callback_queue: asyncio.Queue[Callable[[], Coroutine[None, None, None]]] = field(
-        default_factory=asyncio.Queue
-    )
-    jack_client: JackClient = field(init=False)
+    ready: anyio.Event = field(default_factory=anyio.Event, init=False)
+    client_activated = False
+    client: JackClient = field(init=False)
 
     def __post_init__(self):
-        self.jack_client = JackClient(
-            "PortConnector", server_name=self.jack_server_name
-        )
-        self.jack_client.set_client_registration_callback(
-            self._client_registration_callback
-        )
-        self.jack_client.activate()
+        self.client = JackClient("PortConnector", server_name=self.jack_server_name)
+        self.client.set_client_registration_callback(self.client_registration_callback)
+        self.client.activate()
+        self.client_activated = True
 
-    async def _connect(self):
-        await self.connect_on_server(self.connection_map)
+    def client_registration_callback(self, name: str, register: bool):
+        if register and name == "JackTrip":
+            self.ready.set()
 
+    async def connect_local(self):
         for connection in self.connection_map.values():
             src, dest = connection.get_local_connection()
-            await self.jack_client.connect_retry(str(src), str(dest))
+            await self.client.connect_retry(str(src), str(dest))
 
-    def _client_registration_callback(self, name: str, register: bool):
-        if not register:
-            return
-        if name != "JackTrip":
-            return
+    async def connect(self):
+        await self.connect_on_server(self.connection_map)
+        await self.connect_local()
 
-        self.callback_queue.put_nowait(self._connect)
+    def deactivate(self):
+        if self.client_activated:
+            self.client.deactivate()
+            self.client_activated = False
 
-    def stop_jack_client(self):
-        if self.jack_client:
-            self.jack_client.deactivate()
-
-    async def run_queue(self):
-        async with anyio.create_task_group() as task_group:
-            while True:
-                callback = await self.callback_queue.get()
-                task_group.start_soon(callback)
+    async def wait_and_connect(self):
+        await self.ready.wait()
+        await self.connect()
+        self.deactivate()
