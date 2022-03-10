@@ -105,7 +105,7 @@ class Client(BaseManager):
         )
         self.jack_server_.start()
 
-    def setup_port_connector(self, inputs_limit: int, outputs_limit: int):
+    def get_port_connector(self, inputs_limit: int, outputs_limit: int):
         map = build_connection_map(
             client_name=self.settings.name,
             ports=self.settings.ports,
@@ -113,12 +113,11 @@ class Client(BaseManager):
             outputs_limit=outputs_limit,
         )
 
-        self.port_connector = PortConnector(
+        return PortConnector(
             jack_server_name=self.jack_server_name,
             connection_map=map,
             connect_on_server=self.api_client.connect,
         )
-        self.port_connector.start_jack_client()
 
     async def start_jacktrip(self):
         assert self.port_connector
@@ -144,8 +143,9 @@ class Client(BaseManager):
         else:
             self.jack_server_name = DEFAULT_SERVER_JACK_SERVER
 
-        self.setup_port_connector(init_resp.inputs, init_resp.outputs)
-        assert self.port_connector
+        self.port_connector = self.get_port_connector(
+            init_resp.inputs, init_resp.outputs
+        )
 
         task_group.start_soon(self.port_connector.run_queue)
         task_group.start_soon(self.start_jacktrip)

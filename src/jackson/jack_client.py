@@ -21,13 +21,6 @@ def _set_stream_handlers():
     jack.set_error_function(log.error)
 
 
-def _log_connection(source: str, destination: str):
-    log.info(
-        f"Connected ports: [bold green]{source}[/bold green] ->"
-        + f" [bold green]{destination}[/bold green]"
-    )
-
-
 class JackClient(jack.Client):
     def _init_or_fail(self, name: str, server_name: str):
         for _ in range(100):
@@ -64,7 +57,10 @@ class JackClient(jack.Client):
 
     def connect(self, source: str, destination: str) -> None:
         super().connect(source, destination)
-        _log_connection(source, destination)
+        log.info(
+            f"Connected ports: [bold green]{source}[/bold green] ->"
+            + f" [bold green]{destination}[/bold green]"
+        )
 
     @property
     def samplerate(self) -> jack_server.SampleRate:
