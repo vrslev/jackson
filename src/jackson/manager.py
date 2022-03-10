@@ -36,7 +36,7 @@ class BaseManager(ABC):
 
 
 DEFAULT_SERVER_JACK_SERVER = "JacksonServer"
-DEFAULT_CLIENT_JACK_SERVER = "JacksonCLient"
+DEFAULT_CLIENT_JACK_SERVER = "JacksonClient"
 
 
 @dataclass
