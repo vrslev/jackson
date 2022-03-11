@@ -7,7 +7,7 @@ import anyio
 import jack
 import jack_server
 import uvicorn
-from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi import Body, Depends, FastAPI, HTTPException, status
 from pydantic import BaseModel
 
 from jackson.api import models
@@ -98,7 +98,7 @@ async def connect_ports(
 
 @app.patch("/connect")
 async def connect(
-    connections: list[models.Connection],
+    connections: list[models.Connection] = Body(...),
     jack_client: jack.Client = Depends(get_jack_client),
 ):
     # TODO: Validate (check if allowed) source and destination
