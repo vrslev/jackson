@@ -8,7 +8,7 @@ from jack_server._server import SetByJack_
 
 from jackson import jacktrip
 from jackson.api.client import APIClient
-from jackson.api.server import APIServer, uvicorn_signal_handler
+from jackson.api.server import APIServer
 from jackson.jack_server import (
     block_jack_server_streams,
     set_jack_server_stream_handlers,
@@ -62,7 +62,7 @@ class Server(BaseManager):
             )
         )
         tg.start_soon(self.api.start)
-        tg.start_soon(lambda: uvicorn_signal_handler(tg.cancel_scope))
+        tg.start_soon(lambda: self.api.handle_signals(tg.cancel_scope))
 
     async def stop(self):
         await self.api.stop()

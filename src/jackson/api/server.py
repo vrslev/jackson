@@ -134,9 +134,15 @@ class APIServer:
             self.server.should_exit = True
             await self.server.shutdown()
 
+    async def handle_signals(self, scope: anyio.CancelScope):
+        handled_signals = (signal.SIGINT, signal.SIGTERM)
 
-async def uvicorn_signal_handler(scope: anyio.CancelScope):
-    with anyio.open_signal_receiver(signal.SIGINT, signal.SIGTERM) as signals:
-        async for _ in signals:
-            scope.cancel()
-            return
+        try:
+            with anyio.open_signal_receiver(*handled_signals) as signals:
+                async for _ in signals:
+                    scope.cancel()
+                    return
+
+        except NotImplementedError:  # Windows
+            for sig in handled_signals:
+                signal.signal(sig, self.server.handle_exit)  # type: ignore
