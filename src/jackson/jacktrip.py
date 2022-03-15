@@ -1,4 +1,5 @@
 import contextlib
+import logging
 import os
 import shlex
 from dataclasses import dataclass
@@ -10,7 +11,26 @@ import typer
 from anyio.abc import ByteReceiveStream, Process
 from anyio.streams.text import TextReceiveStream
 
-from jackson.logging import JackTripFilter, get_logger
+from jackson.logging import MessageFilter, get_logger
+
+
+class JackTripFilter(MessageFilter):
+    messages = {
+        "WEAK-JACK: initializing",
+        "WEAK-JACK: OK.",
+        "mThreadPool default maxThreadCount",
+        "mThreadPool maxThreadCount previously set",
+    }
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        if all(c == "-" for c in record.msg):
+            return False
+
+        if all(c == "=" for c in record.msg):
+            return False
+
+        return super().filter(record)
+
 
 log = get_logger(__name__, "JackTrip")
 log.addFilter(JackTripFilter())

@@ -4,7 +4,16 @@ import anyio
 import jack
 import typer
 
-from jackson.logging import JackClientFilter, get_logger, silent_jack_stream_handler
+from jackson.logging import MessageFilter, get_logger, silent_jack_stream_handler
+
+
+class JackClientFilter(MessageFilter):
+    messages = {
+        "CheckRes error",
+        "JackSocketClientChannel read fail",
+        "Cannot read socket fd = ",
+    }
+
 
 log = get_logger(__name__, "JackClient")
 log.addFilter(JackClientFilter())

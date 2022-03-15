@@ -1,6 +1,18 @@
 import jack_server
 
-from jackson.logging import JackServerFilter, get_logger, silent_jack_stream_handler
+from jackson.logging import MessageFilter, get_logger, silent_jack_stream_handler
+
+
+class JackServerFilter(MessageFilter):
+    messages = {
+        "JackMachSemaphore::Destroy failed to kill semaphore",
+        "JackMachSemaphoreServer::Execute",
+        "self-connect-mode is",
+        "Input channel = ",
+        "JACK output port = ",
+        "CoreAudio driver is running...",
+    }
+
 
 log = get_logger(__name__, "JackServer")
 log.addFilter(JackServerFilter())

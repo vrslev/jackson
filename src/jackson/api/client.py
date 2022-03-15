@@ -54,10 +54,6 @@ def _handle_response(response: httpx.Response) -> Any:
     return data
 
 
-# pyright: reportUnknownMemberType = false
-# pyright: reportUnknownArgumentType = false
-
-
 async def _retry_request(
     func: Callable[[], Coroutine[None, None, httpx.Response]],
     times: int = 3,
@@ -94,12 +90,12 @@ class APIClient:
         self.client = httpx.AsyncClient(base_url=base_url)
 
     async def init(self):
-        response = await self.client.get("/init")
+        response = await self.client.get("/init")  # type: ignore
         return models.InitResponse(**_handle_response(response))
 
     async def connect(self, connection_map: ConnectionMap):
         payload = list(_get_connections(connection_map))
-        func = partial(self.client.patch, "/connect", json=payload)
+        func = partial(self.client.patch, "/connect", json=payload)  # type: ignore
 
         response = await _retry_request(func)
         models.ConnectResponse(**_handle_response(response))

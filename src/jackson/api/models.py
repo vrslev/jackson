@@ -13,6 +13,16 @@ class InitResponse(BaseModel):
     buffer_size: int
 
 
+class Connection(BaseModel):
+    source: PortName
+    destination: PortName
+    client_should: ClientShould
+
+
+class ConnectResponse(BaseModel):
+    pass
+
+
 PortDirectionType = Literal["source", "destination"]
 
 
@@ -29,13 +39,3 @@ class PlaybackPortAlreadyHasConnections(BaseModel):
 class FailedToConnectPorts(BaseModel):
     source: PortName
     destination: PortName
-
-
-class Connection(BaseModel):
-    source: PortName
-    destination: PortName
-    client_should: ClientShould
-
-
-class ConnectResponse(BaseModel):
-    pass
