@@ -37,13 +37,13 @@ class PortConnection(BaseModel, frozen=True):
     remote_bridge: PortName
     destination: PortName
 
-    def get_local_connection(self):
+    def get_local_connection(self) -> tuple[PortName, PortName]:
         if self.client_should == "send":
             return self.source, self.local_bridge
         else:
             return self.local_bridge, self.destination
 
-    def get_remote_connection(self):
+    def get_remote_connection(self) -> tuple[PortName, PortName]:
         if self.client_should == "send":
             return self.remote_bridge, self.destination
         else:

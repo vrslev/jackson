@@ -35,7 +35,9 @@ def get_jack_client() -> jack.Client:
 
 
 @app.get("/init", response_model=models.InitResponse)
-async def init(jack_client: jack.Client = Depends(get_jack_client)):
+async def init(
+    jack_client: jack.Client = Depends(get_jack_client),
+) -> models.InitResponse:
     inputs = jack_client.get_ports("system:.*", is_input=True)
     outputs = jack_client.get_ports("system:.*", is_output=True)
 
@@ -49,7 +51,7 @@ async def init(jack_client: jack.Client = Depends(get_jack_client)):
 
 def get_port_or_fail(
     client: jack.Client, type: models.PortDirectionType, name: PortName
-):
+) -> jack.Port:
     try:
         return client.get_port_by_name(str(name))
     except jack.JackError:
@@ -58,7 +60,7 @@ def get_port_or_fail(
 
 def validate_playback_port_has_no_connections(
     client: jack.Client, name: PortName, client_should: ClientShould
-):
+) -> None:
     port = get_port_or_fail(client, type="destination", name=name)
 
     if client_should != "send":
@@ -74,7 +76,7 @@ def validate_playback_port_has_no_connections(
 
 async def retry_connect_ports(
     client: jack.Client, source: PortName, destination: PortName
-):
+) -> None:
     try:
         await connect_ports_retry(client, str(source), str(destination))
     except jack.JackError:
@@ -89,7 +91,7 @@ async def connect_ports(
     source: PortName,
     destination: PortName,
     client_should: ClientShould,
-):
+) -> None:
     get_port_or_fail(client, type="source", name=source)
     validate_playback_port_has_no_connections(
         client, name=destination, client_should=client_should
@@ -97,11 +99,11 @@ async def connect_ports(
     await retry_connect_ports(client, source, destination)
 
 
-@app.patch("/connect")
+@app.patch("/connect", response_model=models.ConnectResponse)
 async def connect(
     connections: list[models.Connection] = Body(...),
     jack_client: jack.Client = Depends(get_jack_client),
-):
+) -> models.ConnectResponse:
     # TODO: Validate (check if allowed) source and destination
     for conn in connections:
         await connect_ports(
@@ -126,16 +128,16 @@ class APIServer:
         self.server.config.load()
         self.server.lifespan = self.server.config.lifespan_class(self.server.config)
 
-    async def start(self):
+    async def start(self) -> None:
         self._started = True
         await self.server.startup()  # type: ignore
 
-    async def stop(self):
+    async def stop(self) -> None:
         if self._started:
             await self.server.shutdown()
 
-    async def install_signal_handlers(self, scope: anyio.CancelScope):
-        def handler(sig: int, frame: FrameType | None):
+    async def install_signal_handlers(self, scope: anyio.CancelScope) -> None:
+        def handler(sig: int, frame: FrameType | None) -> None:
             scope.cancel()
 
             self.server.handle_exit(

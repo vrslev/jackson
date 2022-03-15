@@ -18,11 +18,11 @@ log = get_logger(__name__, "JackServer")
 log.addFilter(JackServerFilter())
 
 
-def set_jack_server_stream_handlers():
+def set_jack_server_stream_handlers() -> None:
     jack_server.set_info_function(log.info)
     jack_server.set_error_function(log.error)
 
 
-def block_jack_server_streams():
+def block_jack_server_streams() -> None:
     jack_server.set_info_function(silent_jack_stream_handler)
     jack_server.set_error_function(silent_jack_stream_handler)

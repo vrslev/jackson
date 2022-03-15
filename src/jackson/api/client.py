@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from functools import partial
 from ipaddress import IPv4Address
-from typing import Any, Callable, Coroutine
+from typing import Any, Callable, Coroutine, Iterable
 
 import anyio
 import httpx
@@ -27,7 +27,7 @@ _known_errors: tuple[type[BaseModel], ...] = (
 )
 
 
-def _handle_exceptions(data: dict[str, Any]):
+def _handle_exceptions(data: dict[str, Any]) -> None:
     if "detail" not in data:
         return
 
@@ -73,7 +73,7 @@ async def _retry_request(
     return response
 
 
-def _get_connections(map: ConnectionMap):
+def _get_connections(map: ConnectionMap) -> Iterable[dict[str, Any]]:
     for connection in map.values():
         src, dest = connection.get_remote_connection()
         yield models.Connection(
@@ -89,11 +89,11 @@ class APIClient:
         base_url = AnyHttpUrl.build(scheme="http", host=str(host), port=str(port))
         self.client = httpx.AsyncClient(base_url=base_url)
 
-    async def init(self):
+    async def init(self) -> models.InitResponse:
         response = await self.client.get("/init")  # type: ignore
         return models.InitResponse(**_handle_response(response))
 
-    async def connect(self, connection_map: ConnectionMap):
+    async def connect(self, connection_map: ConnectionMap) -> None:
         payload = list(_get_connections(connection_map))
         func = partial(self.client.patch, "/connect", json=payload)  # type: ignore
 

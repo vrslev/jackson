@@ -4,7 +4,7 @@ import os
 import shlex
 from dataclasses import dataclass
 from ipaddress import IPv4Address
-from typing import Callable
+from typing import AsyncGenerator, Callable
 
 import anyio
 import typer
@@ -40,7 +40,7 @@ JACK_CLIENT_NAME = "JackTrip"
 
 async def _restream_stream(
     stream: ByteReceiveStream | None, handler: Callable[[str], None]
-):
+) -> None:
     if not stream:
         return
 
@@ -49,7 +49,7 @@ async def _restream_stream(
             handler(line.strip())
 
 
-async def _close_process(process: Process):
+async def _close_process(process: Process) -> int | None:
     if process.returncode is None:
         process.terminate()
 
@@ -76,7 +76,7 @@ class _Program:
     env: dict[str, str]
 
     @contextlib.asynccontextmanager
-    async def _start(self):
+    async def _start(self) -> AsyncGenerator[Process, None]:
         _log_starting(self.cmd)
 
         env = dict(os.environ)
@@ -88,7 +88,7 @@ class _Program:
                 tg.start_soon(lambda: _restream_stream(process.stdout, log.error))
                 yield process
 
-    async def run_forever(self):
+    async def run_forever(self) -> None:
         async with self._start() as process:
             try:
                 await process.wait()
@@ -105,13 +105,13 @@ class _Program:
                     raise typer.Exit(code or 0)
 
 
-async def _run_jacktrip(cmd: list[str], jack_server_name: str):
+async def _run_jacktrip(cmd: list[str], jack_server_name: str) -> None:
     cmd.insert(0, "jacktrip")
     env = {"JACK_DEFAULT_SERVER": jack_server_name}
     await _Program(cmd=cmd, env=env).run_forever()
 
 
-def _build_server_cmd(*, port: int):
+def _build_server_cmd(*, port: int) -> list[str]:
     return [
         "--jacktripserver",
         "--bindport",
@@ -121,7 +121,7 @@ def _build_server_cmd(*, port: int):
     ]
 
 
-async def run_server(*, jack_server_name: str, port: int):
+async def run_server(*, jack_server_name: str, port: int) -> None:
     cmd = _build_server_cmd(port=port)
     await _run_jacktrip(cmd, jack_server_name)
 
@@ -133,7 +133,7 @@ def _build_client_cmd(
     receive_channels: int,
     send_channels: int,
     remote_name: str,
-):
+) -> list[str]:
     return [
         "--pingtoserver",
         str(server_host),
@@ -161,7 +161,7 @@ async def run_client(
     receive_channels: int,
     send_channels: int,
     remote_name: str,
-):
+) -> None:
     cmd = _build_client_cmd(
         server_host=server_host,
         server_port=server_port,

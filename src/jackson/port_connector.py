@@ -17,31 +17,31 @@ class PortConnector:
     client_activated: bool = field(default=False, init=False)
     client: jack.Client = field(init=False)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         self.client = init_jack_client("PortConnector", server_name=self.jack_name)
         self.client.set_client_registration_callback(self.client_registration_callback)
         self.client.activate()
         self.client_activated = True
 
-    def client_registration_callback(self, name: str, register: bool):
+    def client_registration_callback(self, name: str, register: bool) -> None:
         if register and name == "JackTrip":
             self.ready.set()
 
-    async def connect_local(self):
+    async def connect_local(self) -> None:
         for connection in self.connection_map.values():
             src, dest = connection.get_local_connection()
             await connect_ports_retry(self.client, str(src), str(dest))
 
-    async def connect(self):
+    async def connect(self) -> None:
         await self.connect_on_server(self.connection_map)
         await self.connect_local()
 
-    def deactivate(self):
+    def deactivate(self) -> None:
         if self.client_activated:
             self.client.deactivate()
             self.client_activated = False
 
-    async def wait_and_run(self):
+    async def wait_and_run(self) -> None:
         await self.ready.wait()
         await self.connect()
         self.deactivate()

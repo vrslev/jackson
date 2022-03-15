@@ -94,7 +94,7 @@ class Client(BaseManager):
 
         set_jack_server_stream_handlers()
         self.jack = jack_server.Server(
-            name=self.settings.get_jack_server_name(),
+            name=self.settings.audio.jack_server_name,
             driver=self.settings.audio.driver,
             device=self.settings.audio.device or SetByJack_,
             rate=rate,
@@ -111,7 +111,7 @@ class Client(BaseManager):
             outputs_limit=outputs_limit,
         )
         self.port_connector = PortConnector(
-            jack_name=self.settings.get_jack_server_name(),
+            jack_name=self.settings.audio.jack_server_name,
             connection_map=map,
             connect_on_server=self.api.connect,
         )
@@ -119,7 +119,7 @@ class Client(BaseManager):
     async def start_jacktrip(self, connection_map: ConnectionMap) -> None:
         receive_count, send_count = count_receive_send_channels(connection_map)
         return await jacktrip.run_client(
-            jack_server_name=self.settings.get_jack_server_name(),
+            jack_server_name=self.settings.audio.jack_server_name,
             server_host=self.settings.server.host,
             server_port=self.settings.server.jacktrip_port,
             receive_channels=receive_count,

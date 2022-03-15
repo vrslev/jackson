@@ -19,12 +19,12 @@ log = get_logger(__name__, "JackClient")
 log.addFilter(JackClientFilter())
 
 
-def _block_streams():
+def _block_streams() -> None:
     jack.set_info_function(silent_jack_stream_handler)
     jack.set_error_function(silent_jack_stream_handler)
 
 
-def _set_stream_handlers():
+def _set_stream_handlers() -> None:
     jack.set_info_function(log.info)
     jack.set_error_function(log.error)
 
