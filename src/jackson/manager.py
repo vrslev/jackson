@@ -62,7 +62,7 @@ class Server(BaseManager):
             )
         )
         tg.start_soon(self.api.start)
-        tg.start_soon(lambda: self.api.handle_signals(tg.cancel_scope))
+        tg.start_soon(lambda: self.api.install_signal_handlers(tg.cancel_scope))
 
     async def stop(self):
         await self.api.stop()

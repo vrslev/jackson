@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from functools import partial
 from ipaddress import IPv4Address
-from typing import Any, Callable, Coroutine, TypeVar
+from typing import Any, Callable, Coroutine
 
 import anyio
 import httpx
@@ -46,9 +46,6 @@ def _handle_exceptions(data: dict[str, Any]):
         raise RuntimeError(data)
 
     raise ServerError(message=detail["message"], data=model(**detail["data"]))
-
-
-_T = TypeVar("_T", bound=BaseModel)
 
 
 def _handle_response(response: httpx.Response) -> Any:

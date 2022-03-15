@@ -1,6 +1,7 @@
 import signal
 from dataclasses import dataclass, field
 from functools import lru_cache
+from types import FrameType
 from typing import cast
 
 import anyio
@@ -131,18 +132,16 @@ class APIServer:
 
     async def stop(self):
         if self._started:
-            self.server.should_exit = True
             await self.server.shutdown()
 
-    async def handle_signals(self, scope: anyio.CancelScope):
-        handled_signals = (signal.SIGINT, signal.SIGTERM)
+    async def install_signal_handlers(self, scope: anyio.CancelScope):
+        def handler(sig: int, frame: FrameType | None):
+            scope.cancel()
 
-        try:
-            with anyio.open_signal_receiver(*handled_signals) as signals:
-                async for _ in signals:
-                    scope.cancel()
-                    return
+            self.server.handle_exit(
+                sig=cast(signal.Signals, sig),
+                frame=frame,  # type: ignore
+            )
 
-        except NotImplementedError:  # Windows
-            for sig in handled_signals:
-                signal.signal(sig, self.server.handle_exit)  # type: ignore
+        for sig in (signal.SIGINT, signal.SIGTERM):
+            signal.signal(sig, handler)
