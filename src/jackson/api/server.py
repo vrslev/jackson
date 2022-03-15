@@ -96,6 +96,8 @@ async def connect_ports(
     validate_playback_port_has_no_connections(
         client, name=destination, client_should=client_should
     )
+
+    client.activate()
     await retry_connect_ports(client, source, destination)
 
 
@@ -113,6 +115,11 @@ async def connect(
             client_should=conn.client_should,
         )
     return models.ConnectResponse()
+
+
+@app.on_event("shutdown")  # type: ignore
+def on_shutdown() -> None:
+    get_jack_client().close()
 
 
 @dataclass

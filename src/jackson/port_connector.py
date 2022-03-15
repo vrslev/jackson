@@ -4,7 +4,11 @@ from typing import Callable, Coroutine
 import anyio
 import jack
 
-from jackson.jack_client import connect_ports_retry, init_jack_client
+from jackson.jack_client import (
+    block_jack_client_streams,
+    connect_ports_retry,
+    init_jack_client,
+)
 from jackson.port_connection import ConnectionMap
 
 
@@ -40,6 +44,7 @@ class PortConnector:
         if self.client_activated:
             self.client.deactivate()
             self.client_activated = False
+        block_jack_client_streams()
 
     async def wait_and_run(self) -> None:
         await self.ready.wait()

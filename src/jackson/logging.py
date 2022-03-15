@@ -57,10 +57,6 @@ def get_logger(name: str, prog_name: str) -> logging.Logger:
     return logging.getLogger(name)
 
 
-def silent_jack_stream_handler(_: str) -> None:
-    pass
-
-
 class MessageFilter(logging.Filter):
     messages: set[str]
 

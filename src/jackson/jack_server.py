@@ -1,6 +1,6 @@
 import jack_server
 
-from jackson.logging import MessageFilter, get_logger, silent_jack_stream_handler
+from jackson.logging import MessageFilter, get_logger
 
 
 class JackServerFilter(MessageFilter):
@@ -12,6 +12,7 @@ class JackServerFilter(MessageFilter):
         "JACK output port = ",
         "CoreAudio driver is running...",
     }
+    messages = set()
 
 
 log = get_logger(__name__, "JackServer")
@@ -24,5 +25,5 @@ def set_jack_server_stream_handlers() -> None:
 
 
 def block_jack_server_streams() -> None:
-    jack_server.set_info_function(silent_jack_stream_handler)
-    jack_server.set_error_function(silent_jack_stream_handler)
+    jack_server.set_info_function(None)
+    jack_server.set_error_function(None)

@@ -71,7 +71,6 @@ class Server(BaseManager):
 
     async def stop(self) -> None:
         await self.api.stop()
-
         block_jack_server_streams()
         self.jack.stop()
 
