@@ -12,7 +12,6 @@ class JackServerFilter(MessageFilter):
         "JACK output port = ",
         "CoreAudio driver is running...",
     }
-    messages = set()
 
 
 log = get_logger(__name__, "JackServer")

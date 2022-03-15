@@ -93,6 +93,7 @@ async def connect_ports(
     client_should: ClientShould,
 ) -> None:
     get_port_or_fail(client, type="source", name=source)
+    # TODO: JackTrip doesn't disconnect jack client on windows. So we should forget about connected ports?
     validate_playback_port_has_no_connections(
         client, name=destination, client_should=client_should
     )
