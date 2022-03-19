@@ -36,7 +36,7 @@ ignore = [".venv"]
 typeCheckingMode = "strict"
 reportUnnecessaryTypeIgnoreComment = "warning"
 reportMissingTypeStubs = false
-reportIncompatibleMethodOverride = false
+reportPrivateUsage = false
 reportUninitializedInstanceVariable = "warning"
 reportImplicitStringConcatenation = "warning"
 
