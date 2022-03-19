@@ -50,17 +50,16 @@ class PortConnection(BaseModel, frozen=True):
             return self.source, self.remote_bridge
 
 
-def _build_connection(
-    client_name: str,
-    client_should: ClientShould,
-    limit: int,
-    local: int,
-    remote: int,
-    bridge: int,
-) -> PortConnection:
-    if bridge > limit:
+def _validate_bridge_limit(
+    limit: int, bridge_idx: int, client_should: ClientShould
+) -> None:
+    if bridge_idx > limit:
         raise RuntimeError(f"Limit of available {client_should} ports exceeded.")
 
+
+def _build_connection(
+    client_name: str, client_should: ClientShould, local: int, remote: int, bridge: int
+) -> PortConnection:
     if client_should == "send":
         source_idx, destination_idx = local, remote
         local_bridge_type, remote_bridge_type = "send", "receive"
@@ -84,32 +83,14 @@ def _build_specific_connections(
 ) -> Iterable[PortConnection]:
     for idx, (local, remote) in enumerate(ports.items()):
         bridge = idx + 1
+        _validate_bridge_limit(limit, bridge_idx=bridge, client_should=client_should)
         yield _build_connection(
             client_name=client_name,
             client_should=client_should,
-            limit=limit,
             local=local,
             remote=remote,
             bridge=bridge,
         )
-
-
-def _build_connections_gen(
-    client_name: str,
-    receive: dict[int, int],
-    send: dict[int, int],
-    inputs_limit: int,
-    outputs_limit: int,
-) -> Iterable[PortConnection]:
-    yield from _build_specific_connections(
-        client_name=client_name, client_should="send", limit=inputs_limit, ports=send
-    )
-    yield from _build_specific_connections(
-        client_name=client_name,
-        client_should="receive",
-        limit=outputs_limit,
-        ports=receive,
-    )
 
 
 _RegisteredJackTripPort = PortName
@@ -124,14 +105,22 @@ def build_connection_map(
     outputs_limit: int,
 ) -> ConnectionMap:
     """Build connection map between server and client. Is it being built on client side."""
-    gen = _build_connections_gen(
-        client_name=client_name,
-        receive=receive,
-        send=send,
-        inputs_limit=inputs_limit,
-        outputs_limit=outputs_limit,
-    )
-    return {conn.local_bridge: conn for conn in gen}
+
+    def gen():
+        yield from _build_specific_connections(
+            client_name=client_name,
+            client_should="send",
+            limit=inputs_limit,
+            ports=send,
+        )
+        yield from _build_specific_connections(
+            client_name=client_name,
+            client_should="receive",
+            limit=outputs_limit,
+            ports=receive,
+        )
+
+    return {conn.local_bridge: conn for conn in gen()}
 
 
 def count_receive_send_channels(connection_map: ConnectionMap) -> tuple[int, int]:
