@@ -13,8 +13,8 @@ from jackson.port_connection import ConnectionMap
 
 
 @dataclass
-class PortConnector:
-    jack_name: str
+class ClientConnector:
+    jack_server_name: str
     connection_map: ConnectionMap
     connect_on_server: Callable[[ConnectionMap], Coroutine[None, None, None]]
     ready: anyio.Event = field(default_factory=anyio.Event, init=False)
@@ -22,7 +22,9 @@ class PortConnector:
     client: jack.Client = field(init=False)
 
     def __post_init__(self) -> None:
-        self.client = init_jack_client("PortConnector", server_name=self.jack_name)
+        self.client = init_jack_client(
+            "PortConnector", server_name=self.jack_server_name
+        )
         self.client.set_client_registration_callback(self.client_registration_callback)
         self.client.activate()
         self.client_activated = True

@@ -9,6 +9,7 @@ from jack_server._server import SetByJack_
 from jackson import jacktrip
 from jackson.api.client import APIClient
 from jackson.api.server import APIServer
+from jackson.connector.client import ClientConnector
 from jackson.jack_server import (
     block_jack_server_streams,
     set_jack_server_stream_handlers,
@@ -18,7 +19,6 @@ from jackson.port_connection import (
     build_connection_map,
     count_receive_send_channels,
 )
-from jackson.port_connector import PortConnector
 from jackson.settings import ClientSettings, ServerSettings
 
 
@@ -80,7 +80,7 @@ class Client(BaseManager):
     settings: ClientSettings
     jack: jack_server.Server | None = field(default=None, init=False)
     api: APIClient = field(init=False)
-    port_connector: PortConnector | None = field(default=None, init=False)
+    port_connector: ClientConnector | None = field(default=None, init=False)
 
     def __post_init__(self) -> None:
         self.api = APIClient(
@@ -109,8 +109,8 @@ class Client(BaseManager):
             inputs_limit=inputs_limit,
             outputs_limit=outputs_limit,
         )
-        self.port_connector = PortConnector(
-            jack_name=self.settings.audio.jack_server_name,
+        self.port_connector = ClientConnector(
+            jack_server_name=self.settings.audio.jack_server_name,
             connection_map=map,
             connect_on_server=self.api.connect,
         )

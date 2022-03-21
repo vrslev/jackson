@@ -1,126 +1,63 @@
 import signal
 from dataclasses import dataclass, field
-from functools import lru_cache
 from types import FrameType
 from typing import cast
 
 import anyio
+import fastapi
 import jack
-import jack_server
 import uvicorn
 from fastapi import Body, Depends, FastAPI, HTTPException, status
+from fastapi.exception_handlers import http_exception_handler
 from pydantic import BaseModel
 
-from jackson.api import models
-from jackson.jack_client import connect_ports_retry, init_jack_client
+from jackson.connector import models
+from jackson.connector import server as connector
+from jackson.jack_client import init_jack_client
 from jackson.logging import get_logger
-from jackson.port_connection import ClientShould, PortName
 
-app = FastAPI()
+
+def shutdown() -> None:
+    get_jack_client().close()
+
+
+app = FastAPI(on_shutdown=[shutdown])
+
 uvicorn_err_log = get_logger("uvicorn.error", "HttpServer")
 uvicorn_access_log = get_logger("uvicorn.access", "HttpServer")
 
 
-class StructuredHTTPException(HTTPException):
-    def __init__(self, status_code: int, data: BaseModel) -> None:
-        super().__init__(
-            status_code=status_code,
-            detail={"message": data.__class__.__name__, "data": data.dict()},
-        )
-
-
-@lru_cache
 def get_jack_client() -> jack.Client:
-    return init_jack_client("APIServer", server_name=app.state.jack_server_name)
+    return app.state.jack_client
 
 
-@app.get("/init", response_model=models.InitResponse)
-async def init(
-    jack_client: jack.Client = Depends(get_jack_client),
-) -> models.InitResponse:
-    inputs = jack_client.get_ports("system:.*", is_input=True)
-    outputs = jack_client.get_ports("system:.*", is_output=True)
-
-    return models.InitResponse(
-        inputs=len(inputs),
-        outputs=len(outputs),
-        rate=cast(jack_server.SampleRate, jack_client.samplerate),
-        buffer_size=jack_client.blocksize,
-    )
+@app.get("/init")
+async def init(client: jack.Client = Depends(get_jack_client)) -> models.InitResponse:
+    return connector.init(client)
 
 
-def get_port_or_fail(
-    client: jack.Client, type: models.PortDirectionType, name: PortName
-) -> jack.Port:
-    try:
-        return client.get_port_by_name(str(name))
-    except jack.JackError:
-        raise StructuredHTTPException(404, models.PortNotFound(type=type, name=name))
-
-
-def validate_playback_port_has_no_connections(
-    client: jack.Client, name: PortName, client_should: ClientShould
-) -> None:
-    port = get_port_or_fail(client, type="destination", name=name)
-
-    if client_should != "send":
-        return
-
-    if not (connections := client.get_all_connections(port)):
-        return
-
-    port_names = [PortName.parse(p.name) for p in connections]
-    data = models.PlaybackPortAlreadyHasConnections(port=name, connections=port_names)
-    raise StructuredHTTPException(status.HTTP_409_CONFLICT, data)
-
-
-async def retry_connect_ports(
-    client: jack.Client, source: PortName, destination: PortName
-) -> None:
-    try:
-        await connect_ports_retry(client, str(source), str(destination))
-    except jack.JackError:
-        raise StructuredHTTPException(
-            status.HTTP_424_FAILED_DEPENDENCY,
-            models.FailedToConnectPorts(source=source, destination=destination),
-        )
-
-
-async def connect_ports(
-    client: jack.Client,
-    source: PortName,
-    destination: PortName,
-    client_should: ClientShould,
-) -> None:
-    get_port_or_fail(client, type="source", name=source)
-    # TODO: JackTrip doesn't disconnect jack client on windows. So we should forget about connected ports?
-    validate_playback_port_has_no_connections(
-        client, name=destination, client_should=client_should
-    )
-
-    client.activate()
-    await retry_connect_ports(client, source, destination)
-
-
-@app.patch("/connect", response_model=models.ConnectResponse)
+@app.patch("/connect")
 async def connect(
+    client: jack.Client = Depends(get_jack_client),
     connections: list[models.Connection] = Body(...),
-    jack_client: jack.Client = Depends(get_jack_client),
 ) -> models.ConnectResponse:
-    # TODO: Validate (check if allowed) source and destination
-    for conn in connections:
-        await connect_ports(
-            jack_client,
-            source=conn.source,
-            destination=conn.destination,
-            client_should=conn.client_should,
-        )
-    return models.ConnectResponse()
+    return await connector.connect(client, connections=connections)
 
 
-@app.on_event("shutdown")  # type: ignore
-def on_shutdown() -> None:
-    get_jack_client().close()
+@app.exception_handler(connector.PortConnectorError)  # type: ignore
+async def port_connector_error_handler(
+    request: fastapi.Request, exc: connector.PortConnectorError
+):
+    status_map: dict[type[BaseModel], int] = {
+        models.PortNotFound: 404,
+        models.PlaybackPortAlreadyHasConnections: status.HTTP_409_CONFLICT,
+        models.FailedToConnectPorts: status.HTTP_424_FAILED_DEPENDENCY,
+    }
+    http_exception = HTTPException(
+        status_code=status_map[type(exc.data)],
+        detail={"message": type(exc.data).__name__, "data": exc.data.dict()},
+    )
+    return await http_exception_handler(request=request, exc=http_exception)
 
 
 @dataclass
@@ -130,7 +67,9 @@ class APIServer:
     _started: bool = field(default=False, init=False)
 
     def __post_init__(self) -> None:
-        app.state.jack_server_name = self.jack_server_name
+        app.state.jack_client = init_jack_client(
+            "APIServer", server_name=app.state.jack_server_name
+        )
         config = uvicorn.Config(app=app, host="0.0.0.0", workers=1, log_config=None)
         self.server = uvicorn.Server(config)
         self.server.config.load()

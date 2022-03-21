@@ -7,7 +7,7 @@ import anyio
 import httpx
 from pydantic import AnyHttpUrl, BaseModel
 
-from jackson.api import models
+from jackson.connector import models
 from jackson.port_connection import ConnectionMap
 
 
@@ -34,18 +34,19 @@ def _handle_exceptions(data: dict[str, Any]) -> None:
     if "message" not in data["detail"]:
         raise RuntimeError(data)
 
-    detail = data["detail"]
+    message = data["detail"]["message"]
+    detail_data = data["detail"]["data"]
 
     model = None
     for m in _known_errors:
-        if m.__name__ == detail["message"]:
+        if m.__name__ == message:
             model = m
             break
 
     if model is None:
         raise RuntimeError(data)
 
-    raise ServerError(message=detail["message"], data=model(**detail["data"]))
+    raise ServerError(message=message, data=model(**detail_data))
 
 
 def _handle_response(response: httpx.Response) -> Any:
