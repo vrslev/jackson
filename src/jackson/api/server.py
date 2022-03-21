@@ -13,12 +13,13 @@ from pydantic import BaseModel
 
 from jackson.connector import models
 from jackson.connector import server as connector
-from jackson.jack_client import init_jack_client
+from jackson.jack_client import block_jack_client_streams, init_jack_client
 from jackson.logging import get_logger
 
 
 def shutdown() -> None:
     get_jack_client().close()
+    block_jack_client_streams()
 
 
 app = FastAPI(on_shutdown=[shutdown])
