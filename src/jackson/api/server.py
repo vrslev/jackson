@@ -28,7 +28,7 @@ uvicorn_access_log = get_logger("uvicorn.access", "HttpServer")
 
 
 def get_jack_client() -> jack.Client:
-    return app.state.jack_client
+    return init_jack_client("APIServer", server_name=app.state.jack_server_name)
 
 
 @app.get("/init")
@@ -67,9 +67,7 @@ class APIServer:
     _started: bool = field(default=False, init=False)
 
     def __post_init__(self) -> None:
-        app.state.jack_client = init_jack_client(
-            "APIServer", server_name=app.state.jack_server_name
-        )
+        app.state.jack_server_name = self.jack_server_name
         config = uvicorn.Config(app=app, host="0.0.0.0", workers=1, log_config=None)
         self.server = uvicorn.Server(config)
         self.server.config.load()
