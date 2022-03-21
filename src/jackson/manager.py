@@ -83,9 +83,7 @@ class Client(BaseManager):
     port_connector: ClientConnector | None = field(default=None, init=False)
 
     def __post_init__(self) -> None:
-        self.api = APIClient(
-            host=self.settings.server.host, port=self.settings.server.api_port
-        )
+        self.api = APIClient(base_url=self.settings.server.api_url)
 
     def start_jack(self, rate: jack_server.SampleRate, period: int) -> None:
         if not self.settings.start_jack:

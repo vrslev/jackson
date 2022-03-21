@@ -2,7 +2,7 @@ from ipaddress import IPv4Address
 from typing import Any
 
 import jack_server
-from pydantic import BaseModel, BaseSettings, root_validator
+from pydantic import AnyHttpUrl, BaseModel, root_validator
 
 
 class _BaseAudio(BaseModel):
@@ -25,7 +25,7 @@ class _BaseServer(BaseModel):
     api_port: int
 
 
-class ServerSettings(BaseSettings):
+class ServerSettings(BaseModel):
     audio: _ServerAudio
     server: _BaseServer
 
@@ -37,13 +37,19 @@ class _ClientAudio(_BaseAudio):
 class _ClientServer(_BaseServer):
     host: IPv4Address
 
+    @property
+    def api_url(self) -> str:
+        return AnyHttpUrl.build(
+            scheme="http", host=str(self.host), port=str(self.api_port)
+        )
+
 
 class ClientPorts(BaseModel):
     receive: dict[int, int]
     send: dict[int, int]
 
 
-class ClientSettings(BaseSettings):
+class ClientSettings(BaseModel):
     name: str
     audio: _ClientAudio
     server: _ClientServer

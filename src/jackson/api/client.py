@@ -1,11 +1,10 @@
 from dataclasses import dataclass
 from functools import partial
-from ipaddress import IPv4Address
 from typing import Any, Callable, Coroutine, Iterable
 
 import anyio
 import httpx
-from pydantic import AnyHttpUrl, BaseModel
+from pydantic import BaseModel
 
 from jackson.connector import models
 from jackson.port_connection import ConnectionMap
@@ -86,8 +85,7 @@ def _get_connections(map: ConnectionMap) -> Iterable[dict[str, Any]]:
 class APIClient:
     client: httpx.AsyncClient
 
-    def __init__(self, host: IPv4Address, port: int) -> None:
-        base_url = AnyHttpUrl.build(scheme="http", host=str(host), port=str(port))
+    def __init__(self, base_url: str) -> None:
         self.client = httpx.AsyncClient(base_url=base_url)
 
     async def init(self) -> models.InitResponse:
