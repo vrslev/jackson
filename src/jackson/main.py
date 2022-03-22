@@ -1,10 +1,11 @@
+import io
+
 import anyio
+import click
 import httpx
 import jack_server
-import typer
 import yaml
 from jack_server._server import SetByJack_
-from typer.params import Option
 
 from jackson import jacktrip
 from jackson.jack_client import get_jack_client
@@ -70,18 +71,22 @@ def get_client_manager(settings: ClientSettings) -> Client:
     )
 
 
-app = typer.Typer()
+@click.group()
+def cli():
+    ...
 
 
-@app.command()
-def server(config: typer.FileText = Option("server.yaml")) -> None:
+@cli.command()
+@click.option("--config", default="server.yaml", type=click.File())
+def server(config: io.TextIOWrapper) -> None:
     configure_logging("server")
     server = get_server_manager(ServerSettings(**yaml.safe_load(config)))
     anyio.run(server.run, backend_options={"use_uvloop": True})
 
 
-@app.command()
-def client(config: typer.FileText = Option("client.yaml")) -> None:
+@cli.command()
+@click.option("--config", default="client.yaml", type=click.File())
+def client(config: io.TextIOWrapper) -> None:
     configure_logging("client")
     client = get_client_manager(ClientSettings(**yaml.safe_load(config)))
     anyio.run(client.run, backend_options={"use_uvloop": True})
