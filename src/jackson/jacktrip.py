@@ -48,27 +48,6 @@ async def _restream_stream(
             handler(line.strip())
 
 
-async def _close_process(process: Process) -> int | None:
-    if process.returncode is None:
-        process.terminate()
-
-    await process.wait()
-    code = process.returncode
-
-    # Otherwise RuntimeError('Event loop is closed') is being called
-    process._process._transport.close()  # type: ignore
-
-    log.info(f"Exited with code {code}")
-    return code
-
-
-def _log_starting(cmd: list[str]) -> None:
-    log.info(
-        f"Starting [bold blue]{cmd[0]}[/bold blue]..."
-        + f" [italic]({shlex.join(cmd)})[/italic]"
-    )
-
-
 @dataclass
 class StreamingProcess:
     cmd: list[str]
@@ -76,8 +55,11 @@ class StreamingProcess:
     process: Process | None = None
 
     @contextlib.asynccontextmanager
-    async def _start(self) -> AsyncGenerator[Process, None]:
-        _log_starting(self.cmd)
+    async def _open_process_and_stream(self) -> AsyncGenerator[Process, None]:
+        log.info(
+            f"Starting [bold blue]{self.cmd[0]}[/bold blue]..."
+            + f" [italic]({shlex.join(self.cmd)})[/italic]"
+        )
 
         env = dict(os.environ)
         env.update(self.env)
@@ -89,19 +71,30 @@ class StreamingProcess:
                 yield process
 
     async def start(self) -> None:
-        async with self._start() as self.process:
+        async with self._open_process_and_stream() as self.process:
             try:
                 await self.process.wait()
             except anyio.get_cancelled_exc_class():
                 with anyio.CancelScope(shield=True):
-                    await _close_process(self.process)
+                    await self.stop()
             else:
-                code = await _close_process(self.process)
+                code = await self.stop()
                 raise RuntimeError(f"JackTrip exited with code {code}")
 
-    async def stop(self) -> None:
+    async def stop(self) -> int | None:
         assert self.process
-        await _close_process(self.process)
+
+        if self.process.returncode is None:
+            self.process.terminate()
+
+        await self.process.wait()
+        code = self.process.returncode
+
+        # Otherwise RuntimeError('Event loop is closed') is being called
+        self.process._process._transport.close()  # type: ignore
+
+        log.info(f"Exited with code {code}")
+        return code
 
 
 def _get_jacktrip(cmd: list[str], jack_server_name: str) -> StreamingProcess:
