@@ -11,8 +11,7 @@ from jackson import jacktrip
 from jackson.jack_client import get_jack_client
 from jackson.logging import configure_logging
 from jackson.manager import Client, GetJackServer, Server
-from jackson.port_connection import ConnectionMap, build_connection_map
-from jackson.settings import ClientSettings, ServerSettings
+from jackson.settings import ClientSettings, ServerSettings, load_client_settings
 
 
 def get_server_manager(settings: ServerSettings) -> Server:
@@ -43,15 +42,6 @@ def get_client_manager(settings: ClientSettings) -> Client:
     )
     get_jack_client_ = lambda: get_jack_client(settings.audio.jack_server_name)
 
-    def get_connection_map(inputs_limit: int, outputs_limit: int) -> ConnectionMap:
-        return build_connection_map(
-            client_name=settings.name,
-            receive=settings.ports.receive,
-            send=settings.ports.send,
-            inputs_limit=inputs_limit,
-            outputs_limit=outputs_limit,
-        )
-
     def get_jacktrip(receive_count: int, send_count: int) -> jacktrip.StreamingProcess:
         return jacktrip.get_client(
             jack_server_name=settings.audio.jack_server_name,
@@ -64,9 +54,9 @@ def get_client_manager(settings: ClientSettings) -> Client:
 
     return Client(
         api_http_client=httpx.AsyncClient(base_url=settings.server.api_url),
+        connection_map=settings.connection_map,
         get_jack_server=get_jack_server,
         get_jack_client=get_jack_client_,
-        get_connection_map=get_connection_map,
         get_jacktrip=get_jacktrip,
     )
 
@@ -88,5 +78,5 @@ def server(config: io.TextIOWrapper) -> None:
 @click.option("--config", default="client.yaml", type=click.File())
 def client(config: io.TextIOWrapper) -> None:
     configure_logging("client")
-    client = get_client_manager(ClientSettings(**yaml.safe_load(config)))
+    client = get_client_manager(load_client_settings(yaml.safe_load(config)))
     anyio.run(client.run, backend_options={"use_uvloop": True})

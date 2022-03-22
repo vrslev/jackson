@@ -65,11 +65,6 @@ class GetJackServer(Protocol):
         ...
 
 
-class GetConnectionMap(Protocol):
-    def __call__(self, inputs_limit: int, outputs_limit: int) -> ConnectionMap:
-        ...
-
-
 class GetClientJacktrip(Protocol):
     def __call__(self, receive_count: int, send_count: int) -> StreamingProcess:
         ...
@@ -78,9 +73,9 @@ class GetClientJacktrip(Protocol):
 @dataclass
 class Client(BaseManager):
     api_http_client: httpx.AsyncClient
+    connection_map: ConnectionMap
     get_jack_server: GetJackServer
     get_jack_client: Callable[[], jack.Client]
-    get_connection_map: GetConnectionMap
     get_jacktrip: GetClientJacktrip
     jack_server_: jack_server.Server | None = field(default=None, init=False)
     jack_client: jack.Client | None = field(default=None, init=False)
@@ -96,15 +91,18 @@ class Client(BaseManager):
         start_jack_server(self.jack_server_)
 
         self.jack_client = self.get_jack_client()
-        map = self.get_connection_map(
-            inputs_limit=response.inputs, outputs_limit=response.outputs
-        )
         port_connector = ClientPortConnector(
-            client=self.jack_client, connection_map=map, connect_on_server=api.connect
+            client=self.jack_client,
+            connection_map=self.connection_map,
+            connect_on_server=api.connect,
         )
         tg.start_soon(port_connector.wait_and_run)
 
-        receive_count, send_count = count_receive_send_channels(map)
+        receive_count, send_count = count_receive_send_channels(
+            connection_map=self.connection_map,
+            inputs_limit=response.inputs,
+            outputs_limit=response.outputs,
+        )
         self.jacktrip = self.get_jacktrip(
             receive_count=receive_count, send_count=send_count
         )

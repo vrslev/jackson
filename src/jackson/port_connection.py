@@ -92,18 +92,16 @@ def _build_connection(
 
 
 def _build_specific_connections(
-    client_name: str, client_should: ClientShould, limit: int, ports: dict[int, int]
+    client_name: str, client_should: ClientShould, ports: dict[int, int]
 ) -> Iterable[PortConnection]:
     """Build port connection for `client_should`."""
     for idx, (local, remote) in enumerate(ports.items()):
-        bridge = idx + 1
-        _validate_bridge_limit(limit, bridge_idx=bridge, client_should=client_should)
         yield _build_connection(
             client_name=client_name,
             client_should=client_should,
             local=local,
             remote=remote,
-            bridge=bridge,
+            bridge=idx + 1,
         )
 
 
@@ -115,29 +113,23 @@ def build_connection_map(
     client_name: str,
     receive: dict[int, int],
     send: dict[int, int],
-    inputs_limit: int,
-    outputs_limit: int,
 ) -> ConnectionMap:
     """Build connection map based on port indexes. Takes in account limits and client name."""
 
     def gen():
         yield from _build_specific_connections(
-            client_name=client_name,
-            client_should="send",
-            limit=inputs_limit,
-            ports=send,
+            client_name=client_name, client_should="send", ports=send
         )
         yield from _build_specific_connections(
-            client_name=client_name,
-            client_should="receive",
-            limit=outputs_limit,
-            ports=receive,
+            client_name=client_name, client_should="receive", ports=receive
         )
 
     return {conn.local_bridge: conn for conn in gen()}
 
 
-def count_receive_send_channels(connection_map: ConnectionMap) -> tuple[int, int]:
+def count_receive_send_channels(
+    connection_map: ConnectionMap, inputs_limit: int, outputs_limit: int
+) -> tuple[int, int]:
     """Count number of used receive and send ports for bridge limit allocation (JackTrip)."""
 
     receive, send = 0, 0
@@ -147,5 +139,10 @@ def count_receive_send_channels(connection_map: ConnectionMap) -> tuple[int, int
             send += 1
         else:
             receive += 1
+
+    _validate_bridge_limit(limit=inputs_limit, bridge_idx=send, client_should="send")
+    _validate_bridge_limit(
+        limit=outputs_limit, bridge_idx=receive, client_should="receive"
+    )
 
     return receive, send

@@ -1,7 +1,10 @@
 from ipaddress import IPv4Address
+from typing import Any
 
 from jack_server import SampleRate
 from pydantic import AnyHttpUrl, BaseModel
+
+from jackson.port_connection import ConnectionMap, build_connection_map
 
 
 class _BaseAudio(BaseModel):
@@ -35,7 +38,7 @@ class _ClientServer(_BaseServer):
         )
 
 
-class ClientPorts(BaseModel):
+class _ClientPorts(BaseModel):
     receive: dict[int, int]
     send: dict[int, int]
 
@@ -45,8 +48,29 @@ class ServerSettings(BaseModel):
     server: _BaseServer
 
 
+class _FileClientSettings(BaseModel):
+    name: str
+    audio: _ClientAudio
+    server: _ClientServer
+    ports: _ClientPorts
+
+
 class ClientSettings(BaseModel):
     name: str
     audio: _ClientAudio
     server: _ClientServer
-    ports: ClientPorts
+    connection_map: ConnectionMap
+
+
+def load_client_settings(content: Any) -> ClientSettings:
+    file_settings = _FileClientSettings(**content)
+    return ClientSettings(
+        name=file_settings.name,
+        audio=file_settings.audio,
+        server=file_settings.server,
+        connection_map=build_connection_map(
+            client_name=file_settings.name,
+            receive=file_settings.ports.receive,
+            send=file_settings.ports.send,
+        ),
+    )
