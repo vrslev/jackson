@@ -94,7 +94,7 @@ class ClientManager(BaseManager):
         await self.api.client.aclose()
 
         if self.port_connector:
-            self.port_connector.deactivate()
+            self.port_connector.close()
 
         if self.jack:
             self.jack.stop()

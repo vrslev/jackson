@@ -6,7 +6,14 @@ import anyio
 import httpx
 from pydantic import BaseModel
 
-from jackson.connector import models
+from jackson.connector.server import (
+    Connection,
+    ConnectResponse,
+    FailedToConnectPorts,
+    InitResponse,
+    PlaybackPortAlreadyHasConnections,
+    PortNotFound,
+)
 from jackson.port_connection import ConnectionMap
 
 
@@ -20,9 +27,9 @@ class ServerError(Exception):
 
 
 _known_errors: tuple[type[BaseModel], ...] = (
-    models.PlaybackPortAlreadyHasConnections,
-    models.PortNotFound,
-    models.FailedToConnectPorts,
+    PlaybackPortAlreadyHasConnections,
+    PortNotFound,
+    FailedToConnectPorts,
 )
 
 
@@ -76,7 +83,7 @@ async def _retry_request(
 def _get_connections(map: ConnectionMap) -> Iterable[dict[str, Any]]:
     for connection in map.values():
         src, dest = connection.get_remote_connection()
-        yield models.Connection(
+        yield Connection(
             source=src, destination=dest, client_should=connection.client_should
         ).dict()
 
@@ -88,13 +95,13 @@ class APIClient:
     def __init__(self, base_url: str) -> None:
         self.client = httpx.AsyncClient(base_url=base_url)
 
-    async def init(self) -> models.InitResponse:
+    async def init(self) -> InitResponse:
         response = await self.client.get("/init")  # type: ignore
-        return models.InitResponse(**_handle_response(response))
+        return InitResponse(**_handle_response(response))
 
     async def connect(self, connection_map: ConnectionMap) -> None:
         payload = list(_get_connections(connection_map))
         func = partial(self.client.patch, "/connect", json=payload)  # type: ignore
 
         response = await _retry_request(func)
-        models.ConnectResponse(**_handle_response(response))
+        ConnectResponse(**_handle_response(response))

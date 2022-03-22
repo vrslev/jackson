@@ -10,9 +10,16 @@ from fastapi import Body, Depends, FastAPI, HTTPException, status
 from fastapi.exception_handlers import http_exception_handler
 from pydantic import BaseModel
 
-from jackson.connector import models
-from jackson.connector import server as connector
-from jackson.connector.server import ServerPortConnector
+from jackson.connector.server import (
+    Connection,
+    ConnectResponse,
+    FailedToConnectPorts,
+    InitResponse,
+    PlaybackPortAlreadyHasConnections,
+    PortConnectorError,
+    PortNotFound,
+    ServerPortConnector,
+)
 from jackson.logging import get_logger
 
 app = FastAPI()
@@ -27,26 +34,26 @@ def get_port_connector() -> ServerPortConnector:
 @app.get("/init")
 async def init(
     connector: ServerPortConnector = Depends(get_port_connector),
-) -> models.InitResponse:
+) -> InitResponse:
     return connector.init()
 
 
 @app.patch("/connect")
 async def connect(
     connector: ServerPortConnector = Depends(get_port_connector),
-    connections: list[models.Connection] = Body(...),
-) -> models.ConnectResponse:
+    connections: list[Connection] = Body(...),
+) -> ConnectResponse:
     return await connector.connect(connections)
 
 
-@app.exception_handler(connector.PortConnectorError)  # type: ignore
+@app.exception_handler(PortConnectorError)  # type: ignore
 async def port_connector_error_handler(
-    request: fastapi.Request, exc: connector.PortConnectorError
+    request: fastapi.Request, exc: PortConnectorError
 ):
     status_map: dict[type[BaseModel], int] = {
-        models.PortNotFound: 404,
-        models.PlaybackPortAlreadyHasConnections: status.HTTP_409_CONFLICT,
-        models.FailedToConnectPorts: status.HTTP_424_FAILED_DEPENDENCY,
+        PortNotFound: 404,
+        PlaybackPortAlreadyHasConnections: status.HTTP_409_CONFLICT,
+        FailedToConnectPorts: status.HTTP_424_FAILED_DEPENDENCY,
     }
     http_exception = HTTPException(
         status_code=status_map[type(exc.data)],

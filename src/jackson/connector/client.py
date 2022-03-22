@@ -19,30 +19,30 @@ class ClientPortConnector:
     client_activated: bool = field(default=False, init=False)
 
     def __post_init__(self) -> None:
-        self.client.set_client_registration_callback(self.client_registration_callback)
+        self.client.set_client_registration_callback(self._client_registration_callback)
         self.client.activate()
         self.client_activated = True
 
-    def client_registration_callback(self, name: str, register: bool) -> None:
+    def _client_registration_callback(self, name: str, register: bool) -> None:
         if register and name == "JackTrip":
             self.ready.set()
 
-    async def connect_local(self) -> None:
+    async def _connect_locally(self) -> None:
         for connection in self.connection_map.values():
             src, dest = connection.get_local_connection()
             await connect_ports_retry(self.client, str(src), str(dest))
 
-    async def connect(self) -> None:
+    async def _connect(self) -> None:
         await self.connect_on_server(self.connection_map)
-        await self.connect_local()
+        await self._connect_locally()
 
-    def deactivate(self) -> None:
+    async def wait_and_run(self) -> None:
+        await self.ready.wait()
+        await self._connect()
+        self.close()
+
+    def close(self) -> None:
         if self.client_activated:
             self.client.deactivate()
             self.client_activated = False
         block_jack_client_streams()
-
-    async def wait_and_run(self) -> None:
-        await self.ready.wait()
-        await self.connect()
-        self.deactivate()
