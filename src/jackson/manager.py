@@ -20,18 +20,14 @@ class BaseManager(Protocol):
     async def stop(self) -> None:
         ...
 
-
-class BaseInstance(Protocol):
-    manager: BaseManager
-
     async def run(self) -> None:
         async with anyio.create_task_group() as tg:
             try:
-                await self.manager.start(tg)
+                await self.start(tg)
                 await anyio.sleep_forever()
             finally:
                 with anyio.CancelScope(shield=True):
-                    await self.manager.stop()
+                    await self.stop()
 
 
 @dataclass

@@ -16,7 +16,6 @@ from jackson.connector.client import ClientPortConnector
 from jackson.jack_server import JackServerController
 from jackson.logging import configure_loggers
 from jackson.manager import (
-    BaseInstance,
     ClientManager,
     GetJack,
     GetPortConnector,
@@ -32,7 +31,7 @@ from jackson.settings import ClientSettings, ServerSettings
 
 
 @dataclass(init=False)
-class Server(BaseInstance):
+class Server:
     manager: ServerManager
 
     def __init__(self, settings: ServerSettings) -> None:
@@ -55,7 +54,7 @@ class Server(BaseInstance):
 
 
 @dataclass(init=False)
-class Client(BaseInstance):
+class Client:
     manager: ClientManager
 
     def get_port_connector(
@@ -122,7 +121,7 @@ def server(config: typer.FileText = Option("server.yaml")) -> None:
     configure_loggers("server")
     settings = ServerSettings(**yaml.safe_load(config))
     server = Server(settings)
-    anyio.run(server.run, backend_options={"use_uvloop": True})
+    anyio.run(server.manager.run, backend_options={"use_uvloop": True})
 
 
 @app.command()
@@ -130,4 +129,4 @@ def client(config: typer.FileText = Option("client.yaml")) -> None:
     configure_loggers("client")
     settings = ClientSettings(**yaml.safe_load(config))
     client = Client(settings=settings)
-    anyio.run(client.run, backend_options={"use_uvloop": True})
+    anyio.run(client.manager.run, backend_options={"use_uvloop": True})
