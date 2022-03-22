@@ -16,12 +16,10 @@ class ClientPortConnector:
     connection_map: ConnectionMap
     connect_on_server: ConnectOnServer
     ready: anyio.Event = field(default_factory=anyio.Event, init=False)
-    client_activated: bool = field(default=False, init=False)
 
     def __post_init__(self) -> None:
         self.client.set_client_registration_callback(self._client_registration_callback)
         self.client.activate()
-        self.client_activated = True
 
     def _client_registration_callback(self, name: str, register: bool) -> None:
         if register and name == "JackTrip":
@@ -39,9 +37,3 @@ class ClientPortConnector:
     async def wait_and_run(self) -> None:
         await self.ready.wait()
         await self._connect()
-        self.deactivate()
-
-    def deactivate(self) -> None:
-        if self.client_activated:
-            self.client.deactivate()
-            self.client_activated = False

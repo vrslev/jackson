@@ -94,7 +94,6 @@ class ClientManager(BaseManager):
     jacktrip: StreamingProcess | None = field(default=None, init=False)
     jack_server_: jack_server.Server | None = field(default=None, init=False)
     jack_client: jack.Client | None = field(default=None, init=False)
-    port_connector: ClientPortConnector | None = field(default=None, init=False)
 
     async def start(self, tg: TaskGroup) -> None:
         api = APIClient(client=self.api_http_client)
@@ -110,10 +109,11 @@ class ClientManager(BaseManager):
         map = self.get_connection_map(
             inputs_limit=response.inputs, outputs_limit=response.outputs
         )
-        self.port_connector = ClientPortConnector(
+
+        port_connector = ClientPortConnector(
             client=self.jack_client, connection_map=map, connect_on_server=api.connect
         )
-        tg.start_soon(self.port_connector.wait_and_run)
+        tg.start_soon(port_connector.wait_and_run)
 
         self.jacktrip = self.get_jacktrip(map)
         tg.start_soon(self.jacktrip.start)
@@ -121,7 +121,6 @@ class ClientManager(BaseManager):
     async def stop(self) -> None:
         await cleanup_stack(
             self.api_http_client,
-            self.port_connector,
             self.jack_client,
             self.jacktrip,
             self.jack_server_,
@@ -146,6 +145,7 @@ async def _(v: uvicorn.Server):
 @cleanup.register(jack.Client)
 async def _(v: jack.Client):
     block_jack_client_streams()
+    v.deactivate()
 
 
 @cleanup.register(jack_server.Server)
@@ -157,11 +157,6 @@ async def _(v: jack_server.Server):
 @cleanup.register(httpx.AsyncClient)
 async def _(v: httpx.AsyncClient):
     await v.aclose()
-
-
-@cleanup.register(ClientPortConnector)
-async def _(v: ClientPortConnector):
-    v.deactivate()
 
 
 @cleanup.register(StreamingProcess)
