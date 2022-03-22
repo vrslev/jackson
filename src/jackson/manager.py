@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from functools import singledispatch
-from typing import Any, Callable, Coroutine, Protocol
+from typing import Any, Callable, Protocol
 
 import anyio
 import httpx
@@ -36,14 +36,11 @@ class BaseManager(Protocol):
                     await self.stop()
 
 
-GetJackClient = Callable[[], Coroutine[None, None, jack.Client]]
-
-
 @dataclass
 class ServerManager(BaseManager):
     jack_server: jack_server.Server
     get_jacktrip: Callable[[], StreamingProcess]
-    get_jack_client: GetJackClient
+    get_jack_client: Callable[[], jack.Client]
     jacktrip: StreamingProcess | None = field(default=None, init=False)
     jack_client: jack.Client | None = field(default=None, init=False)
     api: uvicorn.Server | None = field(default=None, init=False)
@@ -54,7 +51,7 @@ class ServerManager(BaseManager):
         self.jacktrip = self.get_jacktrip()
         tg.start_soon(self.jacktrip.start)
 
-        self.jack_client = await self.get_jack_client()
+        self.jack_client = self.get_jack_client()
         self.api = get_api_server(
             port_connector=ServerPortConnector(self.jack_client),
             cancel_scope=tg.cancel_scope,
@@ -84,7 +81,7 @@ class GetClientJacktrip(Protocol):
 class ClientManager(BaseManager):
     api_http_client: httpx.AsyncClient
     get_jack_server: GetJackServer
-    get_jack_client: GetJackClient
+    get_jack_client: Callable[[], jack.Client]
     get_connection_map: GetConnectionMap
     get_jacktrip: GetClientJacktrip
     jack_server_: jack_server.Server | None = field(default=None, init=False)
@@ -100,7 +97,7 @@ class ClientManager(BaseManager):
         )
         start_jack_server(self.jack_server_)
 
-        self.jack_client = await self.get_jack_client()
+        self.jack_client = self.get_jack_client()
         map = self.get_connection_map(
             inputs_limit=response.inputs, outputs_limit=response.outputs
         )

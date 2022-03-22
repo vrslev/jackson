@@ -11,7 +11,7 @@ from jack_server._server import SetByJack_
 from typer.params import Option
 
 from jackson import jacktrip
-from jackson.jack_client import init_jack_client
+from jackson.jack_client import get_jack_client
 from jackson.logging import configure_loggers
 from jackson.manager import ClientManager, ServerManager
 from jackson.port_connection import (
@@ -43,8 +43,8 @@ class Server:
             port=self.settings.server.jacktrip_port,
         )
 
-    async def get_jack_client(self) -> jack.Client:
-        return await init_jack_client(self.settings.audio.jack_server_name)
+    def get_jack_client(self) -> jack.Client:
+        return get_jack_client(self.settings.audio.jack_server_name)
 
     def __post_init__(self) -> None:
         self.manager = ServerManager(
@@ -92,8 +92,8 @@ class Client:
             period=period,
         )
 
-    async def get_jack_client(self) -> jack.Client:
-        return await init_jack_client(self.settings.audio.jack_server_name)
+    def get_jack_client(self) -> jack.Client:
+        return get_jack_client(self.settings.audio.jack_server_name)
 
     def __post_init__(self) -> None:
         self.manager = ClientManager(
