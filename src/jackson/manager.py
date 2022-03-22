@@ -1,8 +1,9 @@
 from dataclasses import dataclass, field
-from functools import partial
-from typing import Callable, Coroutine, Protocol
+from functools import partial, singledispatch
+from typing import Any, Callable, Coroutine, Protocol
 
 import anyio
+import httpx
 import jack
 import jack_server
 from anyio.abc import TaskGroup
@@ -55,12 +56,7 @@ class ServerManager(BaseManager):
         tg.start_soon(self.api.start)
 
     async def stop(self) -> None:
-        if self.api:
-            await self.api.stop()
-        if self.jack_client:
-            block_jack_client_streams()
-        block_jack_server_streams()
-        self.jack_server.stop()
+        await cleanup_stack(self.api, self.jack_client, self.jack_server)
 
 
 class GetJackServer(Protocol):
@@ -80,7 +76,7 @@ class StartClientJacktrip(Protocol):
 
 @dataclass
 class ClientManager(BaseManager):
-    api: APIClient
+    api_http_client: httpx.AsyncClient
     get_jack_server: GetJackServer
     get_jack_client: Callable[[], jack.Client]
     get_connection_map: GetConnectionMap
@@ -90,7 +86,8 @@ class ClientManager(BaseManager):
     port_connector: ClientPortConnector | None = field(default=None, init=False)
 
     async def start(self, tg: TaskGroup) -> None:
-        response = await self.api.init()
+        api = APIClient(client=self.api_http_client)
+        response = await api.init()
 
         self.jack_server_ = self.get_jack_server(
             rate=response.rate, period=response.buffer_size
@@ -104,20 +101,57 @@ class ClientManager(BaseManager):
                 inputs_limit=response.inputs,
                 outputs_limit=response.outputs,
             ),
-            connect_on_server=self.api.connect,
+            connect_on_server=api.connect,
         )
         tg.start_soon(self.port_connector.wait_and_run)
 
         tg.start_soon(partial(self.start_jacktrip, self.port_connector.connection_map))
 
     async def stop(self) -> None:
-        await self.api.client.aclose()
+        await cleanup_stack(
+            self.api_http_client,
+            self.port_connector,
+            self.jack_client,
+            self.jack_server_,
+        )
 
-        if self.port_connector:
-            self.port_connector.deactivate()
 
-        if self.jack_client:
-            block_jack_client_streams()
+@singledispatch
+async def cleanup(v: Any) -> None:
+    ...
 
-        if self.jack_server_:
-            self.jack_server_.stop()
+
+@cleanup.register(APIServer)
+async def _(v: APIServer):
+    await v.stop()
+
+
+@cleanup.register(jack.Client)
+async def _(v: jack.Client):
+    block_jack_client_streams()
+
+
+@cleanup.register(jack_server.Server)
+async def _(v: jack_server.Server):
+    block_jack_server_streams()
+    v.stop()
+
+
+@cleanup.register(httpx.AsyncClient)
+async def _(v: httpx.AsyncClient):
+    await v.aclose()
+
+
+@cleanup.register(ClientPortConnector)
+async def _(v: ClientPortConnector):
+    v.deactivate()
+
+
+@cleanup.register(type(None))
+async def _(v: None):
+    pass
+
+
+async def cleanup_stack(*stack: Any) -> None:
+    for v in stack:
+        await cleanup(v)

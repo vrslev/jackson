@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from functools import partial
 
 import anyio
+import httpx
 import jack_server
 import typer
 import yaml
@@ -9,7 +10,6 @@ from jack_server._server import SetByJack_
 from typer.params import Option
 
 from jackson import jacktrip
-from jackson.api.client import APIClient
 from jackson.jack_client import init_jack_client
 from jackson.logging import configure_loggers
 from jackson.manager import ClientManager, GetJackServer, ServerManager
@@ -74,7 +74,7 @@ class Client:
     def __init__(self, settings: ClientSettings) -> None:
         self.settings = settings
 
-        api = APIClient(base_url=settings.server.api_url)
+        api_http_client = httpx.AsyncClient(base_url=settings.server.api_url)
 
         get_jack_server: GetJackServer = lambda rate, period: jack_server.Server(
             name=settings.audio.jack_server_name,
@@ -87,7 +87,7 @@ class Client:
         get_jack_client = partial(init_jack_client, settings.audio.jack_server_name)
 
         self.manager = ClientManager(
-            api=api,
+            api_http_client=api_http_client,
             get_jack_server=get_jack_server,
             get_jack_client=get_jack_client,
             get_connection_map=self.get_connection_map,

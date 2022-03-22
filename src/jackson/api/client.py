@@ -88,12 +88,9 @@ def _get_connections(map: ConnectionMap) -> Iterable[dict[str, Any]]:
         ).dict()
 
 
-@dataclass(init=False)
+@dataclass
 class APIClient:
     client: httpx.AsyncClient
-
-    def __init__(self, base_url: str) -> None:
-        self.client = httpx.AsyncClient(base_url=base_url)
 
     async def init(self) -> InitResponse:
         response = await self.client.get("/init")  # type: ignore
