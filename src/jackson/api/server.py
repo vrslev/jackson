@@ -7,6 +7,7 @@ import fastapi
 import uvicorn
 from fastapi import Body, Depends, FastAPI, HTTPException, status
 from fastapi.exception_handlers import http_exception_handler
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from jackson.connector.server import (
@@ -22,8 +23,8 @@ from jackson.connector.server import (
 from jackson.logging import get_logger
 
 app = FastAPI()
-uvicorn_err_log = get_logger("uvicorn.error", "HttpServer")
-uvicorn_access_log = get_logger("uvicorn.access", "HttpServer")
+get_logger("uvicorn.error", "HttpServer")
+get_logger("uvicorn.access", "HttpServer")
 
 
 def get_port_connector() -> ServerPortConnector:
@@ -48,7 +49,7 @@ async def connect(
 @app.exception_handler(PortConnectorError)  # type: ignore
 async def port_connector_error_handler(
     request: fastapi.Request, exc: PortConnectorError
-):
+) -> JSONResponse:
     status_map: dict[type[BaseModel], int] = {
         PortNotFound: 404,
         PlaybackPortAlreadyHasConnections: status.HTTP_409_CONFLICT,
@@ -72,11 +73,7 @@ def _get_uvicorn_server() -> uvicorn.Server:
 def _install_signal_handlers(server: uvicorn.Server, scope: anyio.CancelScope) -> None:
     def handler(sig: int, frame: FrameType | None) -> None:
         scope.cancel()
-
-        server.handle_exit(
-            sig=cast(signal.Signals, sig),
-            frame=frame,  # type: ignore
-        )
+        server.handle_exit(sig=cast(signal.Signals, sig), frame=frame)  # type: ignore
 
     for sig in (signal.SIGINT, signal.SIGTERM):
         signal.signal(sig, handler)

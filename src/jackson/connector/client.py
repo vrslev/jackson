@@ -7,14 +7,12 @@ import jack
 from jackson.jack_client import connect_ports_retry
 from jackson.port_connection import ConnectionMap
 
-ConnectOnServer = Callable[[ConnectionMap], Coroutine[None, None, None]]
-
 
 @dataclass
 class ClientPortConnector:
     client: jack.Client
     connection_map: ConnectionMap
-    connect_on_server: ConnectOnServer
+    connect_on_server: Callable[[ConnectionMap], Coroutine[None, None, None]]
     ready: anyio.Event = field(default_factory=anyio.Event, init=False)
 
     def __post_init__(self) -> None:
