@@ -126,11 +126,8 @@ def server(config: typer.FileText = Option("server.yaml")) -> None:
 
 
 @app.command()
-def client(
-    config: typer.FileText = Option("client.yaml"),
-    no_jack: bool = Option(False, "--no-jack"),
-) -> None:
+def client(config: typer.FileText = Option("client.yaml")) -> None:
     configure_loggers("client")
-    settings = ClientSettings(**yaml.safe_load(config), start_jack=not no_jack)
+    settings = ClientSettings(**yaml.safe_load(config))
     client = Client(settings=settings)
     anyio.run(client.run, backend_options={"use_uvloop": True})

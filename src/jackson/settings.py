@@ -1,8 +1,7 @@
 from ipaddress import IPv4Address
-from typing import Any
 
 import jack_server
-from pydantic import AnyHttpUrl, BaseModel, root_validator
+from pydantic import AnyHttpUrl, BaseModel
 
 
 class _BaseAudio(BaseModel):
@@ -54,10 +53,3 @@ class ClientSettings(BaseModel):
     audio: _ClientAudio
     server: _ClientServer
     ports: ClientPorts
-    start_jack: bool
-
-    @root_validator
-    def validate_all(cls, values: dict[str, Any]):
-        if not values["start_jack"]:
-            values["audio"].jack_server_name = _DEFAULT_SERVER_JACK_SERVER_NAME
-        return values
