@@ -64,7 +64,13 @@ def _validate_bridge_limit(
 
 
 def _build_connection(
-    client_name: str, client_should: ClientShould, local: int, remote: int, bridge: int
+    *,
+    client_name: str,
+    local_bridge_client_name: str = jacktrip.JACK_CLIENT_NAME,
+    client_should: ClientShould,
+    local: int,
+    remote: int,
+    bridge: int,
 ) -> PortConnection:
     """Build port connection based on client role, name and port indexes. Assumes that JackTrip is used."""
     if client_should == "send":
@@ -78,7 +84,7 @@ def _build_connection(
         client_should=client_should,
         source=PortName(client="system", type="capture", idx=source_idx),
         local_bridge=PortName(
-            client=jacktrip.JACK_CLIENT_NAME, type=local_bridge_type, idx=bridge
+            client=local_bridge_client_name, type=local_bridge_type, idx=bridge
         ),
         remote_bridge=PortName(client=client_name, type=remote_bridge_type, idx=bridge),
         destination=PortName(client="system", type="playback", idx=destination_idx),
