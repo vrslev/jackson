@@ -24,13 +24,14 @@ class ClientPortConnector:
             self.ready.set()
 
     async def _connect_locally(self) -> None:
-        for connection in self.connection_map.values():
-            src, dest = connection.get_local_connection()
+        for conn in self.connection_map.values():
+            src, dest = conn.get_local_connection()
             await retry_connect_ports(self.client, str(src), str(dest))
 
     async def _connect(self) -> None:
-        await self.connect_on_server(self.connection_map)
-        await self._connect_locally()
+        async with anyio.create_task_group() as tg:
+            tg.start_soon(lambda: self.connect_on_server(self.connection_map))
+            tg.start_soon(self._connect_locally)
 
     async def wait_and_run(self) -> None:
         await self.ready.wait()
