@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from functools import partial
-from typing import Any, Callable, Coroutine, Iterable
+from typing import Any, Callable, Coroutine, Iterable, TypeVar
 
 import anyio
 import httpx
@@ -31,6 +31,7 @@ _known_errors: tuple[type[BaseModel], ...] = (
     PortNotFound,
     FailedToConnectPorts,
 )
+_T = TypeVar("_T")
 
 
 def _is_structured_exception(data: dict[str, Any]) -> bool:
@@ -58,10 +59,10 @@ def _handle_exceptions(data: dict[str, Any]) -> None:
     raise ServerError(message=name, data=model(**data["detail"]["data"]))
 
 
-def _handle_response(response: httpx.Response) -> Any:
+def _handle_response(response: httpx.Response, model: type[_T]) -> _T:
     data = response.json()
     _handle_exceptions(data)
-    return data
+    return model(**data)
 
 
 def _get_connections(map: ConnectionMap) -> Iterable[dict[str, Any]]:
@@ -93,11 +94,10 @@ class APIClient:
     client: httpx.AsyncClient
 
     async def init(self) -> InitResponse:
-        response = await self.client.get("/init")  # type: ignore
-        return InitResponse(**_handle_response(response))
+        return _handle_response(await self.client.get("/init"), InitResponse)  # type: ignore
 
     async def connect(self, connection_map: ConnectionMap) -> None:
         payload = list(_get_connections(connection_map))
         func = partial(self.client.patch, "/connect", json=payload)  # type: ignore
         response = await _retry_connect(func)
-        ConnectResponse(**_handle_response(response))
+        _handle_response(response, ConnectResponse)
