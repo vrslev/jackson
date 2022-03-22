@@ -10,27 +10,19 @@ class _BaseAudio(BaseModel):
     jack_server_name: str
 
 
-_DEFAULT_SERVER_JACK_SERVER_NAME = "JacksonServer"
-
-
 class _ServerAudio(_BaseAudio):
-    jack_server_name: str = _DEFAULT_SERVER_JACK_SERVER_NAME
+    jack_server_name: str = "JacksonServer"
     sample_rate: SampleRate
     buffer_size: int  # In samples
+
+
+class _ClientAudio(_BaseAudio):
+    jack_server_name: str = "JacksonClient"
 
 
 class _BaseServer(BaseModel):
     jacktrip_port: int
     api_port: int
-
-
-class ServerSettings(BaseModel):
-    audio: _ServerAudio
-    server: _BaseServer
-
-
-class _ClientAudio(_BaseAudio):
-    jack_server_name: str = "JacksonClient"
 
 
 class _ClientServer(_BaseServer):
@@ -46,6 +38,11 @@ class _ClientServer(_BaseServer):
 class ClientPorts(BaseModel):
     receive: dict[int, int]
     send: dict[int, int]
+
+
+class ServerSettings(BaseModel):
+    audio: _ServerAudio
+    server: _BaseServer
 
 
 class ClientSettings(BaseModel):
