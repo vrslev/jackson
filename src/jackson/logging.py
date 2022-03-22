@@ -42,14 +42,11 @@ def _get_file_handler(mode: _Mode, name: str) -> RotatingFileHandler:
     return handler
 
 
-def _add_handlers(logger: logging.Logger, mode: _Mode, prog_name: str) -> None:
-    logger.addHandler(_get_console_handler(prog_name))
-    logger.addHandler(_get_file_handler(mode=mode, name=logger.name))
-
-
 def configure_loggers(mode: _Mode) -> None:
     for name, prog_name in _loggers_name_to_progname.items():
-        _add_handlers(logger=logging.getLogger(name), mode=mode, prog_name=prog_name)
+        logger = logging.getLogger(name)
+        logger.addHandler(_get_console_handler(prog_name))
+        logger.addHandler(_get_file_handler(mode=mode, name=logger.name))
 
 
 def get_logger(name: str, prog_name: str) -> logging.Logger:
