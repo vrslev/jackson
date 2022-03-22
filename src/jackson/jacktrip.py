@@ -7,7 +7,6 @@ from ipaddress import IPv4Address
 from typing import AsyncGenerator, Callable
 
 import anyio
-import typer
 from anyio.abc import ByteReceiveStream, Process
 from anyio.streams.text import TextReceiveStream
 
@@ -71,9 +70,10 @@ def _log_starting(cmd: list[str]) -> None:
 
 
 @dataclass
-class _Program:
+class StreamingProcess:
     cmd: list[str]
     env: dict[str, str]
+    process: Process | None = None
 
     @contextlib.asynccontextmanager
     async def _start(self) -> AsyncGenerator[Process, None]:
@@ -88,27 +88,26 @@ class _Program:
                 tg.start_soon(lambda: _restream_stream(process.stdout, log.error))
                 yield process
 
-    async def run_forever(self) -> None:
-        async with self._start() as process:
+    async def start(self) -> None:
+        async with self._start() as self.process:
             try:
-                await process.wait()
-
+                await self.process.wait()
             except anyio.get_cancelled_exc_class():
                 with anyio.CancelScope(shield=True):
-                    await _close_process(process)
+                    await _close_process(self.process)
+            else:
+                code = await _close_process(self.process)
+                raise RuntimeError(f"JackTrip exited with code {code}")
 
-            else:  # Exited by itself
-                code = await _close_process(process)
-                if code == 0:
-                    await self.run_forever()
-                else:
-                    raise typer.Exit(code or 0)
+    async def stop(self) -> None:
+        assert self.process
+        await _close_process(self.process)
 
 
-async def _run_jacktrip(cmd: list[str], jack_server_name: str) -> None:
+def _get_jacktrip(cmd: list[str], jack_server_name: str) -> StreamingProcess:
     cmd.insert(0, "jacktrip")
     env = {"JACK_DEFAULT_SERVER": jack_server_name}
-    await _Program(cmd=cmd, env=env).run_forever()
+    return StreamingProcess(cmd=cmd, env=env)
 
 
 def _build_server_cmd(*, port: int) -> list[str]:
@@ -121,9 +120,9 @@ def _build_server_cmd(*, port: int) -> list[str]:
     ]
 
 
-async def run_server(*, jack_server_name: str, port: int) -> None:
+def get_server(*, jack_server_name: str, port: int) -> StreamingProcess:
     cmd = _build_server_cmd(port=port)
-    await _run_jacktrip(cmd, jack_server_name)
+    return _get_jacktrip(cmd, jack_server_name)
 
 
 def _build_client_cmd(
@@ -153,7 +152,7 @@ def _build_client_cmd(
     ]
 
 
-async def run_client(
+def get_client(
     *,
     jack_server_name: str,
     server_host: IPv4Address,
@@ -161,7 +160,7 @@ async def run_client(
     receive_channels: int,
     send_channels: int,
     remote_name: str,
-) -> None:
+) -> StreamingProcess:
     cmd = _build_client_cmd(
         server_host=server_host,
         server_port=server_port,
@@ -169,4 +168,4 @@ async def run_client(
         send_channels=send_channels,
         remote_name=remote_name,
     )
-    await _run_jacktrip(cmd, jack_server_name)
+    return _get_jacktrip(cmd, jack_server_name)

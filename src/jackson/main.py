@@ -33,14 +33,14 @@ class Server:
             rate=settings.audio.sample_rate,
             period=settings.audio.buffer_size,
         )
-        start_jacktrip = lambda: jacktrip.run_server(
+        get_jacktrip = lambda: jacktrip.get_server(
             jack_server_name=settings.audio.jack_server_name,
             port=settings.server.jacktrip_port,
         )
         get_jack_client = partial(init_jack_client, settings.audio.jack_server_name)
         self.manager = ServerManager(
             jack_server=server,
-            start_jacktrip=start_jacktrip,
+            get_jacktrip=get_jacktrip,
             get_jack_client=get_jack_client,
         )
 
@@ -60,9 +60,9 @@ class Client:
             outputs_limit=outputs_limit,
         )
 
-    async def start_jacktrip(self, map: ConnectionMap) -> None:
+    def get_jacktrip(self, map: ConnectionMap) -> jacktrip.StreamingProcess:
         receive_count, send_count = count_receive_send_channels(map)
-        return await jacktrip.run_client(
+        return jacktrip.get_client(
             jack_server_name=self.settings.audio.jack_server_name,
             server_host=self.settings.server.host,
             server_port=self.settings.server.jacktrip_port,
@@ -91,7 +91,7 @@ class Client:
             get_jack_server=get_jack_server,
             get_jack_client=get_jack_client,
             get_connection_map=self.get_connection_map,
-            start_jacktrip=self.start_jacktrip,
+            get_jacktrip=self.get_jacktrip,
         )
 
 

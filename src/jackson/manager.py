@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
-from functools import partial, singledispatch
-from typing import Any, Callable, Coroutine, Protocol
+from functools import singledispatch
+from typing import Any, Callable, Protocol
 
 import anyio
 import httpx
@@ -17,6 +17,7 @@ from jackson.jack_server import (
     block_jack_server_streams,
     set_jack_server_stream_handlers,
 )
+from jackson.jacktrip import StreamingProcess
 from jackson.port_connection import ConnectionMap
 
 
@@ -40,15 +41,17 @@ class BaseManager(Protocol):
 @dataclass
 class ServerManager(BaseManager):
     jack_server: jack_server.Server
-    start_jacktrip: Callable[[], Coroutine[None, None, None]]
+    get_jacktrip: Callable[[], StreamingProcess]
     get_jack_client: Callable[[], jack.Client]
+    jacktrip: StreamingProcess | None = field(default=None, init=False)
     jack_client: jack.Client | None = field(default=None, init=False)
     api: APIServer | None = field(default=None, init=False)
 
     async def start(self, tg: TaskGroup) -> None:
         set_jack_server_stream_handlers()
         self.jack_server.start()
-        tg.start_soon(self.start_jacktrip)
+        self.jacktrip = self.get_jacktrip()
+        tg.start_soon(self.jacktrip.start)
         self.jack_client = self.get_jack_client()
 
         self.api = APIServer(port_connector=ServerPortConnector(self.jack_client))
@@ -56,7 +59,7 @@ class ServerManager(BaseManager):
         tg.start_soon(self.api.start)
 
     async def stop(self) -> None:
-        await cleanup_stack(self.api, self.jack_client, self.jack_server)
+        await cleanup_stack(self.api, self.jacktrip, self.jack_client, self.jack_server)
 
 
 class GetJackServer(Protocol):
@@ -69,8 +72,8 @@ class GetConnectionMap(Protocol):
         ...
 
 
-class StartClientJacktrip(Protocol):
-    async def __call__(self, map: ConnectionMap) -> None:
+class GetClientJacktrip(Protocol):
+    def __call__(self, map: ConnectionMap) -> StreamingProcess:
         ...
 
 
@@ -80,7 +83,8 @@ class ClientManager(BaseManager):
     get_jack_server: GetJackServer
     get_jack_client: Callable[[], jack.Client]
     get_connection_map: GetConnectionMap
-    start_jacktrip: StartClientJacktrip
+    get_jacktrip: GetClientJacktrip
+    jacktrip: StreamingProcess | None = field(default=None, init=False)
     jack_server_: jack_server.Server | None = field(default=None, init=False)
     jack_client: jack.Client | None = field(default=None, init=False)
     port_connector: ClientPortConnector | None = field(default=None, init=False)
@@ -105,12 +109,14 @@ class ClientManager(BaseManager):
         )
         tg.start_soon(self.port_connector.wait_and_run)
 
-        tg.start_soon(partial(self.start_jacktrip, self.port_connector.connection_map))
+        self.jacktrip = self.get_jacktrip(self.port_connector.connection_map)
+        tg.start_soon(self.jacktrip.start)
 
     async def stop(self) -> None:
         await cleanup_stack(
             self.api_http_client,
             self.port_connector,
+            self.jacktrip,
             self.jack_client,
             self.jack_server_,
         )
@@ -119,6 +125,11 @@ class ClientManager(BaseManager):
 @singledispatch
 async def cleanup(v: Any) -> None:
     ...
+
+
+@cleanup.register(type(None))
+async def _(v: None):
+    pass
 
 
 @cleanup.register(APIServer)
@@ -147,9 +158,9 @@ async def _(v: ClientPortConnector):
     v.deactivate()
 
 
-@cleanup.register(type(None))
-async def _(v: None):
-    pass
+@cleanup.register(StreamingProcess)
+async def _(v: StreamingProcess):
+    await v.stop()
 
 
 async def cleanup_stack(*stack: Any) -> None:
