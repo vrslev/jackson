@@ -7,9 +7,6 @@ import rich.traceback
 from rich.logging import RichHandler
 from rich.text import Text
 
-rich.traceback.install(show_locals=True)
-logging.basicConfig(level=logging.INFO, handlers=[], datefmt="%m/%d/%Y %I:%M:%S %p")
-
 _loggers_name_to_progname: dict[str, str] = {}
 _Mode = Literal["server", "client"]
 
@@ -42,11 +39,16 @@ def _get_file_handler(mode: _Mode, name: str) -> RotatingFileHandler:
     return handler
 
 
-def configure_loggers(mode: _Mode) -> None:
+def _configure_logger(logger: logging.Logger, prog_name: str, mode: _Mode) -> None:
+    logger.addHandler(_get_console_handler(prog_name))
+    logger.addHandler(_get_file_handler(mode=mode, name=logger.name))
+
+
+def configure_logging(mode: _Mode) -> None:
     for name, prog_name in _loggers_name_to_progname.items():
-        logger = logging.getLogger(name)
-        logger.addHandler(_get_console_handler(prog_name))
-        logger.addHandler(_get_file_handler(mode=mode, name=logger.name))
+        _configure_logger(logging.getLogger(name), prog_name=prog_name, mode=mode)
+    rich.traceback.install(show_locals=True)
+    logging.basicConfig(level=logging.INFO, handlers=[], datefmt="%m/%d/%Y %I:%M:%S %p")
 
 
 def get_logger(name: str, prog_name: str) -> logging.Logger:

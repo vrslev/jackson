@@ -8,7 +8,7 @@ from typer.params import Option
 
 from jackson import jacktrip
 from jackson.jack_client import get_jack_client
-from jackson.logging import configure_loggers
+from jackson.logging import configure_logging
 from jackson.manager import Client, GetJackServer, Server
 from jackson.port_connection import ConnectionMap, build_connection_map
 from jackson.settings import ClientSettings, ServerSettings
@@ -75,13 +75,13 @@ app = typer.Typer()
 
 @app.command()
 def server(config: typer.FileText = Option("server.yaml")) -> None:
-    configure_loggers("server")
+    configure_logging("server")
     server = get_server_manager(ServerSettings(**yaml.safe_load(config)))
     anyio.run(server.run, backend_options={"use_uvloop": True})
 
 
 @app.command()
 def client(config: typer.FileText = Option("client.yaml")) -> None:
-    configure_loggers("client")
+    configure_logging("client")
     client = get_client_manager(ClientSettings(**yaml.safe_load(config)))
     anyio.run(client.run, backend_options={"use_uvloop": True})
