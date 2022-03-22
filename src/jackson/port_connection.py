@@ -8,6 +8,8 @@ PortType = Literal["send", "receive", "capture", "playback"]
 
 
 class PortName(BaseModel, frozen=True):
+    """Parsed JACK port name."""
+
     client: str
     type: PortType
     idx: int
@@ -17,13 +19,12 @@ class PortName(BaseModel, frozen=True):
 
     @classmethod
     def parse(cls, port_name: str):
-        *_, type_and_idx = port_name.split(":")
+        """Parse jack.Port().name in PortName."""
 
+        *_, type_and_idx = port_name.split(":")
         type, idx, *extra = type_and_idx.split("_")
         assert not extra
-
         client = port_name.replace(f":{type_and_idx}", "")
-
         return cls(client=client, type=cast(PortType, type), idx=int(idx))
 
 
@@ -31,6 +32,8 @@ ClientShould = Literal["send", "receive"]
 
 
 class PortConnection(BaseModel, frozen=True):
+    """Connection of local and remote ports through bridge (JackTrip)."""
+
     client_should: ClientShould
     source: PortName
     local_bridge: PortName
@@ -38,12 +41,14 @@ class PortConnection(BaseModel, frozen=True):
     destination: PortName
 
     def get_local_connection(self) -> tuple[PortName, PortName]:
+        """Get local source and destination ports."""
         if self.client_should == "send":
             return self.source, self.local_bridge
         else:
             return self.local_bridge, self.destination
 
     def get_remote_connection(self) -> tuple[PortName, PortName]:
+        """Get remote source and destination ports."""
         if self.client_should == "send":
             return self.remote_bridge, self.destination
         else:
@@ -53,6 +58,7 @@ class PortConnection(BaseModel, frozen=True):
 def _validate_bridge_limit(
     limit: int, bridge_idx: int, client_should: ClientShould
 ) -> None:
+    """Validate that receive or send count don't exceed given limit."""
     if bridge_idx > limit:
         raise RuntimeError(f"Limit of available {client_should} ports exceeded.")
 
@@ -60,6 +66,7 @@ def _validate_bridge_limit(
 def _build_connection(
     client_name: str, client_should: ClientShould, local: int, remote: int, bridge: int
 ) -> PortConnection:
+    """Build port connection based on client role, name and port indexes. Assumes that JackTrip is used."""
     if client_should == "send":
         source_idx, destination_idx = local, remote
         local_bridge_type, remote_bridge_type = "send", "receive"
@@ -81,6 +88,7 @@ def _build_connection(
 def _build_specific_connections(
     client_name: str, client_should: ClientShould, limit: int, ports: dict[int, int]
 ) -> Iterable[PortConnection]:
+    """Build port connection for `client_should`."""
     for idx, (local, remote) in enumerate(ports.items()):
         bridge = idx + 1
         _validate_bridge_limit(limit, bridge_idx=bridge, client_should=client_should)
@@ -104,7 +112,7 @@ def build_connection_map(
     inputs_limit: int,
     outputs_limit: int,
 ) -> ConnectionMap:
-    """Build connection map between server and client. Is it being built on client side."""
+    """Build connection map based on port indexes. Takes in account limits and client name."""
 
     def gen():
         yield from _build_specific_connections(
@@ -124,7 +132,8 @@ def build_connection_map(
 
 
 def count_receive_send_channels(connection_map: ConnectionMap) -> tuple[int, int]:
-    # Required for JackTrip
+    """Count number of used receive and send ports for bridge limit allocation (JackTrip)."""
+
     receive, send = 0, 0
 
     for connection in connection_map.values():
