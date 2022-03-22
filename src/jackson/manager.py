@@ -104,17 +104,15 @@ class ClientManager(BaseManager):
         self.jack_server_.start()
 
         self.jack_client = await self.get_jack_client()
+        map = self.get_connection_map(
+            inputs_limit=response.inputs, outputs_limit=response.outputs
+        )
         self.port_connector = ClientPortConnector(
-            client=self.jack_client,
-            connection_map=self.get_connection_map(
-                inputs_limit=response.inputs,
-                outputs_limit=response.outputs,
-            ),
-            connect_on_server=api.connect,
+            client=self.jack_client, connection_map=map, connect_on_server=api.connect
         )
         tg.start_soon(self.port_connector.wait_and_run)
 
-        self.jacktrip = self.get_jacktrip(self.port_connector.connection_map)
+        self.jacktrip = self.get_jacktrip(map)
         tg.start_soon(self.jacktrip.start)
 
     async def stop(self) -> None:

@@ -1,18 +1,19 @@
 from dataclasses import dataclass
-from functools import partial
 
 import anyio
 import httpx
+import jack
 import jack_server
 import typer
 import yaml
+from attr import field
 from jack_server._server import SetByJack_
 from typer.params import Option
 
 from jackson import jacktrip
 from jackson.jack_client import init_jack_client
 from jackson.logging import configure_loggers
-from jackson.manager import ClientManager, GetJackServer, ServerManager
+from jackson.manager import ClientManager, ServerManager
 from jackson.port_connection import (
     ConnectionMap,
     build_connection_map,
@@ -21,33 +22,42 @@ from jackson.port_connection import (
 from jackson.settings import ClientSettings, ServerSettings
 
 
-@dataclass(init=False)
+@dataclass
 class Server:
-    manager: ServerManager
+    settings: ServerSettings
+    manager: ServerManager = field(init=False)
 
-    def __init__(self, settings: ServerSettings) -> None:
-        server = jack_server.Server(
-            name=settings.audio.jack_server_name,
-            driver=settings.audio.driver,
-            device=settings.audio.device or SetByJack_,
-            rate=settings.audio.sample_rate,
-            period=settings.audio.buffer_size,
+    def get_jack_server(self) -> jack_server.Server:
+        audio = self.settings.audio
+        return jack_server.Server(
+            name=audio.jack_server_name,
+            driver=audio.driver,
+            device=audio.device or SetByJack_,
+            rate=audio.sample_rate,
+            period=audio.buffer_size,
         )
-        get_jacktrip = lambda: jacktrip.get_server(
-            jack_server_name=settings.audio.jack_server_name,
-            port=settings.server.jacktrip_port,
+
+    def get_jacktrip(self) -> jacktrip.StreamingProcess:
+        return jacktrip.get_server(
+            jack_server_name=self.settings.audio.jack_server_name,
+            port=self.settings.server.jacktrip_port,
         )
-        get_jack_client = partial(init_jack_client, settings.audio.jack_server_name)
+
+    async def get_jack_client(self) -> jack.Client:
+        return await init_jack_client(self.settings.audio.jack_server_name)
+
+    def __post_init__(self) -> None:
         self.manager = ServerManager(
-            jack_server=server,
-            get_jacktrip=get_jacktrip,
-            get_jack_client=get_jack_client,
+            jack_server=self.get_jack_server(),
+            get_jacktrip=self.get_jacktrip,
+            get_jack_client=self.get_jack_client,
         )
 
 
-@dataclass(init=False)
+@dataclass
 class Client:
-    manager: ClientManager
+    settings: ClientSettings
+    manager: ClientManager = field(init=False)
 
     def get_connection_map(
         self, inputs_limit: int, outputs_limit: int
@@ -71,25 +81,25 @@ class Client:
             remote_name=self.settings.name,
         )
 
-    def __init__(self, settings: ClientSettings) -> None:
-        self.settings = settings
-
-        api_http_client = httpx.AsyncClient(base_url=settings.server.api_url)
-
-        get_jack_server: GetJackServer = lambda rate, period: jack_server.Server(
-            name=settings.audio.jack_server_name,
-            driver=settings.audio.driver,
-            device=settings.audio.device or SetByJack_,
+    def get_jack_server(
+        self, rate: jack_server.SampleRate, period: int
+    ) -> jack_server.Server:
+        return jack_server.Server(
+            name=self.settings.audio.jack_server_name,
+            driver=self.settings.audio.driver,
+            device=self.settings.audio.device or SetByJack_,
             rate=rate,
             period=period,
         )
 
-        get_jack_client = partial(init_jack_client, settings.audio.jack_server_name)
+    async def get_jack_client(self) -> jack.Client:
+        return await init_jack_client(self.settings.audio.jack_server_name)
 
+    def __post_init__(self) -> None:
         self.manager = ClientManager(
-            api_http_client=api_http_client,
-            get_jack_server=get_jack_server,
-            get_jack_client=get_jack_client,
+            api_http_client=httpx.AsyncClient(base_url=self.settings.server.api_url),
+            get_jack_server=self.get_jack_server,
+            get_jack_client=self.get_jack_client,
             get_connection_map=self.get_connection_map,
             get_jacktrip=self.get_jacktrip,
         )
