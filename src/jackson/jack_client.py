@@ -1,5 +1,3 @@
-import time
-
 import anyio
 import jack
 import typer
@@ -33,23 +31,23 @@ def _set_stream_handlers() -> None:
     jack.set_error_function(log.error)
 
 
-def _init_or_sleep(name: str, *, server_name: str) -> jack.Client | None:
+async def _init_or_sleep(name: str, *, server_name: str) -> jack.Client | None:
     try:
         log.info(f"[yellow]Connecting to {server_name}...[/yellow]")
         client = jack.Client(name=name, no_start_server=True, servername=server_name)
         log.info(f"[green]Connected to {server_name}![/green]")
     except jack.JackOpenError:
-        time.sleep(0.1)
+        await anyio.sleep(0.1)
     else:
         _set_stream_handlers()
         return client
 
 
-def init_jack_client(server_name: str, name: str = "Helper") -> jack.Client:
+async def init_jack_client(server_name: str, name: str = "Helper") -> jack.Client:
     block_jack_client_streams()
 
     for _ in range(100):
-        if client := _init_or_sleep(name=name, server_name=server_name):
+        if client := await _init_or_sleep(name=name, server_name=server_name):
             return client
 
     log.error(f"[red]Can't connect to {server_name}[/red]")
