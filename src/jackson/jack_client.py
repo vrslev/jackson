@@ -45,7 +45,7 @@ def _init_or_sleep(name: str, *, server_name: str) -> jack.Client | None:
         return client
 
 
-def init_jack_client(name: str, *, server_name: str) -> jack.Client:
+def init_jack_client(server_name: str, name: str = "Helper") -> jack.Client:
     block_jack_client_streams()
 
     for _ in range(100):

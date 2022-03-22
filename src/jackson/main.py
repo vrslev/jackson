@@ -13,6 +13,8 @@ from jackson import jacktrip
 from jackson.api.client import APIClient
 from jackson.api.server import APIServer
 from jackson.connector.client import ClientPortConnector
+from jackson.connector.server import ServerPortConnector
+from jackson.jack_client import init_jack_client
 from jackson.jack_server import JackServerController
 from jackson.logging import configure_loggers
 from jackson.manager import (
@@ -43,7 +45,10 @@ class Server:
             period=settings.audio.buffer_size,
         )
         jack_controller = JackServerController(jack)
-        api = APIServer(settings.audio.jack_server_name)
+        get_port_connector = lambda: ServerPortConnector(
+            client=init_jack_client(settings.audio.jack_server_name)
+        )
+        api = APIServer(get_port_connector=get_port_connector)
         start_jacktrip = lambda: jacktrip.run_server(
             jack_server_name=settings.audio.jack_server_name,
             port=settings.server.jacktrip_port,
@@ -72,7 +77,7 @@ class Client:
             outputs_limit=outputs_limit,
         )
         return ClientPortConnector(
-            jack_server_name=settings.audio.jack_server_name,
+            client=init_jack_client(settings.audio.jack_server_name),
             connection_map=map,
             connect_on_server=connect_on_server,
         )

@@ -6,7 +6,7 @@ from jack_server import SampleRate
 from pydantic import BaseModel
 
 from jackson.connector import models
-from jackson.jack_client import connect_ports_retry
+from jackson.jack_client import block_jack_client_streams, connect_ports_retry
 from jackson.port_connection import PortName
 
 
@@ -80,3 +80,19 @@ async def connect(client: jack.Client, connections: list[models.Connection]):
         _validate_connection(client, conn=conn)
         await _connect_ports(client, conn.source, conn.destination)
     return models.ConnectResponse()
+
+
+@dataclass
+class ServerPortConnector:
+    client: jack.Client
+
+    def init(self) -> models.InitResponse:
+        return init(self.client)
+
+    async def connect(
+        self, connections: list[models.Connection]
+    ) -> models.ConnectResponse:
+        return await connect(self.client, connections)
+
+    def close(self) -> None:
+        block_jack_client_streams()
