@@ -2,7 +2,6 @@ from dataclasses import dataclass
 from typing import Literal, cast
 
 import jack
-import jack_server
 from jack_server import SampleRate
 from pydantic import BaseModel
 
@@ -13,7 +12,7 @@ from jackson.port_connection import ClientShould, PortName
 class InitResponse(BaseModel):
     inputs: int
     outputs: int
-    rate: jack_server.SampleRate
+    rate: SampleRate
     buffer_size: int
 
 

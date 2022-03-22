@@ -1,6 +1,6 @@
 from ipaddress import IPv4Address
 
-import jack_server
+from jack_server import SampleRate
 from pydantic import AnyHttpUrl, BaseModel
 
 
@@ -15,7 +15,7 @@ _DEFAULT_SERVER_JACK_SERVER_NAME = "JacksonServer"
 
 class _ServerAudio(_BaseAudio):
     jack_server_name: str = _DEFAULT_SERVER_JACK_SERVER_NAME
-    sample_rate: jack_server.SampleRate
+    sample_rate: SampleRate
     buffer_size: int  # In samples
 
 
