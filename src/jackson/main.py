@@ -10,11 +10,7 @@ from jackson import jacktrip
 from jackson.jack_client import get_jack_client
 from jackson.logging import configure_loggers
 from jackson.manager import Client, GetJackServer, Server
-from jackson.port_connection import (
-    ConnectionMap,
-    build_connection_map,
-    count_receive_send_channels,
-)
+from jackson.port_connection import ConnectionMap, build_connection_map
 from jackson.settings import ClientSettings, ServerSettings
 
 
@@ -55,8 +51,7 @@ def get_client_manager(settings: ClientSettings) -> Client:
             outputs_limit=outputs_limit,
         )
 
-    def get_jacktrip(map: ConnectionMap) -> jacktrip.StreamingProcess:
-        receive_count, send_count = count_receive_send_channels(map)
+    def get_jacktrip(receive_count: int, send_count: int) -> jacktrip.StreamingProcess:
         return jacktrip.get_client(
             jack_server_name=settings.audio.jack_server_name,
             server_host=settings.server.host,
@@ -81,14 +76,12 @@ app = typer.Typer()
 @app.command()
 def server(config: typer.FileText = Option("server.yaml")) -> None:
     configure_loggers("server")
-    settings = ServerSettings(**yaml.safe_load(config))
-    server = get_server_manager(settings)
+    server = get_server_manager(ServerSettings(**yaml.safe_load(config)))
     anyio.run(server.run, backend_options={"use_uvloop": True})
 
 
 @app.command()
 def client(config: typer.FileText = Option("client.yaml")) -> None:
     configure_loggers("client")
-    settings = ClientSettings(**yaml.safe_load(config))
-    client = get_client_manager(settings=settings)
+    client = get_client_manager(ClientSettings(**yaml.safe_load(config)))
     anyio.run(client.run, backend_options={"use_uvloop": True})

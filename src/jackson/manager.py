@@ -16,7 +16,7 @@ from jackson.connector.server import ServerPortConnector
 from jackson.jack_client import block_jack_client_streams
 from jackson.jack_server import block_jack_server_streams, start_jack_server
 from jackson.jacktrip import StreamingProcess
-from jackson.port_connection import ConnectionMap
+from jackson.port_connection import ConnectionMap, count_receive_send_channels
 
 
 class BaseManager(Protocol):
@@ -71,7 +71,7 @@ class GetConnectionMap(Protocol):
 
 
 class GetClientJacktrip(Protocol):
-    def __call__(self, map: ConnectionMap) -> StreamingProcess:
+    def __call__(self, receive_count: int, send_count: int) -> StreamingProcess:
         ...
 
 
@@ -104,7 +104,10 @@ class Client(BaseManager):
         )
         tg.start_soon(port_connector.wait_and_run)
 
-        self.jacktrip = self.get_jacktrip(map)
+        receive_count, send_count = count_receive_send_channels(map)
+        self.jacktrip = self.get_jacktrip(
+            receive_count=receive_count, send_count=send_count
+        )
         tg.start_soon(self.jacktrip.start)
 
     async def stop(self) -> None:
