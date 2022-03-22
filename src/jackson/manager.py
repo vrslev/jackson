@@ -6,10 +6,11 @@ import anyio
 import httpx
 import jack
 import jack_server
+import uvicorn
 from anyio.abc import TaskGroup
 
 from jackson.api.client import APIClient
-from jackson.api.server import APIServer
+from jackson.api.server import get_api_server
 from jackson.connector.client import ClientPortConnector
 from jackson.connector.server import ServerPortConnector
 from jackson.jack_client import block_jack_client_streams
@@ -48,7 +49,7 @@ class ServerManager(BaseManager):
     get_jack_client: GetJackClient
     jacktrip: StreamingProcess | None = field(default=None, init=False)
     jack_client: jack.Client | None = field(default=None, init=False)
-    api: APIServer | None = field(default=None, init=False)
+    api: uvicorn.Server | None = field(default=None, init=False)
 
     async def start(self, tg: TaskGroup) -> None:
         set_jack_server_stream_handlers()
@@ -58,9 +59,11 @@ class ServerManager(BaseManager):
         tg.start_soon(self.jacktrip.start)
 
         self.jack_client = await self.get_jack_client()
-        self.api = APIServer(port_connector=ServerPortConnector(self.jack_client))
-        self.api.install_signal_handlers(tg.cancel_scope)
-        tg.start_soon(self.api.start)
+        self.api = get_api_server(
+            port_connector=ServerPortConnector(self.jack_client),
+            cancel_scope=tg.cancel_scope,
+        )
+        tg.start_soon(self.api.startup)  # type: ignore
 
     async def stop(self) -> None:
         await cleanup_stack(self.api, self.jacktrip, self.jack_client, self.jack_server)
@@ -135,9 +138,9 @@ async def _(v: None):
     pass
 
 
-@cleanup.register(APIServer)
-async def _(v: APIServer):
-    await v.stop()
+@cleanup.register(uvicorn.Server)
+async def _(v: uvicorn.Server):
+    await v.shutdown()
 
 
 @cleanup.register(jack.Client)

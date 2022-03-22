@@ -1,5 +1,4 @@
 import signal
-from dataclasses import dataclass, field
 from types import FrameType
 from typing import cast
 
@@ -62,35 +61,31 @@ async def port_connector_error_handler(
     return await http_exception_handler(request=request, exc=http_exception)
 
 
-@dataclass
-class APIServer:
-    port_connector: ServerPortConnector
-    server: uvicorn.Server = field(init=False)
-    _started: bool = field(default=False, init=False)
+def _get_uvicorn_server() -> uvicorn.Server:
+    config = uvicorn.Config(app=app, host="0.0.0.0", workers=1, log_config=None)
+    server = uvicorn.Server(config)
+    server.config.load()
+    server.lifespan = server.config.lifespan_class(server.config)
+    return server
 
-    def __post_init__(self) -> None:
-        app.state.port_connector = self.port_connector
-        config = uvicorn.Config(app=app, host="0.0.0.0", workers=1, log_config=None)
-        self.server = uvicorn.Server(config)
-        self.server.config.load()
-        self.server.lifespan = self.server.config.lifespan_class(self.server.config)
 
-    async def start(self) -> None:
-        self._started = True
-        await self.server.startup()  # type: ignore
+def _install_signal_handlers(server: uvicorn.Server, scope: anyio.CancelScope) -> None:
+    def handler(sig: int, frame: FrameType | None) -> None:
+        scope.cancel()
 
-    async def stop(self) -> None:
-        if self._started:
-            await self.server.shutdown()
+        server.handle_exit(
+            sig=cast(signal.Signals, sig),
+            frame=frame,  # type: ignore
+        )
 
-    def install_signal_handlers(self, scope: anyio.CancelScope) -> None:
-        def handler(sig: int, frame: FrameType | None) -> None:
-            scope.cancel()
+    for sig in (signal.SIGINT, signal.SIGTERM):
+        signal.signal(sig, handler)
 
-            self.server.handle_exit(
-                sig=cast(signal.Signals, sig),
-                frame=frame,  # type: ignore
-            )
 
-        for sig in (signal.SIGINT, signal.SIGTERM):
-            signal.signal(sig, handler)
+def get_api_server(
+    port_connector: ServerPortConnector, cancel_scope: anyio.CancelScope
+) -> uvicorn.Server:
+    app.state.port_connector = port_connector
+    server = _get_uvicorn_server()
+    _install_signal_handlers(server=server, scope=cancel_scope)
+    return server
