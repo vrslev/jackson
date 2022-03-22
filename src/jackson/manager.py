@@ -14,10 +14,7 @@ from jackson.api.server import get_api_server
 from jackson.connector.client import ClientPortConnector
 from jackson.connector.server import ServerPortConnector
 from jackson.jack_client import block_jack_client_streams
-from jackson.jack_server import (
-    block_jack_server_streams,
-    set_jack_server_stream_handlers,
-)
+from jackson.jack_server import block_jack_server_streams, start_jack_server
 from jackson.jacktrip import StreamingProcess
 from jackson.port_connection import ConnectionMap
 
@@ -52,8 +49,7 @@ class ServerManager(BaseManager):
     api: uvicorn.Server | None = field(default=None, init=False)
 
     async def start(self, tg: TaskGroup) -> None:
-        set_jack_server_stream_handlers()
-        self.jack_server.start()
+        start_jack_server(self.jack_server)
 
         self.jacktrip = self.get_jacktrip()
         tg.start_soon(self.jacktrip.start)
@@ -91,9 +87,9 @@ class ClientManager(BaseManager):
     get_jack_client: GetJackClient
     get_connection_map: GetConnectionMap
     get_jacktrip: GetClientJacktrip
-    jacktrip: StreamingProcess | None = field(default=None, init=False)
     jack_server_: jack_server.Server | None = field(default=None, init=False)
     jack_client: jack.Client | None = field(default=None, init=False)
+    jacktrip: StreamingProcess | None = field(default=None, init=False)
 
     async def start(self, tg: TaskGroup) -> None:
         api = APIClient(client=self.api_http_client)
@@ -102,14 +98,12 @@ class ClientManager(BaseManager):
         self.jack_server_ = self.get_jack_server(
             rate=response.rate, period=response.buffer_size
         )
-        set_jack_server_stream_handlers()
-        self.jack_server_.start()
+        start_jack_server(self.jack_server_)
 
         self.jack_client = await self.get_jack_client()
         map = self.get_connection_map(
             inputs_limit=response.inputs, outputs_limit=response.outputs
         )
-
         port_connector = ClientPortConnector(
             client=self.jack_client, connection_map=map, connect_on_server=api.connect
         )
