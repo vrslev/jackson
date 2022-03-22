@@ -1,7 +1,7 @@
 import signal
 from dataclasses import dataclass, field
 from types import FrameType
-from typing import Callable, cast
+from typing import cast
 
 import anyio
 import fastapi
@@ -64,27 +64,24 @@ async def port_connector_error_handler(
 
 @dataclass
 class APIServer:
-    get_port_connector: Callable[[], ServerPortConnector]
-    port_connector: ServerPortConnector | None = field(default=None, init=False)
+    port_connector: ServerPortConnector
     server: uvicorn.Server = field(init=False)
     _started: bool = field(default=False, init=False)
 
     def __post_init__(self) -> None:
+        app.state.port_connector = self.port_connector
         config = uvicorn.Config(app=app, host="0.0.0.0", workers=1, log_config=None)
         self.server = uvicorn.Server(config)
         self.server.config.load()
         self.server.lifespan = self.server.config.lifespan_class(self.server.config)
 
     async def start(self) -> None:
-        app.state.port_connector = self.get_port_connector()
         self._started = True
         await self.server.startup()  # type: ignore
 
     async def stop(self) -> None:
         if self._started:
             await self.server.shutdown()
-        if self.port_connector:
-            self.port_connector.close()  # TODO: Should it be here?
 
     def install_signal_handlers(self, scope: anyio.CancelScope) -> None:
         def handler(sig: int, frame: FrameType | None) -> None:

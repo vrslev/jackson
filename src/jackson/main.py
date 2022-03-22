@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 from functools import partial
-from typing import Callable, Coroutine
 
 import anyio
 import jack_server
@@ -11,19 +10,9 @@ from typer.params import Option
 
 from jackson import jacktrip
 from jackson.api.client import APIClient
-from jackson.api.server import APIServer
-from jackson.connector.client import ClientPortConnector
-from jackson.connector.server import ServerPortConnector
 from jackson.jack_client import init_jack_client
-from jackson.jack_server import JackServerController
 from jackson.logging import configure_loggers
-from jackson.manager import (
-    ClientManager,
-    GetJack,
-    GetPortConnector,
-    ServerManager,
-    StartClientJacktrip,
-)
+from jackson.manager import ClientManager, GetJackServer, ServerManager
 from jackson.port_connection import (
     ConnectionMap,
     build_connection_map,
@@ -37,24 +26,22 @@ class Server:
     manager: ServerManager
 
     def __init__(self, settings: ServerSettings) -> None:
-        jack = jack_server.Server(
+        server = jack_server.Server(
             name=settings.audio.jack_server_name,
             driver=settings.audio.driver,
             device=settings.audio.device or SetByJack_,
             rate=settings.audio.sample_rate,
             period=settings.audio.buffer_size,
         )
-        jack_controller = JackServerController(jack)
-        get_port_connector = lambda: ServerPortConnector(
-            client=init_jack_client(settings.audio.jack_server_name)
-        )
-        api = APIServer(get_port_connector=get_port_connector)
         start_jacktrip = lambda: jacktrip.run_server(
             jack_server_name=settings.audio.jack_server_name,
             port=settings.server.jacktrip_port,
         )
+        get_jack_client = partial(init_jack_client, settings.audio.jack_server_name)
         self.manager = ServerManager(
-            jack=jack_controller, api=api, start_jacktrip=start_jacktrip
+            jack_server=server,
+            start_jacktrip=start_jacktrip,
+            get_jack_client=get_jack_client,
         )
 
 
@@ -62,59 +49,49 @@ class Server:
 class Client:
     manager: ClientManager
 
-    def get_port_connector(
-        self,
-        settings: ClientSettings,
-        connect_on_server: Callable[[ConnectionMap], Coroutine[None, None, None]],
-        inputs_limit: int,
-        outputs_limit: int,
-    ) -> ClientPortConnector:
-        map = build_connection_map(
-            client_name=settings.name,
-            receive=settings.ports.receive,
-            send=settings.ports.send,
+    def get_connection_map(
+        self, inputs_limit: int, outputs_limit: int
+    ) -> ConnectionMap:
+        return build_connection_map(
+            client_name=self.settings.name,
+            receive=self.settings.ports.receive,
+            send=self.settings.ports.send,
             inputs_limit=inputs_limit,
             outputs_limit=outputs_limit,
         )
-        return ClientPortConnector(
-            client=init_jack_client(settings.audio.jack_server_name),
-            connection_map=map,
-            connect_on_server=connect_on_server,
-        )
 
-    async def start_jacktrip(
-        self, settings: ClientSettings, map: ConnectionMap
-    ) -> None:
+    async def start_jacktrip(self, map: ConnectionMap) -> None:
         receive_count, send_count = count_receive_send_channels(map)
         return await jacktrip.run_client(
-            jack_server_name=settings.audio.jack_server_name,
-            server_host=settings.server.host,
-            server_port=settings.server.jacktrip_port,
+            jack_server_name=self.settings.audio.jack_server_name,
+            server_host=self.settings.server.host,
+            server_port=self.settings.server.jacktrip_port,
             receive_channels=receive_count,
             send_channels=send_count,
-            remote_name=settings.name,
+            remote_name=self.settings.name,
         )
 
     def __init__(self, settings: ClientSettings) -> None:
+        self.settings = settings
+
         api = APIClient(base_url=settings.server.api_url)
-        get_jack: GetJack = lambda rate, period: JackServerController(
-            jack_server.Server(
-                name=settings.audio.jack_server_name,
-                driver=settings.audio.driver,
-                device=settings.audio.device or SetByJack_,
-                rate=rate,
-                period=period,
-            )
+
+        get_jack_server: GetJackServer = lambda rate, period: jack_server.Server(
+            name=settings.audio.jack_server_name,
+            driver=settings.audio.driver,
+            device=settings.audio.device or SetByJack_,
+            rate=rate,
+            period=period,
         )
-        get_port_connector: GetPortConnector = partial(
-            self.get_port_connector, settings
-        )
-        start_jacktrip: StartClientJacktrip = partial(self.start_jacktrip, settings)
+
+        get_jack_client = partial(init_jack_client, settings.audio.jack_server_name)
+
         self.manager = ClientManager(
             api=api,
-            get_jack=get_jack,
-            get_port_connector=get_port_connector,
-            start_jacktrip=start_jacktrip,
+            get_jack_server=get_jack_server,
+            get_jack_client=get_jack_client,
+            get_connection_map=self.get_connection_map,
+            start_jacktrip=self.start_jacktrip,
         )
 
 
