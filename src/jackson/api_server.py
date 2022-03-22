@@ -10,7 +10,7 @@ from fastapi.exception_handlers import http_exception_handler
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
-from jackson.connector.server import (
+from jackson.connector_server import (
     Connection,
     ConnectResponse,
     FailedToConnectPorts,

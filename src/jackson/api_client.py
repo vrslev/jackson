@@ -6,7 +6,7 @@ import anyio
 import httpx
 from pydantic import BaseModel
 
-from jackson.connector.server import (
+from jackson.connector_server import (
     Connection,
     ConnectResponse,
     FailedToConnectPorts,

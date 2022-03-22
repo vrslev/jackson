@@ -9,10 +9,10 @@ import jack_server
 import uvicorn
 from anyio.abc import TaskGroup
 
-from jackson.api.client import APIClient
-from jackson.api.server import get_api_server
-from jackson.connector.client import ClientPortConnector
-from jackson.connector.server import ServerPortConnector
+from jackson.api.api_client import APIClient
+from jackson.api.api_server import get_api_server
+from jackson.connector_client import ClientPortConnector
+from jackson.connector_server import ServerPortConnector
 from jackson.jack_client import block_jack_client_streams
 from jackson.jack_server import block_jack_server_streams, start_jack_server
 from jackson.jacktrip import StreamingProcess
