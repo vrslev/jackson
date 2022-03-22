@@ -16,15 +16,6 @@ log = get_logger(__name__, "JackClient")
 log.addFilter(JackClientFilter())
 
 
-def silent_stream_handler(_: str) -> None:
-    pass
-
-
-def block_jack_client_streams() -> None:
-    jack.set_info_function(silent_stream_handler)
-    jack.set_error_function(silent_stream_handler)
-
-
 def _set_stream_handlers() -> None:
     jack.set_info_function(log.info)
     jack.set_error_function(log.error)
@@ -37,36 +28,43 @@ def get_jack_client(server_name: str) -> jack.Client:
     return client
 
 
-async def connect_ports_retry(
+def silent_stream_handler(_: str) -> None:
+    pass
+
+
+def block_jack_client_streams() -> None:
+    jack.set_info_function(silent_stream_handler)
+    jack.set_error_function(silent_stream_handler)
+
+
+def _connect_ports_and_log(client: jack.Client, source: str, destination: str) -> None:
+    port = client.get_port_by_name(source)
+    if any(p.name == destination for p in client.get_all_connections(port)):
+        return
+    client.connect(source, destination)
+    log.info(
+        f"Connected ports: [bold green]{source}[/bold green] ->"
+        + f" [bold green]{destination}[/bold green]"
+    )
+
+
+async def retry_connect_ports(
     client: jack.Client, source: str, destination: str
 ) -> None:
-    """Connect ports for sure.
+    """Try to connect ports 10 times or fail.
 
-    Several issues could come up while connecting JACK ports.
-
-    1. "Cannot connect ports owned by inactive clients: "MyName" is not active"
-        This means that JackTrip client is not initialized yet.
-
-    2. "Unknown destination port in attempted (dis)connection src_name  dst_name"
-        I.e. port is not initialized yet.
+    Several issues could come up while connecting JACK ports:
+    - "Cannot connect ports owned by inactive clients: "MyName" is not active"
+      This means that JackTrip client is not initialized yet.
+    - "Unknown destination port in attempted (dis)connection src_name  dst_name"
+      I. e. port is not initialized yet.
     """
     exc = None
 
     for _ in range(10):
         try:
-            connections = client.get_all_connections(
-                client.get_port_by_name(str(source))
-            )
-            if any(p.name == destination for p in connections):
-                return
-
-            client.connect(str(source), str(destination))
-            log.info(
-                f"Connected ports: [bold green]{source}[/bold green] ->"
-                + f" [bold green]{destination}[/bold green]"
-            )
+            _connect_ports_and_log(client, source=source, destination=destination)
             return
-
         except jack.JackError as e:
             exc = e
             await anyio.sleep(0.1)

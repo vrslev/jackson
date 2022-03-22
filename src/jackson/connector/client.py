@@ -4,7 +4,7 @@ from typing import Callable, Coroutine
 import anyio
 import jack
 
-from jackson.jack_client import connect_ports_retry
+from jackson.jack_client import retry_connect_ports
 from jackson.port_connection import ConnectionMap
 
 
@@ -26,7 +26,7 @@ class ClientPortConnector:
     async def _connect_locally(self) -> None:
         for connection in self.connection_map.values():
             src, dest = connection.get_local_connection()
-            await connect_ports_retry(self.client, str(src), str(dest))
+            await retry_connect_ports(self.client, str(src), str(dest))
 
     async def _connect(self) -> None:
         await self.connect_on_server(self.connection_map)
