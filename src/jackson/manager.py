@@ -53,10 +53,11 @@ class ServerManager(BaseManager):
     async def start(self, tg: TaskGroup) -> None:
         set_jack_server_stream_handlers()
         self.jack_server.start()
+
         self.jacktrip = self.get_jacktrip()
         tg.start_soon(self.jacktrip.start)
-        self.jack_client = await self.get_jack_client()
 
+        self.jack_client = await self.get_jack_client()
         self.api = APIServer(port_connector=ServerPortConnector(self.jack_client))
         self.api.install_signal_handlers(tg.cancel_scope)
         tg.start_soon(self.api.start)
@@ -99,6 +100,7 @@ class ClientManager(BaseManager):
         self.jack_server_ = self.get_jack_server(
             rate=response.rate, period=response.buffer_size
         )
+        set_jack_server_stream_handlers()
         self.jack_server_.start()
 
         self.jack_client = await self.get_jack_client()
@@ -119,8 +121,8 @@ class ClientManager(BaseManager):
         await cleanup_stack(
             self.api_http_client,
             self.port_connector,
-            self.jacktrip,
             self.jack_client,
+            self.jacktrip,
             self.jack_server_,
         )
 
