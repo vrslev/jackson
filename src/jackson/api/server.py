@@ -82,7 +82,7 @@ class APIServer:
         if self._started:
             await self.server.shutdown()
 
-    async def install_signal_handlers(self, scope: anyio.CancelScope) -> None:
+    def install_signal_handlers(self, scope: anyio.CancelScope) -> None:
         def handler(sig: int, frame: FrameType | None) -> None:
             scope.cancel()
 

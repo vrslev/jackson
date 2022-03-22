@@ -11,12 +11,14 @@ from jackson.jack_client import (
 )
 from jackson.port_connection import ConnectionMap
 
+ConnectOnServer = Callable[[ConnectionMap], Coroutine[None, None, None]]
+
 
 @dataclass
-class ClientConnector:
+class ClientPortConnector:
     jack_server_name: str
     connection_map: ConnectionMap
-    connect_on_server: Callable[[ConnectionMap], Coroutine[None, None, None]]
+    connect_on_server: ConnectOnServer
     ready: anyio.Event = field(default_factory=anyio.Event, init=False)
     client_activated: bool = field(default=False, init=False)
     client: jack.Client = field(init=False)

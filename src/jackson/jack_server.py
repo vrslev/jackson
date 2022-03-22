@@ -1,3 +1,5 @@
+from dataclasses import dataclass
+
 import jack_server
 
 from jackson.logging import MessageFilter, get_logger
@@ -26,3 +28,16 @@ def set_jack_server_stream_handlers() -> None:
 def block_jack_server_streams() -> None:
     jack_server.set_info_function(None)
     jack_server.set_error_function(None)
+
+
+@dataclass
+class JackServerController:
+    server: jack_server.Server
+
+    def start(self) -> None:
+        set_jack_server_stream_handlers()
+        self.server.start()
+
+    def stop(self) -> None:
+        block_jack_server_streams()
+        self.server.stop()
