@@ -39,8 +39,9 @@ class BaseManager(Protocol):
 @dataclass
 class Server(BaseManager):
     jack_server: jack_server.Server
-    jack_client: jack.Client
+    get_jack_client: Callable[[], jack.Client]
     jacktrip: StreamingProcess
+    jack_client: jack.Client | None = field(default=None, init=False)
     api: uvicorn.Server | None = field(default=None, init=False)
 
     async def start(self, tg: TaskGroup) -> None:
@@ -48,6 +49,7 @@ class Server(BaseManager):
 
         tg.start_soon(self.jacktrip.start)
 
+        self.jack_client = self.get_jack_client()
         self.api = get_api_server(
             port_connector=ServerPortConnector(self.jack_client),
             cancel_scope=tg.cancel_scope,

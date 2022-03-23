@@ -22,12 +22,14 @@ def get_server_manager(settings: ServerSettings) -> Server:
         rate=settings.audio.sample_rate,
         period=settings.audio.buffer_size,
     )
-    jack_client = get_jack_client(settings.audio.jack_server_name)
+    get_jack_client_ = lambda: get_jack_client(settings.audio.jack_server_name)
     jacktrip_ = jacktrip.get_server(
         jack_server_name=settings.audio.jack_server_name,
         port=settings.server.jacktrip_port,
     )
-    return Server(jack_server=jack_server_, jack_client=jack_client, jacktrip=jacktrip_)
+    return Server(
+        jack_server=jack_server_, get_jack_client=get_jack_client_, jacktrip=jacktrip_
+    )
 
 
 def get_client_manager(settings: ClientSettings) -> Client:
