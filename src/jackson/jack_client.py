@@ -16,25 +16,21 @@ log = get_logger(__name__, "JackClient")
 log.addFilter(JackClientFilter())
 
 
-def _set_stream_handlers() -> None:
-    jack.set_info_function(log.info)
-    jack.set_error_function(log.error)
-
-
 def get_jack_client(server_name: str) -> jack.Client:
     block_jack_client_streams()
     client = jack.Client(name="Helper", no_start_server=True, servername=server_name)
-    _set_stream_handlers()
+    jack.set_info_function(log.info)
+    jack.set_error_function(log.error)
     return client
 
 
-def silent_stream_handler(_: str) -> None:
+def _silent_stream_handler(_: str) -> None:
     pass
 
 
 def block_jack_client_streams() -> None:
-    jack.set_info_function(silent_stream_handler)
-    jack.set_error_function(silent_stream_handler)
+    jack.set_info_function(_silent_stream_handler)
+    jack.set_error_function(_silent_stream_handler)
 
 
 def _connect_ports_and_log(client: jack.Client, source: str, destination: str) -> None:
