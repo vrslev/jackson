@@ -2,7 +2,7 @@ import contextlib
 import logging
 import os
 import shlex
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from ipaddress import IPv4Address
 from typing import AsyncGenerator, Callable
 
@@ -52,7 +52,8 @@ async def _restream_stream(
 class StreamingProcess:
     cmd: list[str]
     env: dict[str, str]
-    process: Process | None = None
+    process: Process | None = field(default=None, init=False)
+    stopping: bool = field(default=False, init=False)
 
     @contextlib.asynccontextmanager
     async def _open_process_and_stream(self) -> AsyncGenerator[Process, None]:
@@ -67,22 +68,28 @@ class StreamingProcess:
         async with await anyio.open_process(self.cmd, env=env) as process:
             async with anyio.create_task_group() as tg:
                 tg.start_soon(lambda: _restream_stream(process.stderr, log.error))
-                tg.start_soon(lambda: _restream_stream(process.stdout, log.error))
+                tg.start_soon(lambda: _restream_stream(process.stdout, log.info))
                 yield process
 
     async def start(self) -> None:
+        self.stopping = False
+
         async with self._open_process_and_stream() as self.process:
             try:
                 await self.process.wait()
             except anyio.get_cancelled_exc_class():
                 with anyio.CancelScope(shield=True):
                     await self.stop()
+                    pass
             else:
                 code = await self.stop()
-                raise RuntimeError(f"JackTrip exited with code {code}")
+                raise SystemExit(code)
 
     async def stop(self) -> int | None:
-        assert self.process
+        if not self.process or self.stopping:
+            return
+
+        self.stopping = True
 
         if self.process.returncode is None:
             self.process.terminate()
