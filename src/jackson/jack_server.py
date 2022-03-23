@@ -18,7 +18,7 @@ log = get_logger(__name__, "JackServer")
 log.addFilter(JackServerFilter())
 
 
-def set_jack_server_stream_handlers():
+def set_jack_server_stream_handlers() -> None:
     jack_server.set_info_function(log.info)
     jack_server.set_error_function(log.error)
 
