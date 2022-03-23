@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from functools import singledispatch
-from typing import Any, Callable, Protocol
+from typing import Any, Callable, Coroutine, Protocol, cast
 
 import anyio
 import httpx
@@ -54,7 +54,12 @@ class Server(BaseManager):
             port_connector=ServerPortConnector(self.jack_client),
             cancel_scope=tg.cancel_scope,
         )
-        tg.start_soon(self.api.startup)  # type: ignore
+        tg.start_soon(
+            cast(
+                Callable[..., Coroutine[Any, Any, None]],
+                self.api.startup,  # pyright: ignore[reportUnknownMemberType]
+            )
+        )
 
     async def stop(self) -> None:
         await cleanup_stack(self.api, self.jacktrip, self.jack_client, self.jack_server)

@@ -94,10 +94,17 @@ class APIClient:
     client: httpx.AsyncClient
 
     async def init(self) -> InitResponse:
-        return _handle_response(await self.client.get("/init"), InitResponse)  # type: ignore
+        return _handle_response(
+            await self.client.get("/init"),  # pyright: ignore[reportUnknownMemberType]
+            InitResponse,
+        )
 
     async def connect(self, connection_map: ConnectionMap) -> None:
         payload = list(_get_connections(connection_map))
-        func = partial(self.client.patch, "/connect", json=payload)  # type: ignore
+        func = partial(
+            self.client.patch,  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType]
+            "/connect",
+            json=payload,
+        )
         response = await _retry_connect(func)
         _handle_response(response, ConnectResponse)

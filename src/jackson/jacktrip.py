@@ -98,7 +98,7 @@ class StreamingProcess:
         code = self.process.returncode
 
         # Otherwise RuntimeError('Event loop is closed') is being called
-        self.process._process._transport.close()  # type: ignore
+        self.process._process._transport.close()  # pyright: ignore[reportGeneralTypeIssues, reportUnknownMemberType]
 
         log.info(f"Exited with code {code}")
         return code

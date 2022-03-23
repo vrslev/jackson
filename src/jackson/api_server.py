@@ -1,6 +1,6 @@
 import signal
 from types import FrameType
-from typing import cast
+from typing import Any, Callable, cast
 
 import anyio
 import fastapi
@@ -46,7 +46,10 @@ async def connect(
     return await connector.connect(connections)
 
 
-@app.exception_handler(PortConnectorError)  # type: ignore
+@cast(
+    Callable[[int | type[BaseException]], Callable[..., Any]],
+    app.exception_handler,  # pyright: ignore[reportUnknownMemberType]
+)(PortConnectorError)
 async def port_connector_error_handler(
     request: fastapi.Request, exc: PortConnectorError
 ) -> JSONResponse:
@@ -73,7 +76,10 @@ def _get_uvicorn_server() -> uvicorn.Server:
 def _install_signal_handlers(server: uvicorn.Server, scope: anyio.CancelScope) -> None:
     def handler(sig: int, frame: FrameType | None) -> None:
         scope.cancel()
-        server.handle_exit(sig=cast(signal.Signals, sig), frame=frame)  # type: ignore
+        server.handle_exit(
+            sig=cast(signal.Signals, sig),
+            frame=frame,  # pyright: ignore[reportGeneralTypeIssues]
+        )
 
     for sig in (signal.SIGINT, signal.SIGTERM):
         signal.signal(sig, handler)
