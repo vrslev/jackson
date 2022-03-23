@@ -99,22 +99,10 @@ def test_build_connection_receive(receive_connection: PortConnection, client_nam
     )
 
 
-def test_build_specific_connections_limit_raises(
-    client_name: str, client_should: ClientShould
-):
-    ports = {i + 1: i + 1 for i in range(11)}
-    gen = _build_specific_connections(
-        client_name=client_name, client_should=client_should, limit=10, ports=ports
-    )
-    with pytest.raises(RuntimeError):
-        list(gen)
-
-
 def test_build_specific_connections_send(client_name: str, client_should: ClientShould):
     x, y = _build_specific_connections(
         client_name=client_name,
         client_should=client_should,
-        limit=10,
         ports={1: 2, 3: 4},
     )
     assert x.remote_bridge.client == y.remote_bridge.client == client_name
