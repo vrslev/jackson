@@ -1,4 +1,3 @@
-import _pytest.fixtures
 import pytest
 
 from jackson.port_connection import (
@@ -37,11 +36,6 @@ def receive_connection(client_name: str):
         local_bridge=PortName.parse("JackTrip:receive_2"),
         destination=PortName.parse("system:playback_3"),
     )
-
-
-@pytest.fixture(params=("send", "receive"))
-def client_should(request: _pytest.fixtures.SubRequest):
-    return request.param
 
 
 def test_port_name_str():

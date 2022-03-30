@@ -80,15 +80,9 @@ class ServerPortConnector:
         except jack.JackError:
             raise PortConnectorError(PortNotFound(type=type, name=name))
 
-    def _get_ports_from_connection(
-        self, conn: Connection
-    ) -> tuple[jack.Port, jack.Port]:
-        source = self._get_existing_port(type="source", name=conn.source)
-        destination = self._get_existing_port(type="destination", name=conn.destination)
-        return source, destination
-
     def _validate_connection(self, conn: Connection) -> None:
-        _, dest = self._get_ports_from_connection(conn)
+        self._get_existing_port(type="source", name=conn.source)
+        dest = self._get_existing_port(type="destination", name=conn.destination)
 
         if conn.client_should == "send":
             _validate_playback_port_is_free(

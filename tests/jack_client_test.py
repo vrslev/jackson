@@ -2,20 +2,10 @@ from typing import Any
 
 import anyio
 import jack
-import jack_server
 import pytest
 
 import jackson.jack_client
 from jackson.jack_client import _connect_ports_and_log, retry_connect_ports
-
-
-@pytest.fixture
-def jack_client(jack_server_: jack_server.Server):
-    client = jack.Client("helper", no_start_server=True, servername=jack_server_.name)
-    yield client
-    client.deactivate()
-    client.close = lambda: None  # type: ignore
-    del client
 
 
 def test_connect_ports_and_log(jack_client: jack.Client):

@@ -1,3 +1,5 @@
+import _pytest.fixtures
+import jack
 import jack_server
 import pytest
 
@@ -14,3 +16,17 @@ def jack_server_():
     yield server
     server.stop()
     del server
+
+
+@pytest.fixture
+def jack_client(jack_server_: jack_server.Server):
+    client = jack.Client("helper", no_start_server=True, servername=jack_server_.name)
+    yield client
+    client.deactivate()
+    client.close = lambda: None  # type: ignore
+    del client
+
+
+@pytest.fixture(params=("send", "receive"))
+def client_should(request: _pytest.fixtures.SubRequest):
+    return request.param
