@@ -10,6 +10,11 @@ from jackson.settings import (
 )
 
 
+def test_client_server_settings_api_url():
+    s = _ClientServer(jacktrip_port=0, api_port=8000, host=IPv4Address("127.0.0.1"))
+    assert s.api_url == "http://127.0.0.1:8000"
+
+
 def test_load_client_settings():
     fsettings = _FileClientSettings(
         name="Lev",
