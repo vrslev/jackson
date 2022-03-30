@@ -8,6 +8,7 @@ from jackson.port_connection import (
     _build_connection,
     _build_specific_connections,
     _validate_bridge_limit,
+    build_connection_map,
 )
 
 
@@ -109,3 +110,26 @@ def test_build_specific_connections_send(client_name: str, client_should: Client
     assert x.client_should == y.client_should == client_should
     assert x.local_bridge.idx == 1
     assert y.local_bridge.idx == 2
+
+
+def test_build_connection_map(client_name: str):
+    result = build_connection_map(
+        client_name=client_name, receive={1: 11, 2: 12}, send={3: 13, 4: 14}
+    )
+    local_idxs = set[int]()
+    remote_idxs = set[int]()
+
+    for local_bridge, connection in result.items():
+        assert local_bridge == connection.local_bridge
+
+        for port in connection.get_local_connection():
+            if port.client == "system":
+                local_idxs.add(port.idx)
+                break
+
+        for port in connection.get_remote_connection():
+            if port.client == "system":
+                remote_idxs.add(port.idx)
+
+    assert local_idxs == {1, 2, 3, 4}
+    assert remote_idxs == {11, 12, 13, 14}
