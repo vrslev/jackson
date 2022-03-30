@@ -61,7 +61,7 @@ def get_client_manager(settings: ClientSettings) -> Client:
     )
 
 
-@click.group()
+@click.group()  # pyright: ignore[reportUnknownMemberType]
 def cli():
     ...
 

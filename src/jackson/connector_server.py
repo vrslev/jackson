@@ -50,13 +50,12 @@ class PortConnectorError(Exception):
 
 
 def _validate_playback_port_is_free(
-    name: PortName, connected_ports: list[jack.Port]
+    source: PortName, destination: PortName, connected_ports: list[jack.Port]
 ) -> None:
-    if not connected_ports:
-        return
-
     names = [PortName.parse(p.name) for p in connected_ports]
-    data = PlaybackPortAlreadyHasConnections(port=name, connections=names)
+    if not names or names == [source]:
+        return
+    data = PlaybackPortAlreadyHasConnections(port=destination, connections=names)
     raise PortConnectorError(data)
 
 
@@ -93,7 +92,8 @@ class ServerPortConnector:
 
         if conn.client_should == "send":
             _validate_playback_port_is_free(
-                name=conn.destination,
+                source=conn.source,
+                destination=conn.destination,
                 connected_ports=self.client.get_all_connections(dest),
             )
 
