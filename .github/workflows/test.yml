@@ -106,7 +106,7 @@ jobs:
           sudo bash -c 'ulimit -r unlimited && ulimit -c unlimited && ulimit -l unlimited && ulimit -e unlimited && ulimit -s unlimited'
       - name: Install package
         run: poetry install
-      # - uses: mxschmitt/action-tmate@v3
+      - uses: mxschmitt/action-tmate@v3
       - name: Test
         run: |
-          sudo env "PATH=$PATH" bash -c "ulimit -l unlimited && ulimit -a && poetry run pytest --color=yes --cov"
+          sudo env "LD_LIBRARY_PATH=$LD_LIBRARY_PATH" "PATH=$PATH" bash -c "ulimit -l unlimited && ulimit -a && poetry run pytest --color=yes --cov"
