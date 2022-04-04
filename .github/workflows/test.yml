@@ -103,7 +103,6 @@ jobs:
 
       - run: |
           sudo -s
-          ulimit -r unlimited
           ulimit -c unlimited
           ulimit -l unlimited
           ulimit -e unlimited
