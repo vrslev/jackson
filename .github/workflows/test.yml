@@ -102,11 +102,7 @@ jobs:
         run: pip install -U poetry
 
       - run: |
-          sudo -s
-          ulimit -c unlimited
-          ulimit -l unlimited
-          ulimit -e unlimited
-          ulimit -s unlimited
+          sudo bash -c 'ulimit -r unlimited && ulimit -c unlimited && ulimit -l unlimited && ulimit -e unlimited && ulimit -s unlimited'
       - name: Install package
         run: poetry install
       # - uses: mxschmitt/action-tmate@v3
