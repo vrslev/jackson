@@ -110,7 +110,7 @@ jobs:
           ulimit -s unlimited
       - name: Install package
         run: poetry install
-      - uses: mxschmitt/action-tmate@v3
+      # - uses: mxschmitt/action-tmate@v3
       - name: Test
         run: |
           poetry run pytest --color=yes --cov
