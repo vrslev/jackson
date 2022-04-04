@@ -101,7 +101,11 @@ jobs:
       - name: Install Poetry
         run: pip install -U poetry
 
-      - run: sudo bash -c "ulimit -m unlimited"
+      - run: |
+          sudo -s
+          for opt in $(ulimit -a | sed 's/.*\-\([a-z]\)[^a-zA-Z].*$/\1/'); do
+              ulimit -$opt unlimited
+          done
 
       - name: Install package
         run: poetry install
