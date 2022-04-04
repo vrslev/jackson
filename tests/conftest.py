@@ -11,7 +11,7 @@ def anyio_backend():
 
 @pytest.fixture(scope="session")
 def jack_server_():
-    server = jack_server.Server(name="default", driver="dummy")
+    server = jack_server.Server(name="default", driver="dummy", realtime=False)
     server.start()
     yield server
     server.stop()
