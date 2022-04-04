@@ -108,4 +108,6 @@ jobs:
       # - uses: mxschmitt/action-tmate@v3
       - name: Test
         run: |
+          sudo bash -c 'ulimit -r unlimited && ulimit -c unlimited && ulimit -l unlimited && ulimit -e unlimited && ulimit -s unlimited'
+          ulimit -a
           poetry run pytest --color=yes --cov
