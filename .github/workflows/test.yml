@@ -101,12 +101,13 @@ jobs:
       - name: Install Poetry
         run: pip install -U poetry
 
-      # - run: |
-      #     sudo -s
-      #     for opt in $(ulimit -a | sed 's/.*\-\([a-z]\)[^a-zA-Z].*$/\1/'); do
-      #         ulimit -$opt unlimited
-      #     done
-
+      - run: |
+          sudo -s
+          ulimit -r unlimited
+          ulimit -c unlimited
+          ulimit -l unlimited
+          ulimit -e unlimited
+          ulimit -s unlimited
       - name: Install package
         run: poetry install
       - uses: mxschmitt/action-tmate@v3
