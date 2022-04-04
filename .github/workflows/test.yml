@@ -109,4 +109,4 @@ jobs:
         run: |
           CMD="poetry run pytest --color=yes --cov"
           sudo env "LD_LIBRARY_PATH=$LD_LIBRARY_PATH" "PATH=$PATH" bash -c \
-            "ulimit -l unlimited && ulimit -a && $CMD"
+            "ulimit -l unlimited && $CMD"
