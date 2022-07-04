@@ -23,7 +23,7 @@ click = "8.1.3"
 jackson = "jackson.main:cli"
 
 [tool.poetry.dev-dependencies]
-black = "22.3.0"
+black = "22.6.0"
 pre-commit = "2.19.0"
 pytest = "7.1.2"
 pytest-cov = "3.0.0"
