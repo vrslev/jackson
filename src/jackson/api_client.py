@@ -65,7 +65,7 @@ def _handle_response(response: httpx.Response, model: type[_T]) -> _T:
     return model(**data)
 
 
-def _get_connections(map: ConnectionMap) -> Iterable[dict[str, Any]]:
+def _get_required_remote_connections(map: ConnectionMap) -> Iterable[dict[str, Any]]:
     for connection in map.values():
         src, dest = connection.get_remote_connection()
         yield Connection(
@@ -79,11 +79,9 @@ async def _retry_connect(
     response = None
 
     for _ in range(3):
-        response = await func()
-        if response.status_code == 404:
-            await anyio.sleep(0.5)
-        else:
+        if (response := await func()).status_code != 404:
             return response
+        await anyio.sleep(0.5)
 
     assert response
     return response
@@ -94,17 +92,11 @@ class APIClient:
     client: httpx.AsyncClient
 
     async def init(self) -> InitResponse:
-        return _handle_response(
-            await self.client.get("/init"),  # pyright: ignore[reportUnknownMemberType]
-            InitResponse,
-        )
+        response = await self.client.get("/init")  # pyright: ignore
+        return _handle_response(response, InitResponse)
 
     async def connect(self, connection_map: ConnectionMap) -> None:
-        payload = list(_get_connections(connection_map))
-        func = partial(
-            self.client.patch,  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType]
-            "/connect",
-            json=payload,
-        )
+        payload = list(_get_required_remote_connections(connection_map))
+        func = partial(self.client.patch, "/connect", json=payload)  # pyright: ignore
         response = await _retry_connect(func)
         _handle_response(response, ConnectResponse)

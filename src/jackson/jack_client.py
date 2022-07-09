@@ -3,16 +3,7 @@ from typing import Callable
 import anyio
 import jack
 
-from jackson.logging import block_jack_client_streams
 from jackson.logging import jack_client_log as log
-from jackson.logging import set_jack_client_streams
-
-
-def get_jack_client(server_name: str) -> jack.Client:
-    block_jack_client_streams()
-    client = jack.Client(name="Helper", no_start_server=True, servername=server_name)
-    set_jack_client_streams()
-    return client
 
 
 def _connect_ports_and_log(client: jack.Client, source: str, destination: str) -> None:

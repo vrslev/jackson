@@ -1,26 +1,22 @@
 import signal
 from types import FrameType
-from typing import cast
 
 import anyio
 import fastapi
 import uvicorn
-from fastapi import Body, Depends, FastAPI, HTTPException, status
+from fastapi import Body, FastAPI, HTTPException, status
 from fastapi.exception_handlers import http_exception_handler
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from jackson.connector_server import (
     Connection,
-    ConnectResponse,
     FailedToConnectPorts,
-    InitResponse,
     PlaybackPortAlreadyHasConnections,
     PortConnectorError,
     PortNotFound,
     ServerPortConnector,
 )
-from jackson.logging import get_logger
 
 
 async def port_connector_error_handler(
@@ -38,51 +34,35 @@ async def port_connector_error_handler(
     return await http_exception_handler(request=request, exc=http_exc)
 
 
-app = FastAPI(exception_handlers={PortConnectorError: port_connector_error_handler})
-get_logger("uvicorn.error", "HttpServer")
-get_logger("uvicorn.access", "HttpServer")
+def get_app(port_connector: ServerPortConnector) -> FastAPI:
+    app = FastAPI(exception_handlers={PortConnectorError: port_connector_error_handler})
+
+    @app.get("/init")
+    async def _():
+        return port_connector.init()
+
+    @app.patch("/connect")
+    async def _(connections: list[Connection] = Body(...)):
+        return await port_connector.connect(connections)
+
+    return app
 
 
-def get_port_connector() -> ServerPortConnector:
-    return app.state.port_connector
-
-
-@app.get("/init")
-async def init(
-    connector: ServerPortConnector = Depends(get_port_connector),
-) -> InitResponse:
-    return connector.init()
-
-
-@app.patch("/connect")
-async def connect(
-    connector: ServerPortConnector = Depends(get_port_connector),
-    connections: list[Connection] = Body(...),
-) -> ConnectResponse:
-    return await connector.connect(connections)
-
-
-def _get_uvicorn_server() -> uvicorn.Server:
-    config = uvicorn.Config(app=app, host="0.0.0.0", workers=1, log_config=None)
-    server = uvicorn.Server(config)
-    server.config.load()
-    server.lifespan = server.config.lifespan_class(server.config)
-    return server
-
-
-def _install_signal_handlers(server: uvicorn.Server, scope: anyio.CancelScope) -> None:
+def install_api_signal_handlers(
+    server: uvicorn.Server, scope: anyio.CancelScope
+) -> None:
     def handler(sig: int, frame: FrameType | None) -> None:
         scope.cancel()
-        server.handle_exit(sig=cast(signal.Signals, sig), frame=frame)
+        server.handle_exit(sig=sig, frame=frame)
 
     for sig in (signal.SIGINT, signal.SIGTERM):
         signal.signal(sig, handler)
 
 
-def get_api_server(
-    port_connector: ServerPortConnector, cancel_scope: anyio.CancelScope
-) -> uvicorn.Server:
-    app.state.port_connector = port_connector
-    server = _get_uvicorn_server()
-    _install_signal_handlers(server=server, scope=cancel_scope)
+def get_api_server(port_connector: ServerPortConnector) -> uvicorn.Server:
+    app = get_app(port_connector)
+    config = uvicorn.Config(app=app, host="0.0.0.0", workers=1, log_config=None)
+    server = uvicorn.Server(config)
+    server.config.load()
+    server.lifespan = server.config.lifespan_class(server.config)
     return server

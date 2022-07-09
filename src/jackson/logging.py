@@ -140,3 +140,6 @@ class JackTripFilter(MessageFilter):
 
 jacktrip_log = get_logger(__name__, "JackTrip")
 jacktrip_log.addFilter(JackTripFilter())
+
+get_logger("uvicorn.error", "HttpServer")
+get_logger("uvicorn.access", "HttpServer")

@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from functools import singledispatch
-from typing import Any, Callable, Coroutine, Protocol, cast
+from typing import Any, Awaitable, Callable, Protocol
 
 import anyio
 import httpx
@@ -10,56 +10,56 @@ import uvicorn
 from anyio.abc import TaskGroup
 
 from jackson.api_client import APIClient
-from jackson.api_server import get_api_server
+from jackson.api_server import get_api_server, install_api_signal_handlers
 from jackson.connector_client import connect_server_and_client_ports
 from jackson.connector_server import ServerPortConnector
-from jackson.jack_server import start_jack_server
 from jackson.jacktrip import StreamingProcess
-from jackson.logging import block_jack_client_streams, block_jack_server_streams
+from jackson.logging import (
+    block_jack_client_streams,
+    block_jack_server_streams,
+    set_jack_client_streams,
+    set_jack_server_stream_handlers,
+)
 from jackson.port_connection import ConnectionMap, count_receive_send_channels
 
 
-class BaseManager(Protocol):
-    async def start(self, tg: TaskGroup) -> None:
-        ...
+async def run_manager(
+    start: Callable[[TaskGroup], Awaitable[None]], stop: Callable[[], Awaitable[None]]
+) -> None:
+    async with anyio.create_task_group() as tg:
+        try:
+            await start(tg)
+            await anyio.sleep_forever()
+        finally:
+            with anyio.CancelScope(shield=True):
+                await stop()
 
-    async def stop(self) -> None:
-        ...
 
-    async def run(self) -> None:
-        async with anyio.create_task_group() as tg:
-            try:
-                await self.start(tg)
-                await anyio.sleep_forever()
-            finally:
-                with anyio.CancelScope(shield=True):
-                    await self.stop()
+def get_jack_client(server_name: str) -> jack.Client:
+    block_jack_client_streams()
+    client = jack.Client(name="Helper", no_start_server=True, servername=server_name)
+    set_jack_client_streams()
+    return client
 
 
 @dataclass
-class Server(BaseManager):
+class Server:
     jack_server: jack_server.Server
-    get_jack_client: Callable[[], jack.Client]
     jacktrip: StreamingProcess
+
     jack_client: jack.Client | None = field(default=None, init=False)
     api: uvicorn.Server | None = field(default=None, init=False)
 
     async def start(self, tg: TaskGroup) -> None:
-        start_jack_server(self.jack_server)
+        set_jack_server_stream_handlers()
+        self.jack_server.start()
 
         tg.start_soon(self.jacktrip.start)
 
-        self.jack_client = self.get_jack_client()
-        self.api = get_api_server(
-            port_connector=ServerPortConnector(self.jack_client),
-            cancel_scope=tg.cancel_scope,
-        )
-        tg.start_soon(
-            cast(
-                Callable[..., Coroutine[Any, Any, None]],
-                self.api.startup,  # pyright: ignore[reportUnknownMemberType]
-            )
-        )
+        self.jack_client = get_jack_client(self.jack_server.name)
+        self.api = get_api_server(port_connector=ServerPortConnector(self.jack_client))
+        install_api_signal_handlers(server=self.api, scope=tg.cancel_scope)
+        tg.start_soon(self.api.startup)  # pyright: ignore
 
     async def stop(self) -> None:
         await cleanup_stack(self.api, self.jacktrip, self.jack_client, self.jack_server)
@@ -76,33 +76,33 @@ class GetClientJacktrip(Protocol):
 
 
 @dataclass
-class Client(BaseManager):
-    api_http_client: httpx.AsyncClient
+class Client:
+    api: APIClient
     connection_map: ConnectionMap
     get_jack_server: GetJackServer
-    get_jack_client: Callable[[], jack.Client]
     get_jacktrip: GetClientJacktrip
+
     jack_server_: jack_server.Server | None = field(default=None, init=False)
     jack_client: jack.Client | None = field(default=None, init=False)
     jacktrip: StreamingProcess | None = field(default=None, init=False)
 
     async def start(self, tg: TaskGroup) -> None:
-        api = APIClient(client=self.api_http_client)
-        response = await api.init()
+        response = await self.api.init()
 
         self.jack_server_ = self.get_jack_server(
             rate=response.rate, period=response.buffer_size
         )
-        start_jack_server(self.jack_server_)
+        set_jack_server_stream_handlers()
+        self.jack_server_.start()
 
-        self.jack_client = self.get_jack_client()
+        self.jack_client = get_jack_client(self.jack_server_.name)
 
-        async def connect_ports():
+        async def connect_ports() -> None:
             assert self.jack_client
             await connect_server_and_client_ports(
                 client=self.jack_client,
                 connection_map=self.connection_map,
-                connect_on_server=api.connect,
+                connect_on_server=self.api.connect,
             )
 
         tg.start_soon(connect_ports)
@@ -119,10 +119,7 @@ class Client(BaseManager):
 
     async def stop(self) -> None:
         await cleanup_stack(
-            self.api_http_client,
-            self.jack_client,
-            self.jacktrip,
-            self.jack_server_,
+            self.api.client, self.jack_client, self.jacktrip, self.jack_server_
         )
 
 

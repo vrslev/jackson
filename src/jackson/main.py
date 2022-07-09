@@ -8,9 +8,9 @@ import yaml
 from jack_server._server import SetByJack_
 
 from jackson import jacktrip
-from jackson.jack_client import get_jack_client
+from jackson.api_client import APIClient
 from jackson.logging import configure_logging, jacktrip_log
-from jackson.manager import Client, GetJackServer, Server
+from jackson.manager import Client, Server, run_manager
 from jackson.settings import ClientSettings, ServerSettings, load_client_settings
 
 
@@ -22,28 +22,25 @@ def get_server_manager(settings: ServerSettings) -> Server:
         rate=settings.audio.sample_rate,
         period=settings.audio.buffer_size,
     )
-    get_jack_client_ = lambda: get_jack_client(settings.audio.jack_server_name)
     jacktrip_ = jacktrip.get_server(
         jack_server_name=settings.audio.jack_server_name,
         port=settings.server.jacktrip_port,
         log=jacktrip_log,
     )
-    return Server(
-        jack_server=jack_server_, get_jack_client=get_jack_client_, jacktrip=jacktrip_
-    )
+    return Server(jack_server=jack_server_, jacktrip=jacktrip_)
 
 
 def get_client_manager(settings: ClientSettings) -> Client:
-    get_jack_server: GetJackServer = lambda rate, period: jack_server.Server(
-        name=settings.audio.jack_server_name,
-        driver=settings.audio.driver,
-        device=settings.audio.device or SetByJack_,
-        rate=rate,
-        period=period,
-    )
-    get_jack_client_ = lambda: get_jack_client(settings.audio.jack_server_name)
+    def get_jack_server(rate: jack_server.SampleRate, period: int):
+        return jack_server.Server(
+            name=settings.audio.jack_server_name,
+            driver=settings.audio.driver,
+            device=settings.audio.device or SetByJack_,
+            rate=rate,
+            period=period,
+        )
 
-    def get_jacktrip(receive_count: int, send_count: int) -> jacktrip.StreamingProcess:
+    def get_jacktrip(receive_count: int, send_count: int):
         return jacktrip.get_client(
             jack_server_name=settings.audio.jack_server_name,
             server_host=settings.server.host,
@@ -54,11 +51,11 @@ def get_client_manager(settings: ClientSettings) -> Client:
             log=jacktrip_log,
         )
 
+    api = APIClient(httpx.AsyncClient(base_url=settings.server.api_url))
     return Client(
-        api_http_client=httpx.AsyncClient(base_url=settings.server.api_url),
+        api=api,
         connection_map=settings.connection_map,
         get_jack_server=get_jack_server,
-        get_jack_client=get_jack_client_,
         get_jacktrip=get_jacktrip,
     )
 
@@ -73,7 +70,8 @@ def cli():
 def server(config: io.TextIOWrapper) -> None:
     configure_logging("server")
     server = get_server_manager(ServerSettings(**yaml.safe_load(config)))
-    anyio.run(server.run, backend_options={"use_uvloop": True})
+    run = lambda: run_manager(server.start, server.stop)
+    anyio.run(run, backend_options={"use_uvloop": True})
 
 
 @cli.command()
@@ -81,4 +79,5 @@ def server(config: io.TextIOWrapper) -> None:
 def client(config: io.TextIOWrapper) -> None:
     configure_logging("client")
     client = get_client_manager(load_client_settings(yaml.safe_load(config)))
-    anyio.run(client.run, backend_options={"use_uvloop": True})
+    run = lambda: run_manager(client.start, client.stop)
+    anyio.run(run, backend_options={"use_uvloop": True})
