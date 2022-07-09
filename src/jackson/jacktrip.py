@@ -29,8 +29,9 @@ class StreamingProcess:
     cmd: list[str]
     env: dict[str, str]
     log: logging.Logger
+
     process: Process | None = field(default=None, init=False)
-    stopping: bool = field(default=False, init=False)
+    is_stopping: bool = field(default=False, init=False)
 
     @contextlib.asynccontextmanager
     async def _open_process_and_stream(self) -> AsyncGenerator[Process, None]:
@@ -49,7 +50,7 @@ class StreamingProcess:
                 yield process
 
     async def start(self) -> None:
-        self.stopping = False
+        self.is_stopping = False
 
         async with self._open_process_and_stream() as self.process:
             try:
@@ -63,10 +64,10 @@ class StreamingProcess:
                 raise SystemExit(code)
 
     async def stop(self) -> int | None:
-        if not self.process or self.stopping:
+        if not self.process or self.is_stopping:
             return
 
-        self.stopping = True
+        self.is_stopping = True
 
         if self.process.returncode is None:
             self.process.terminate()
@@ -84,9 +85,10 @@ class StreamingProcess:
 def _get_jacktrip(
     cmd: list[str], jack_server_name: str, log: logging.Logger
 ) -> StreamingProcess:
-    cmd.insert(0, "jacktrip")
+    cmd_ = cmd.copy()
+    cmd_.insert(0, "jacktrip")
     env = {"JACK_DEFAULT_SERVER": jack_server_name}
-    return StreamingProcess(cmd=cmd, env=env, log=log)
+    return StreamingProcess(cmd=cmd_, env=env, log=log)
 
 
 def _build_server_cmd(*, port: int) -> list[str]:
