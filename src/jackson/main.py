@@ -61,7 +61,7 @@ def get_client(settings: ClientSettings) -> Client:
 
 
 @click.group()
-def cli():
+def cli() -> None:
     ...
 
 
