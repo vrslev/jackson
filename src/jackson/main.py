@@ -14,7 +14,7 @@ from jackson.manager import Client, Server, run_manager
 from jackson.settings import ClientSettings, ServerSettings, load_client_settings
 
 
-def get_server_manager(settings: ServerSettings) -> Server:
+def get_server(settings: ServerSettings) -> Server:
     jack_server_ = jack_server.Server(
         name=settings.audio.jack_server_name,
         driver=settings.audio.driver,
@@ -30,7 +30,7 @@ def get_server_manager(settings: ServerSettings) -> Server:
     return Server(jack_server=jack_server_, jacktrip=jacktrip_)
 
 
-def get_client_manager(settings: ClientSettings) -> Client:
+def get_client(settings: ClientSettings) -> Client:
     def get_jack_server(rate: jack_server.SampleRate, period: int):
         return jack_server.Server(
             name=settings.audio.jack_server_name,
@@ -69,15 +69,13 @@ def cli():
 @click.option("--config", default="server.yaml", type=click.File())
 def server(config: io.TextIOWrapper) -> None:
     configure_logging("server")
-    server = get_server_manager(ServerSettings(**yaml.safe_load(config)))
-    run = lambda: run_manager(server.start, server.stop)
-    anyio.run(run, backend_options={"use_uvloop": True})
+    server = get_server(ServerSettings(**yaml.safe_load(config)))
+    anyio.run(lambda: run_manager(server), backend_options={"use_uvloop": True})
 
 
 @cli.command()
 @click.option("--config", default="client.yaml", type=click.File())
 def client(config: io.TextIOWrapper) -> None:
     configure_logging("client")
-    client = get_client_manager(load_client_settings(yaml.safe_load(config)))
-    run = lambda: run_manager(client.start, client.stop)
-    anyio.run(run, backend_options={"use_uvloop": True})
+    client = get_client(load_client_settings(yaml.safe_load(config)))
+    anyio.run(lambda: run_manager(client), backend_options={"use_uvloop": True})

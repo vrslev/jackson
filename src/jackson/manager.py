@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from functools import singledispatch
-from typing import Any, Awaitable, Callable, Protocol
+from typing import Any, Protocol
 
 import anyio
 import httpx
@@ -23,16 +23,22 @@ from jackson.logging import (
 from jackson.port_connection import ConnectionMap, count_receive_send_channels
 
 
-async def run_manager(
-    start: Callable[[TaskGroup], Awaitable[None]], stop: Callable[[], Awaitable[None]]
-) -> None:
+class Manager(Protocol):
+    async def start(self, tg: TaskGroup) -> None:
+        ...
+
+    async def stop(self) -> None:
+        ...
+
+
+async def run_manager(manager: Manager) -> None:
     async with anyio.create_task_group() as tg:
         try:
-            await start(tg)
+            await manager.start(tg)
             await anyio.sleep_forever()
         finally:
             with anyio.CancelScope(shield=True):
-                await stop()
+                await manager.stop()
 
 
 def get_jack_client(server_name: str) -> jack.Client:
