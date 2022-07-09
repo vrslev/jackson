@@ -65,7 +65,7 @@ def cli():
     ...
 
 
-@cli.command()
+@cli.command
 @click.option("--config", default="server.yaml", type=click.File())
 def server(config: io.TextIOWrapper) -> None:
     configure_logging("server")
@@ -73,7 +73,7 @@ def server(config: io.TextIOWrapper) -> None:
     anyio.run(lambda: run_manager(server), backend_options={"use_uvloop": True})
 
 
-@cli.command()
+@cli.command
 @click.option("--config", default="client.yaml", type=click.File())
 def client(config: io.TextIOWrapper) -> None:
     configure_logging("client")
