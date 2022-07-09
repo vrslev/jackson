@@ -7,28 +7,33 @@ from pydantic import AnyHttpUrl, BaseModel
 from jackson.port_connection import ConnectionMap, build_connection_map
 
 
-class _BaseAudio(BaseModel):
+class _ServerAudio(BaseModel):
     driver: str
     device: str | None
-    jack_server_name: str
-
-
-class _ServerAudio(_BaseAudio):
     jack_server_name: str = "JacksonServer"
     sample_rate: SampleRate
     buffer_size: int  # In samples
 
 
-class _ClientAudio(_BaseAudio):
-    jack_server_name: str = "JacksonClient"
-
-
-class _BaseServer(BaseModel):
+class _ServerServer(BaseModel):
     jacktrip_port: int
     api_port: int
 
 
-class _ClientServer(_BaseServer):
+class ServerSettings(BaseModel):
+    audio: _ServerAudio
+    server: _ServerServer
+
+
+class _ClientAudio(BaseModel):
+    driver: str
+    device: str | None
+    jack_server_name: str = "JacksonClient"
+
+
+class _ClientServer(BaseModel):
+    jacktrip_port: int
+    api_port: int
     host: IPv4Address
 
     @property
@@ -41,11 +46,6 @@ class _ClientServer(_BaseServer):
 class _ClientPorts(BaseModel):
     receive: dict[int, int]
     send: dict[int, int]
-
-
-class ServerSettings(BaseModel):
-    audio: _ServerAudio
-    server: _BaseServer
 
 
 class _FileClientSettings(BaseModel):
@@ -61,16 +61,12 @@ class ClientSettings(BaseModel):
     server: _ClientServer
     connection_map: ConnectionMap
 
-
-def load_client_settings(content: Any) -> ClientSettings:
-    file_settings = _FileClientSettings(**content)
-    return ClientSettings(
-        name=file_settings.name,
-        audio=file_settings.audio,
-        server=file_settings.server,
-        connection_map=build_connection_map(
-            client_name=file_settings.name,
-            receive=file_settings.ports.receive,
-            send=file_settings.ports.send,
-        ),
-    )
+    @staticmethod
+    def load(content: Any) -> "ClientSettings":
+        f = _FileClientSettings(**content)
+        map = build_connection_map(
+            client_name=f.name, receive=f.ports.receive, send=f.ports.send
+        )
+        return ClientSettings(
+            name=f.name, audio=f.audio, server=f.server, connection_map=map
+        )

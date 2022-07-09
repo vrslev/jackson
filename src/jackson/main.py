@@ -11,7 +11,7 @@ from jackson import jacktrip
 from jackson.api_client import APIClient
 from jackson.logging import configure_logging, jacktrip_log
 from jackson.manager import Client, Server, run_manager
-from jackson.settings import ClientSettings, ServerSettings, load_client_settings
+from jackson.settings import ClientSettings, ServerSettings
 
 
 def get_server(settings: ServerSettings) -> Server:
@@ -77,5 +77,5 @@ def server(config: io.TextIOWrapper) -> None:
 @click.option("--config", default="client.yaml", type=click.File())
 def client(config: io.TextIOWrapper) -> None:
     configure_logging("client")
-    client = get_client(load_client_settings(yaml.safe_load(config)))
+    client = get_client(ClientSettings.load(yaml.safe_load(config)))
     anyio.run(lambda: run_manager(client), backend_options={"use_uvloop": True})
