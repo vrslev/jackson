@@ -1,7 +1,7 @@
 import logging
 import os
 from logging.handlers import RotatingFileHandler
-from typing import Literal
+from typing import ClassVar, Literal
 
 import rich.traceback
 from rich.logging import RichHandler
@@ -57,7 +57,7 @@ def get_logger(name: str, prog_name: str) -> logging.Logger:
 
 
 class MessageFilter(logging.Filter):
-    messages: set[str]
+    messages: ClassVar[set[str]]
 
     def filter(self, record: logging.LogRecord) -> bool:
         for msg in self.messages:

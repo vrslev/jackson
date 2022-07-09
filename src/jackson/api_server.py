@@ -76,10 +76,7 @@ def _get_uvicorn_server() -> uvicorn.Server:
 def _install_signal_handlers(server: uvicorn.Server, scope: anyio.CancelScope) -> None:
     def handler(sig: int, frame: FrameType | None) -> None:
         scope.cancel()
-        server.handle_exit(
-            sig=cast(signal.Signals, sig),
-            frame=frame,  # pyright: ignore[reportGeneralTypeIssues]
-        )
+        server.handle_exit(sig=cast(signal.Signals, sig), frame=frame)
 
     for sig in (signal.SIGINT, signal.SIGTERM):
         signal.signal(sig, handler)
