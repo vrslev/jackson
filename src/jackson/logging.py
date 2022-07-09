@@ -3,6 +3,8 @@ import os
 from logging.handlers import RotatingFileHandler
 from typing import ClassVar, Literal
 
+import jack
+import jack_server
 import rich.traceback
 from rich.logging import RichHandler
 from rich.text import Text
@@ -65,3 +67,76 @@ class MessageFilter(logging.Filter):
                 return False
 
         return super().filter(record)
+
+
+class JackClientFilter(MessageFilter):
+    messages = {
+        "CheckRes error",
+        "JackSocketClientChannel read fail",
+        "Cannot read socket fd = ",
+    }
+
+
+jack_client_log = get_logger(__name__, "JackClient")
+jack_client_log.addFilter(JackClientFilter())
+
+
+def set_jack_client_streams() -> None:
+    jack.set_info_function(jack_client_log.info)
+    jack.set_error_function(jack_client_log.error)
+
+
+def _silent_stream_handler(_: str) -> None:
+    pass
+
+
+def block_jack_client_streams() -> None:
+    jack.set_info_function(_silent_stream_handler)
+    jack.set_error_function(_silent_stream_handler)
+
+
+class JackServerFilter(MessageFilter):
+    messages = {
+        "JackMachSemaphore::Destroy failed to kill semaphore",
+        "JackMachSemaphoreServer::Execute",
+        "self-connect-mode is",
+        "Input channel = ",
+        "JACK output port = ",
+        "CoreAudio driver is running...",
+    }
+
+
+jack_server_log = get_logger(__name__, "JackServer")
+jack_server_log.addFilter(JackServerFilter())
+
+
+def set_jack_server_stream_handlers() -> None:
+    jack_server.set_info_function(jack_server_log.info)
+    jack_server.set_error_function(jack_server_log.error)
+
+
+def block_jack_server_streams() -> None:
+    jack_server.set_info_function(None)
+    jack_server.set_error_function(None)
+
+
+class JackTripFilter(MessageFilter):
+    messages = {
+        "WEAK-JACK: initializing",
+        "WEAK-JACK: OK.",
+        "mThreadPool default maxThreadCount",
+        "mThreadPool maxThreadCount previously set",
+    }
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        if all(c == "-" for c in record.msg):
+            return False
+
+        if all(c == "=" for c in record.msg):
+            return False
+
+        return super().filter(record)
+
+
+jacktrip_log = get_logger(__name__, "JackTrip")
+jacktrip_log.addFilter(JackTripFilter())

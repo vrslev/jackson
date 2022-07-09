@@ -13,9 +13,9 @@ from jackson.api_client import APIClient
 from jackson.api_server import get_api_server
 from jackson.connector_client import connect_server_and_client_ports
 from jackson.connector_server import ServerPortConnector
-from jackson.jack_client import block_jack_client_streams
-from jackson.jack_server import block_jack_server_streams, start_jack_server
+from jackson.jack_server import start_jack_server
 from jackson.jacktrip import StreamingProcess
+from jackson.logging import block_jack_client_streams, block_jack_server_streams
 from jackson.port_connection import ConnectionMap, count_receive_send_channels
 
 

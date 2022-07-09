@@ -9,7 +9,7 @@ from jack_server._server import SetByJack_
 
 from jackson import jacktrip
 from jackson.jack_client import get_jack_client
-from jackson.logging import configure_logging
+from jackson.logging import configure_logging, jacktrip_log
 from jackson.manager import Client, GetJackServer, Server
 from jackson.settings import ClientSettings, ServerSettings, load_client_settings
 
@@ -26,6 +26,7 @@ def get_server_manager(settings: ServerSettings) -> Server:
     jacktrip_ = jacktrip.get_server(
         jack_server_name=settings.audio.jack_server_name,
         port=settings.server.jacktrip_port,
+        log=jacktrip_log,
     )
     return Server(
         jack_server=jack_server_, get_jack_client=get_jack_client_, jacktrip=jacktrip_
@@ -50,6 +51,7 @@ def get_client_manager(settings: ClientSettings) -> Client:
             receive_channels=receive_count,
             send_channels=send_count,
             remote_name=settings.name,
+            log=jacktrip_log,
         )
 
     return Client(

@@ -10,30 +10,6 @@ import anyio
 from anyio.abc import ByteReceiveStream, Process
 from anyio.streams.text import TextReceiveStream
 
-from jackson.logging import MessageFilter, get_logger
-
-
-class JackTripFilter(MessageFilter):
-    messages = {
-        "WEAK-JACK: initializing",
-        "WEAK-JACK: OK.",
-        "mThreadPool default maxThreadCount",
-        "mThreadPool maxThreadCount previously set",
-    }
-
-    def filter(self, record: logging.LogRecord) -> bool:
-        if all(c == "-" for c in record.msg):
-            return False
-
-        if all(c == "=" for c in record.msg):
-            return False
-
-        return super().filter(record)
-
-
-log = get_logger(__name__, "JackTrip")
-log.addFilter(JackTripFilter())
-
 JACK_CLIENT_NAME = "JackTrip"
 
 
@@ -52,12 +28,13 @@ async def _restream_stream(
 class StreamingProcess:
     cmd: list[str]
     env: dict[str, str]
+    log: logging.Logger
     process: Process | None = field(default=None, init=False)
     stopping: bool = field(default=False, init=False)
 
     @contextlib.asynccontextmanager
     async def _open_process_and_stream(self) -> AsyncGenerator[Process, None]:
-        log.info(
+        self.log.info(
             f"Starting [bold blue]{self.cmd[0]}[/bold blue]..."
             + f" [italic]({shlex.join(self.cmd)})[/italic]"
         )
@@ -67,8 +44,8 @@ class StreamingProcess:
 
         async with await anyio.open_process(self.cmd, env=env) as process:
             async with anyio.create_task_group() as tg:
-                tg.start_soon(lambda: _restream_stream(process.stderr, log.error))
-                tg.start_soon(lambda: _restream_stream(process.stdout, log.info))
+                tg.start_soon(lambda: _restream_stream(process.stderr, self.log.error))
+                tg.start_soon(lambda: _restream_stream(process.stdout, self.log.info))
                 yield process
 
     async def start(self) -> None:
@@ -100,14 +77,16 @@ class StreamingProcess:
         # Otherwise RuntimeError('Event loop is closed') is being called
         self.process._process._transport.close()  # pyright: ignore[reportGeneralTypeIssues, reportUnknownMemberType]
 
-        log.info(f"Exited with code {code}")
+        self.log.info(f"Exited with code {code}")
         return code
 
 
-def _get_jacktrip(cmd: list[str], jack_server_name: str) -> StreamingProcess:
+def _get_jacktrip(
+    cmd: list[str], jack_server_name: str, log: logging.Logger
+) -> StreamingProcess:
     cmd.insert(0, "jacktrip")
     env = {"JACK_DEFAULT_SERVER": jack_server_name}
-    return StreamingProcess(cmd=cmd, env=env)
+    return StreamingProcess(cmd=cmd, env=env, log=log)
 
 
 def _build_server_cmd(*, port: int) -> list[str]:
@@ -120,9 +99,11 @@ def _build_server_cmd(*, port: int) -> list[str]:
     ]
 
 
-def get_server(*, jack_server_name: str, port: int) -> StreamingProcess:
+def get_server(
+    *, jack_server_name: str, port: int, log: logging.Logger
+) -> StreamingProcess:
     cmd = _build_server_cmd(port=port)
-    return _get_jacktrip(cmd, jack_server_name)
+    return _get_jacktrip(cmd, jack_server_name, log)
 
 
 def _build_client_cmd(
@@ -160,6 +141,7 @@ def get_client(
     receive_channels: int,
     send_channels: int,
     remote_name: str,
+    log: logging.Logger,
 ) -> StreamingProcess:
     cmd = _build_client_cmd(
         server_host=server_host,
@@ -168,4 +150,4 @@ def get_client(
         send_channels=send_channels,
         remote_name=remote_name,
     )
-    return _get_jacktrip(cmd, jack_server_name)
+    return _get_jacktrip(cmd, jack_server_name, log)
