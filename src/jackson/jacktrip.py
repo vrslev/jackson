@@ -1,7 +1,6 @@
 import contextlib
 import logging
 import os
-import shlex
 from dataclasses import dataclass, field
 from ipaddress import IPv4Address
 from typing import AsyncGenerator, Callable
@@ -16,9 +15,7 @@ JACK_CLIENT_NAME = "JackTrip"
 async def _restream_stream(
     stream: ByteReceiveStream | None, handler: Callable[[str], None]
 ) -> None:
-    if not stream:
-        return
-
+    assert stream
     async for text in TextReceiveStream(stream):
         for line in text.splitlines():
             handler(line.strip())
@@ -35,18 +32,12 @@ class StreamingProcess:
 
     @contextlib.asynccontextmanager
     async def _open_process_and_stream(self) -> AsyncGenerator[Process, None]:
-        self.log.info(
-            f"Starting [bold blue]{self.cmd[0]}[/bold blue]..."
-            + f" [italic]({shlex.join(self.cmd)})[/italic]"
-        )
-
         env = dict(os.environ)
         env.update(self.env)
 
         async with await anyio.open_process(self.cmd, env=env) as process:
             async with anyio.create_task_group() as tg:
                 tg.start_soon(lambda: _restream_stream(process.stderr, self.log.error))
-                tg.start_soon(lambda: _restream_stream(process.stdout, self.log.info))
                 yield process
 
     async def start(self) -> None:
@@ -63,7 +54,7 @@ class StreamingProcess:
                 code = await self.stop()
                 raise SystemExit(code)
 
-    async def stop(self) -> int | None:
+    async def stop(self) -> None:
         if not self.process or self.is_stopping:
             return
 
@@ -73,13 +64,9 @@ class StreamingProcess:
             self.process.terminate()
 
         await self.process.wait()
-        code = self.process.returncode
 
-        # Otherwise RuntimeError('Event loop is closed') is being called
-        self.process._process._transport.close()  # pyright: ignore[reportGeneralTypeIssues, reportUnknownMemberType]
-
-        self.log.info(f"Exited with code {code}")
-        return code
+        # Otherwise RuntimeError('Event loop is closed') might be called
+        self.process._process._transport.close()  # pyright: ignore
 
 
 def _get_jacktrip(

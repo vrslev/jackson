@@ -81,13 +81,13 @@ jack_client_log = get_logger(__name__, "JackClient")
 jack_client_log.addFilter(JackClientFilter())
 
 
-def set_jack_client_streams() -> None:
-    jack.set_info_function(jack_client_log.info)
-    jack.set_error_function(jack_client_log.error)
-
-
 def _silent_stream_handler(_: str) -> None:
     pass
+
+
+def set_jack_client_streams() -> None:
+    jack.set_info_function(_silent_stream_handler)
+    jack.set_error_function(jack_client_log.error)
 
 
 def block_jack_client_streams() -> None:
@@ -111,7 +111,7 @@ jack_server_log.addFilter(JackServerFilter())
 
 
 def set_jack_server_stream_handlers() -> None:
-    jack_server.set_info_function(jack_server_log.info)
+    jack_server.set_info_function(None)
     jack_server.set_error_function(jack_server_log.error)
 
 
@@ -141,5 +141,4 @@ class JackTripFilter(MessageFilter):
 jacktrip_log = get_logger(__name__, "JackTrip")
 jacktrip_log.addFilter(JackTripFilter())
 
-get_logger("uvicorn.error", "HttpServer")
 get_logger("uvicorn.access", "HttpServer")
