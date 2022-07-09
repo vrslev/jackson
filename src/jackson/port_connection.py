@@ -1,4 +1,4 @@
-from typing import Iterable, Literal, cast
+from typing import Iterable, Literal, NewType, cast
 
 from pydantic import BaseModel
 
@@ -19,8 +19,7 @@ class PortName(BaseModel, frozen=True):
 
     @classmethod
     def parse(cls, port_name: str):
-        """Parse jack.Port().name in PortName."""
-
+        """Parse jack.Port().name into PortName."""
         *_, type_and_idx = port_name.split(":")
         type, idx, *extra = type_and_idx.split("_")
         assert not extra
@@ -55,12 +54,8 @@ class PortConnection(BaseModel, frozen=True):
             return self.source, self.remote_bridge
 
 
-def _validate_bridge_limit(
-    limit: int, bridge_idx: int, client_should: ClientShould
-) -> None:
-    """Validate that receive or send count don't exceed given limit."""
-    if bridge_idx > limit:
-        raise RuntimeError(f"Limit of available {client_should} ports exceeded.")
+RegisteredJackTripPort = NewType("RegisteredJackTripPort", PortName)
+ConnectionMap = dict[RegisteredJackTripPort, PortConnection]
 
 
 def _build_connection(
@@ -72,7 +67,10 @@ def _build_connection(
     remote: int,
     bridge: int,
 ) -> PortConnection:
-    """Build port connection based on client role, name and port indexes. Assumes that JackTrip is used."""
+    """
+    Build port connection based on client role, name and port indexes
+    assuming that JackTrip is used.
+    """
     if client_should == "send":
         source_idx, destination_idx = local, remote
         local_bridge_type, remote_bridge_type = "send", "receive"
@@ -95,18 +93,14 @@ def _build_specific_connections(
     client_name: str, client_should: ClientShould, ports: dict[int, int]
 ) -> Iterable[PortConnection]:
     """Build port connection for `client_should`."""
-    for idx, (local, remote) in enumerate(ports.items()):
+    for idx, (local, remote) in enumerate(ports.items(), start=1):
         yield _build_connection(
             client_name=client_name,
             client_should=client_should,
             local=local,
             remote=remote,
-            bridge=idx + 1,
+            bridge=idx,
         )
-
-
-_RegisteredJackTripPort = PortName
-ConnectionMap = dict[_RegisteredJackTripPort, PortConnection]
 
 
 def build_connection_map(
@@ -124,7 +118,15 @@ def build_connection_map(
             client_name=client_name, client_should="receive", ports=receive
         )
 
-    return {conn.local_bridge: conn for conn in gen()}
+    return {RegisteredJackTripPort(conn.local_bridge): conn for conn in gen()}
+
+
+def _validate_bridge_limit(
+    limit: int, bridge_idx: int, client_should: ClientShould
+) -> None:
+    """Validate that receive or send count don't exceed given limit."""
+    if bridge_idx > limit:
+        raise RuntimeError(f"Limit of available {client_should} ports exceeded.")
 
 
 def count_receive_send_channels(

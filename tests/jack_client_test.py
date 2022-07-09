@@ -5,7 +5,7 @@ import jack
 import pytest
 
 import jackson.jack_client
-from jackson.jack_client import connect_ports_and_log, retry_connect_ports
+from jackson.jack_client import connect_ports_and_log
 
 
 def test_connect_ports_and_log(jack_client: jack.Client):
