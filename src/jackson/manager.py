@@ -18,7 +18,7 @@ from jackson.logging import (
     block_jack_client_streams,
     block_jack_server_streams,
     set_jack_client_streams,
-    set_jack_server_stream_handlers,
+    set_jack_server_streams,
 )
 from jackson.port_connection import ConnectionMap, count_receive_send_channels
 
@@ -57,7 +57,7 @@ class Server:
     api: uvicorn.Server | None = field(default=None, init=False)
 
     async def start(self, tg: TaskGroup) -> None:
-        set_jack_server_stream_handlers()
+        set_jack_server_streams()
         self.jack_server.start()
 
         tg.start_soon(self.jacktrip.start)
@@ -98,7 +98,7 @@ class Client:
         self.jack_server_ = self.get_jack_server(
             rate=response.rate, period=response.buffer_size
         )
-        set_jack_server_stream_handlers()
+        set_jack_server_streams()
         self.jack_server_.start()
 
         self.jack_client = get_jack_client(self.jack_server_.name)

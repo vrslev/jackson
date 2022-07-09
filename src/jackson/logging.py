@@ -53,9 +53,15 @@ def configure_logging(mode: _Mode) -> None:
     logging.basicConfig(level=logging.INFO, handlers=[], datefmt="%m/%d/%Y %I:%M:%S %p")
 
 
-def get_logger(name: str, prog_name: str) -> logging.Logger:
-    _loggers_name_to_progname[name] = prog_name.ljust(8)[:8]
-    return logging.getLogger(name)
+def get_logger(
+    pretty_name: str, name: str | None = None, filter: logging.Filter | None = None
+) -> logging.Logger:
+    name_ = name or pretty_name
+    _loggers_name_to_progname[name_] = pretty_name.ljust(8)[:8]
+    log = logging.getLogger(name_)
+    if filter:
+        log.addFilter(filter)
+    return log
 
 
 class MessageFilter(logging.Filter):
@@ -67,57 +73,6 @@ class MessageFilter(logging.Filter):
                 return False
 
         return super().filter(record)
-
-
-class JackClientFilter(MessageFilter):
-    messages = {
-        "CheckRes error",
-        "JackSocketClientChannel read fail",
-        "Cannot read socket fd = ",
-    }
-
-
-jack_client_log = get_logger(__name__, "JackClient")
-jack_client_log.addFilter(JackClientFilter())
-
-
-def _silent_stream_handler(_: str) -> None:
-    pass
-
-
-def set_jack_client_streams() -> None:
-    jack.set_info_function(_silent_stream_handler)
-    jack.set_error_function(jack_client_log.error)
-
-
-def block_jack_client_streams() -> None:
-    jack.set_info_function(_silent_stream_handler)
-    jack.set_error_function(_silent_stream_handler)
-
-
-class JackServerFilter(MessageFilter):
-    messages = {
-        "JackMachSemaphore::Destroy failed to kill semaphore",
-        "JackMachSemaphoreServer::Execute",
-        "self-connect-mode is",
-        "Input channel = ",
-        "JACK output port = ",
-        "CoreAudio driver is running...",
-    }
-
-
-jack_server_log = get_logger(__name__, "JackServer")
-jack_server_log.addFilter(JackServerFilter())
-
-
-def set_jack_server_stream_handlers() -> None:
-    jack_server.set_info_function(None)
-    jack_server.set_error_function(jack_server_log.error)
-
-
-def block_jack_server_streams() -> None:
-    jack_server.set_info_function(None)
-    jack_server.set_error_function(None)
 
 
 class JackTripFilter(MessageFilter):
@@ -138,7 +93,31 @@ class JackTripFilter(MessageFilter):
         return super().filter(record)
 
 
-jacktrip_log = get_logger(__name__, "JackTrip")
-jacktrip_log.addFilter(JackTripFilter())
+jack_client_log = get_logger("JackClient")
+jack_server_log = get_logger("JackServer")
+jacktrip_log = get_logger("JackTrip", filter=JackTripFilter())
+get_logger("HttpServer", "uvicorn.access")
 
-get_logger("uvicorn.access", "HttpServer")
+
+def _silent_stream_handler(_: str) -> None:
+    pass
+
+
+def set_jack_client_streams() -> None:
+    jack.set_info_function(_silent_stream_handler)
+    jack.set_error_function(jack_client_log.error)
+
+
+def block_jack_client_streams() -> None:
+    jack.set_info_function(_silent_stream_handler)
+    jack.set_error_function(_silent_stream_handler)
+
+
+def set_jack_server_streams() -> None:
+    jack_server.set_info_function(None)
+    jack_server.set_error_function(jack_server_log.error)
+
+
+def block_jack_server_streams() -> None:
+    jack_server.set_info_function(None)
+    jack_server.set_error_function(None)
