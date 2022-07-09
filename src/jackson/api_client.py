@@ -26,12 +26,12 @@ class ServerError(Exception):
         return f"{self.message} ({self.data})"
 
 
-_known_errors: tuple[type[BaseModel], ...] = (
+known_errors: tuple[type[BaseModel], ...] = (
     PlaybackPortAlreadyHasConnections,
     PortNotFound,
     FailedToConnectPorts,
 )
-_T = TypeVar("_T")
+T = TypeVar("T")
 
 
 def _is_structured_exception(data: dict[str, Any]) -> bool:
@@ -39,7 +39,7 @@ def _is_structured_exception(data: dict[str, Any]) -> bool:
 
 
 def _find_model_by_name(name: str) -> type[BaseModel] | None:
-    for model in _known_errors:
+    for model in known_errors:
         if model.__name__ == name:
             return model
 
@@ -59,13 +59,13 @@ def _handle_exceptions(data: dict[str, Any]) -> None:
     raise ServerError(message=name, data=model(**data["detail"]["data"]))
 
 
-def _handle_response(response: httpx.Response, model: type[_T]) -> _T:
+def handle_response(response: httpx.Response, model: type[T]) -> T:
     data = response.json()
     _handle_exceptions(data)
     return model(**data)
 
 
-def _get_required_remote_connections(map: ConnectionMap) -> Iterable[dict[str, Any]]:
+def get_required_remote_connections(map: ConnectionMap) -> Iterable[dict[str, Any]]:
     for connection in map.values():
         src, dest = connection.get_remote_connection()
         yield Connection(
@@ -73,7 +73,7 @@ def _get_required_remote_connections(map: ConnectionMap) -> Iterable[dict[str, A
         ).dict()
 
 
-async def _retry_connect(
+async def retry_connect_func(
     func: Callable[[], Coroutine[None, None, httpx.Response]]
 ) -> httpx.Response:
     response = None
@@ -93,10 +93,10 @@ class APIClient:
 
     async def init(self) -> InitResponse:
         response = await self.client.get("/init")  # pyright: ignore
-        return _handle_response(response, InitResponse)
+        return handle_response(response, InitResponse)
 
     async def connect(self, connection_map: ConnectionMap) -> None:
-        payload = list(_get_required_remote_connections(connection_map))
+        payload = list(get_required_remote_connections(connection_map))
         func = partial(self.client.patch, "/connect", json=payload)  # pyright: ignore
-        response = await _retry_connect(func)
-        _handle_response(response, ConnectResponse)
+        response = await retry_connect_func(func)
+        handle_response(response, ConnectResponse)

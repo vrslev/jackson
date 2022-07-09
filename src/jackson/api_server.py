@@ -19,6 +19,17 @@ from jackson.connector_server import (
 )
 
 
+def install_api_signal_handlers(
+    server: uvicorn.Server, scope: anyio.CancelScope
+) -> None:
+    def handler(sig: int, frame: FrameType | None) -> None:
+        scope.cancel()
+        server.handle_exit(sig=sig, frame=frame)
+
+    for sig in (signal.SIGINT, signal.SIGTERM):
+        signal.signal(sig, handler)
+
+
 async def port_connector_error_handler(
     request: fastapi.Request, exc: PortConnectorError
 ) -> JSONResponse:
@@ -38,25 +49,14 @@ def get_app(port_connector: ServerPortConnector) -> FastAPI:
     app = FastAPI(exception_handlers={PortConnectorError: port_connector_error_handler})
 
     @app.get("/init")
-    async def _():
+    def _():
         return port_connector.init()
 
     @app.patch("/connect")
-    async def _(connections: list[Connection] = Body(...)):
-        return await port_connector.connect(connections)
+    def _(connections: list[Connection] = Body(...)):
+        return port_connector.connect(connections)
 
     return app
-
-
-def install_api_signal_handlers(
-    server: uvicorn.Server, scope: anyio.CancelScope
-) -> None:
-    def handler(sig: int, frame: FrameType | None) -> None:
-        scope.cancel()
-        server.handle_exit(sig=sig, frame=frame)
-
-    for sig in (signal.SIGINT, signal.SIGTERM):
-        signal.signal(sig, handler)
 
 
 def get_api_server(port_connector: ServerPortConnector) -> uvicorn.Server:
