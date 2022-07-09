@@ -11,7 +11,7 @@ from anyio.abc import TaskGroup
 
 from jackson.api_client import APIClient
 from jackson.api_server import get_api_server
-from jackson.connector_client import ClientPortConnector
+from jackson.connector_client import connect_server_and_client_ports
 from jackson.connector_server import ServerPortConnector
 from jackson.jack_client import block_jack_client_streams
 from jackson.jack_server import block_jack_server_streams, start_jack_server
@@ -96,12 +96,16 @@ class Client(BaseManager):
         start_jack_server(self.jack_server_)
 
         self.jack_client = self.get_jack_client()
-        port_connector = ClientPortConnector(
-            client=self.jack_client,
-            connection_map=self.connection_map,
-            connect_on_server=api.connect,
-        )
-        tg.start_soon(port_connector.wait_and_run)
+
+        async def connect_ports():
+            assert self.jack_client
+            await connect_server_and_client_ports(
+                client=self.jack_client,
+                connection_map=self.connection_map,
+                connect_on_server=api.connect,
+            )
+
+        tg.start_soon(connect_ports)
 
         receive_count, send_count = count_receive_send_channels(
             connection_map=self.connection_map,

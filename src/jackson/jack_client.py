@@ -1,3 +1,5 @@
+from typing import Callable
+
 import anyio
 import jack
 
@@ -19,9 +21,13 @@ log.addFilter(JackClientFilter())
 def get_jack_client(server_name: str) -> jack.Client:
     block_jack_client_streams()
     client = jack.Client(name="Helper", no_start_server=True, servername=server_name)
+    _set_jack_client_streams()
+    return client
+
+
+def _set_jack_client_streams() -> None:
     jack.set_info_function(log.info)
     jack.set_error_function(log.error)
-    return client
 
 
 def _silent_stream_handler(_: str) -> None:
@@ -44,6 +50,22 @@ def _connect_ports_and_log(client: jack.Client, source: str, destination: str) -
     )
 
 
+async def _retry(
+    func: Callable[[], None], exc_type: type[Exception], times: int
+) -> None:
+    exc = None
+
+    for _ in range(times):
+        try:
+            return func()
+        except exc_type as current_exc:
+            exc = current_exc
+            await anyio.sleep(0.1)
+
+    assert exc
+    raise exc
+
+
 async def retry_connect_ports(
     client: jack.Client, source: str, destination: str
 ) -> None:
@@ -55,15 +77,7 @@ async def retry_connect_ports(
     - "Unknown destination port in attempted (dis)connection src_name  dst_name"
       I. e. port is not initialized yet.
     """
-    exc = None
-
-    for _ in range(10):
-        try:
-            _connect_ports_and_log(client, source=source, destination=destination)
-            return
-        except jack.JackError as e:
-            exc = e
-            await anyio.sleep(0.1)
-
-    assert exc
-    raise exc
+    func = lambda: _connect_ports_and_log(
+        client, source=source, destination=destination
+    )
+    await _retry(func=func, exc_type=jack.JackError, times=10)

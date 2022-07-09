@@ -1,6 +1,6 @@
 import signal
 from types import FrameType
-from typing import Any, Callable, cast
+from typing import cast
 
 import anyio
 import fastapi
@@ -22,7 +22,23 @@ from jackson.connector_server import (
 )
 from jackson.logging import get_logger
 
-app = FastAPI()
+
+async def port_connector_error_handler(
+    request: fastapi.Request, exc: PortConnectorError
+) -> JSONResponse:
+    status_map: dict[type[BaseModel], int] = {
+        PortNotFound: 404,
+        PlaybackPortAlreadyHasConnections: status.HTTP_409_CONFLICT,
+        FailedToConnectPorts: status.HTTP_424_FAILED_DEPENDENCY,
+    }
+    http_exc = HTTPException(
+        status_code=status_map[type(exc.data)],
+        detail={"message": type(exc.data).__name__, "data": exc.data.dict()},
+    )
+    return await http_exception_handler(request=request, exc=http_exc)
+
+
+app = FastAPI(exception_handlers={PortConnectorError: port_connector_error_handler})
 get_logger("uvicorn.error", "HttpServer")
 get_logger("uvicorn.access", "HttpServer")
 
@@ -44,25 +60,6 @@ async def connect(
     connections: list[Connection] = Body(...),
 ) -> ConnectResponse:
     return await connector.connect(connections)
-
-
-@cast(
-    Callable[[int | type[BaseException]], Callable[..., Any]],
-    app.exception_handler,  # pyright: ignore[reportUnknownMemberType]
-)(PortConnectorError)
-async def port_connector_error_handler(
-    request: fastapi.Request, exc: PortConnectorError
-) -> JSONResponse:
-    status_map: dict[type[BaseModel], int] = {
-        PortNotFound: 404,
-        PlaybackPortAlreadyHasConnections: status.HTTP_409_CONFLICT,
-        FailedToConnectPorts: status.HTTP_424_FAILED_DEPENDENCY,
-    }
-    http_exception = HTTPException(
-        status_code=status_map[type(exc.data)],
-        detail={"message": type(exc.data).__name__, "data": exc.data.dict()},
-    )
-    return await http_exception_handler(request=request, exc=http_exception)
 
 
 def _get_uvicorn_server() -> uvicorn.Server:

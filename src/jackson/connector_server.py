@@ -50,13 +50,13 @@ class PortConnectorError(Exception):
 
 
 def _validate_playback_port_is_free(
-    source: PortName, destination: PortName, connected_ports: list[jack.Port]
+    source: PortName, destination: PortName, connected_ports: list[PortName]
 ) -> None:
-    names = [PortName.parse(p.name) for p in connected_ports]
-    if not names or names == [source]:
+    if not connected_ports or connected_ports == [source]:
         return
-    data = PlaybackPortAlreadyHasConnections(port=destination, connections=names)
-    raise PortConnectorError(data)
+    raise PortConnectorError(
+        PlaybackPortAlreadyHasConnections(port=destination, connections=connected_ports)
+    )
 
 
 @dataclass
@@ -81,15 +81,20 @@ class ServerPortConnector:
             raise PortConnectorError(PortNotFound(type=type, name=name))
 
     def _validate_connection(self, conn: Connection) -> None:
-        self._get_existing_port(type="source", name=conn.source)
-        dest = self._get_existing_port(type="destination", name=conn.destination)
+        _src = self._get_existing_port("source", conn.source)
+        dest = self._get_existing_port("destination", conn.destination)
 
-        if conn.client_should == "send":
-            _validate_playback_port_is_free(
-                source=conn.source,
-                destination=conn.destination,
-                connected_ports=self.client.get_all_connections(dest),
-            )
+        if conn.client_should == "receive":
+            return
+
+        connected_port_names = [
+            PortName.parse(p.name) for p in self.client.get_all_connections(dest)
+        ]
+        _validate_playback_port_is_free(
+            source=conn.source,
+            destination=conn.destination,
+            connected_ports=connected_port_names,
+        )
 
     async def _connect_ports(self, source: PortName, destination: PortName) -> None:
         try:
