@@ -1,6 +1,3 @@
-from types import SimpleNamespace
-from typing import Any
-
 import jack
 import jack_server
 import pytest
@@ -17,8 +14,8 @@ from jackson.connector_server import (
 from jackson.port_connection import ClientShould, PortName
 
 
-@pytest.mark.parametrize("connected", [[], [SimpleNamespace(name="system:capture_1")]])
-def test_validate_playback_port_is_free_ok(connected: list[Any]):
+@pytest.mark.parametrize("connected", [[], ["system:capture_1"]])
+def test_validate_playback_port_is_free_ok(connected: list[str]):
     validate_playback_port_is_free(
         source=PortName.parse("system:capture_1"),
         destination=PortName.parse("system:playback_1"),
@@ -27,16 +24,9 @@ def test_validate_playback_port_is_free_ok(connected: list[Any]):
 
 
 @pytest.mark.parametrize(
-    "connected",
-    [
-        [SimpleNamespace(name="system:capture_2")],
-        [
-            SimpleNamespace(name="system:capture_1"),
-            SimpleNamespace(name="system:capture_2"),
-        ],
-    ],
+    "connected", [["system:capture_2"], ["system:capture_1", "system:capture_2"]]
 )
-def test_validate_playback_port_is_free_fails(connected: list[Any]):
+def test_validate_playback_port_is_free_fails(connected: list[str]):
     dest = PortName.parse("system:playback_1")
     with pytest.raises(PortConnectorError) as exc:
         validate_playback_port_is_free(
@@ -46,7 +36,7 @@ def test_validate_playback_port_is_free_fails(connected: list[Any]):
         )
 
     assert exc.value.data == PlaybackPortAlreadyHasConnections(
-        port=dest, connections=[PortName.parse(p.name) for p in connected]
+        port=dest, connections=[PortName.parse(p) for p in connected]
     )
 
 
@@ -82,7 +72,7 @@ def test_get_existing_port_fails(
     assert exc.value.data == PortNotFound(type=type, name=name)
 
 
-async def test_validate_connection(
+def test_validate_connection(
     server_port_connector: ServerPortConnector, client_should: ClientShould
 ):
     conn = Connection(
@@ -91,11 +81,11 @@ async def test_validate_connection(
         client_should=client_should,
     )
     server_port_connector._validate_connection(conn)
-    await server_port_connector._make_connection(conn.source, conn.destination)
+    server_port_connector._make_connection(conn)
     conn.source = PortName.parse("system:capture_2")
 
     func = lambda: server_port_connector._validate_connection(conn)
-    if client_should != "send":
+    if client_should == "receive":
         return func()
 
     exc = pytest.raises(PortConnectorError, func)

@@ -2,11 +2,11 @@ from ipaddress import IPv4Address
 
 from jackson.port_connection import build_connection_map
 from jackson.settings import (
+    ClientSettings,
     _ClientAudio,
     _ClientPorts,
     _ClientServer,
     _FileClientSettings,
-    load_client_settings,
 )
 
 
@@ -16,7 +16,7 @@ def test_client_server_settings_api_url():
 
 
 def test_load_client_settings():
-    fsettings = _FileClientSettings(
+    f = _FileClientSettings(
         name="Lev",
         audio=_ClientAudio(driver="dummy", device=None),
         server=_ClientServer(
@@ -25,12 +25,10 @@ def test_load_client_settings():
         ports=_ClientPorts(receive={1: 11, 2: 12}, send={3: 13, 4: 14}),
     )
 
-    settings = load_client_settings(fsettings.dict())
-    assert settings.name == fsettings.name
-    assert settings.audio == fsettings.audio
-    assert settings.server == fsettings.server
+    settings = ClientSettings.load(f.dict())
+    assert settings.name == f.name
+    assert settings.audio == f.audio
+    assert settings.server == f.server
     assert settings.connection_map == build_connection_map(
-        client_name=settings.name,
-        receive=fsettings.ports.receive,
-        send=fsettings.ports.send,
+        client_name=settings.name, receive=f.ports.receive, send=f.ports.send
     )
