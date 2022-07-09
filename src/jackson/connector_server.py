@@ -5,7 +5,7 @@ import jack
 from jack_server import SampleRate
 from pydantic import BaseModel
 
-from jackson.jack_client import connect_ports_safe
+from jackson.jack_client import connect_ports_and_log
 from jackson.port_connection import ClientShould, PortName
 
 
@@ -49,14 +49,15 @@ class PortConnectorError(Exception):
     data: BaseModel
 
 
-def _validate_playback_port_is_free(
-    source: PortName, destination: PortName, connected_ports: list[PortName]
+def validate_playback_port_is_free(
+    source: PortName, destination: PortName, connected_to_dest: list[str]
 ) -> None:
-    if not connected_ports or connected_ports == [source]:
+    if not connected_to_dest or connected_to_dest == [str(source)]:
         return
-    raise PortConnectorError(
-        PlaybackPortAlreadyHasConnections(port=destination, connections=connected_ports)
-    )
+
+    connections = [PortName.parse(p) for p in connected_to_dest]
+    data = PlaybackPortAlreadyHasConnections(port=destination, connections=connections)
+    raise PortConnectorError(data)
 
 
 @dataclass
@@ -84,28 +85,21 @@ class ServerPortConnector:
         _src = self._get_existing_port("source", conn.source)
         dest = self._get_existing_port("destination", conn.destination)
 
-        if conn.client_should == "receive":
-            return
+        if conn.client_should == "send":
+            connected = [p.name for p in self.client.get_all_connections(dest)]
+            validate_playback_port_is_free(conn.source, conn.destination, connected)
 
-        connected_port_names = [
-            PortName.parse(p.name) for p in self.client.get_all_connections(dest)
-        ]
-        _validate_playback_port_is_free(
-            source=conn.source,
-            destination=conn.destination,
-            connected_ports=connected_port_names,
-        )
-
-    def _connect_ports(self, source: PortName, destination: PortName) -> None:
+    def _make_connection(self, conn: Connection) -> None:
         try:
-            connect_ports_safe(self.client, str(source), str(destination))
+            connect_ports_and_log(self.client, str(conn.source), str(conn.destination))
         except jack.JackError:
-            raise PortConnectorError(
-                FailedToConnectPorts(source=source, destination=destination),
+            data = FailedToConnectPorts(
+                source=conn.source, destination=conn.destination
             )
+            raise PortConnectorError(data)
 
     def connect(self, connections: list[Connection]) -> ConnectResponse:
         for conn in connections:
             self._validate_connection(conn)
-            self._connect_ports(conn.source, conn.destination)
+            self._make_connection(conn)
         return ConnectResponse()

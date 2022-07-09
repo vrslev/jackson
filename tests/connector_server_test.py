@@ -12,17 +12,17 @@ from jackson.connector_server import (
     PortDirectionType,
     PortNotFound,
     ServerPortConnector,
-    _validate_playback_port_is_free,
+    validate_playback_port_is_free,
 )
 from jackson.port_connection import ClientShould, PortName
 
 
 @pytest.mark.parametrize("connected", [[], [SimpleNamespace(name="system:capture_1")]])
 def test_validate_playback_port_is_free_ok(connected: list[Any]):
-    _validate_playback_port_is_free(
+    validate_playback_port_is_free(
         source=PortName.parse("system:capture_1"),
         destination=PortName.parse("system:playback_1"),
-        connected_ports=connected,
+        connected_to_dest=connected,
     )
 
 
@@ -39,10 +39,10 @@ def test_validate_playback_port_is_free_ok(connected: list[Any]):
 def test_validate_playback_port_is_free_fails(connected: list[Any]):
     dest = PortName.parse("system:playback_1")
     with pytest.raises(PortConnectorError) as exc:
-        _validate_playback_port_is_free(
+        validate_playback_port_is_free(
             source=PortName.parse("system:capture_1"),
             destination=dest,
-            connected_ports=connected,
+            connected_to_dest=connected,
         )
 
     assert exc.value.data == PlaybackPortAlreadyHasConnections(
@@ -91,7 +91,7 @@ async def test_validate_connection(
         client_should=client_should,
     )
     server_port_connector._validate_connection(conn)
-    await server_port_connector._connect_ports(conn.source, conn.destination)
+    await server_port_connector._make_connection(conn.source, conn.destination)
     conn.source = PortName.parse("system:capture_2")
 
     func = lambda: server_port_connector._validate_connection(conn)

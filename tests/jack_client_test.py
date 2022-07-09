@@ -5,13 +5,13 @@ import jack
 import pytest
 
 import jackson.jack_client
-from jackson.jack_client import connect_ports_safe, retry_connect_ports
+from jackson.jack_client import connect_ports_and_log, retry_connect_ports
 
 
 def test_connect_ports_and_log(jack_client: jack.Client):
     ports = "system:capture_1", "system:playback_1"
-    connect_ports_safe(jack_client, *ports)
-    connect_ports_safe(jack_client, *ports)
+    connect_ports_and_log(jack_client, *ports)
+    connect_ports_and_log(jack_client, *ports)
     jack_client.disconnect(*ports)
 
 

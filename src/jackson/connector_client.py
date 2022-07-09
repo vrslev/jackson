@@ -3,9 +3,15 @@ from typing import Callable, Coroutine
 import anyio
 import jack
 
-from jackson.jack_client import connect_ports_safe
+from jackson.jack_client import connect_ports_and_log
 from jackson.jacktrip import JACK_CLIENT_NAME
 from jackson.port_connection import ConnectionMap
+
+
+def ports_already_connected(client: jack.Client, source: str, destination: str) -> bool:
+    source_port = client.get_port_by_name(source)
+    connections = client.get_all_connections(source_port)
+    return any(p.name == destination for p in connections)
 
 
 async def connect_server_and_client_ports(
@@ -26,4 +32,7 @@ async def connect_server_and_client_ports(
 
     for conn in connection_map.values():
         src, dest = conn.get_local_connection()
-        connect_ports_safe(client, str(src), str(dest))
+        src_str, dest_str = str(src), str(dest)
+
+        if not ports_already_connected(client, src_str, dest_str):
+            connect_ports_and_log(client, src_str, dest_str)
