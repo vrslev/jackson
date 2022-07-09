@@ -26,12 +26,11 @@ class ServerError(Exception):
         return f"{self.message} ({self.data})"
 
 
-known_errors: tuple[type[BaseModel], ...] = (
+KNOWN_ERRORS: tuple[type[BaseModel], ...] = (
     PlaybackPortAlreadyHasConnections,
     PortNotFound,
     FailedToConnectPorts,
 )
-T = TypeVar("T")
 
 
 def _is_structured_exception(data: dict[str, Any]) -> bool:
@@ -39,7 +38,7 @@ def _is_structured_exception(data: dict[str, Any]) -> bool:
 
 
 def _find_model_by_name(name: str) -> type[BaseModel] | None:
-    for model in known_errors:
+    for model in KNOWN_ERRORS:
         if model.__name__ == name:
             return model
 
@@ -59,6 +58,9 @@ def _handle_exceptions(data: dict[str, Any]) -> None:
     raise ServerError(message=name, data=model(**data["detail"]["data"]))
 
 
+T = TypeVar("T")
+
+
 def handle_response(response: httpx.Response, model: type[T]) -> T:
     data = response.json()
     _handle_exceptions(data)
@@ -66,10 +68,10 @@ def handle_response(response: httpx.Response, model: type[T]) -> T:
 
 
 def get_required_remote_connections(map: ConnectionMap) -> Iterable[dict[str, Any]]:
-    for connection in map.values():
-        src, dest = connection.get_remote_connection()
+    for conn in map.values():
+        src, dest = conn.get_remote_connection()
         yield Connection(
-            source=src, destination=dest, client_should=connection.client_should
+            source=src, destination=dest, client_should=conn.client_should
         ).dict()
 
 

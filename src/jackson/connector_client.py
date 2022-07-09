@@ -1,4 +1,4 @@
-from typing import Callable, Coroutine
+from typing import Awaitable, Callable
 
 import anyio
 import jack
@@ -16,7 +16,7 @@ def ports_already_connected(client: jack.Client, source: str, destination: str) 
 
 async def connect_server_and_client_ports(
     client: jack.Client,
-    connect_on_server: Callable[[ConnectionMap], Coroutine[None, None, None]],
+    connect_on_server: Callable[[ConnectionMap], Awaitable[None]],
     connection_map: ConnectionMap,
 ) -> None:
     def on_register(name: str, register: bool) -> None:
