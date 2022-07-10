@@ -1,0 +1,13 @@
+[Unit]
+Description=Jackson-API
+
+[Service]
+Type=simple
+User=lev
+WorkingDirectory=/home/lev/jackson
+ExecStart=/home/lev/jackson/modular/api.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
