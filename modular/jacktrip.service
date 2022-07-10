@@ -8,7 +8,8 @@ Group=audio
 IOSchedulingClass=realtime
 IOSchedulingPriority=0
 WorkingDirectory=/home/lev/jackson
-ExecStart=JACK_DEFAULT_SERVER=JacksonServer jacktrip --jacktripserver --bindport 4464 --nojackportsconnect --udprt
+Environment="JACK_DEFAULT_SERVER=JacksonServer"
+ExecStart=jacktrip --jacktripserver --bindport 4464 --nojackportsconnect --udprt
 Restart=always
 RestartSec=5
 LimitMEMLOCK=infinity
