@@ -5,7 +5,7 @@ Description=Jackson-API
 Type=simple
 User=lev
 WorkingDirectory=/home/lev/jackson
-ExecStart=/home/lev/jackson/modular/api.py
+ExecStart=/home/lev/jackson/.venv/bin/python /home/lev/jackson/modular/api.py
 Restart=always
 RestartSec=5
 
