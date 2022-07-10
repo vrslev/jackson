@@ -9,6 +9,7 @@ IOSchedulingClass=realtime
 IOSchedulingPriority=0
 WorkingDirectory=/home/lev/jackson
 Environment="JACK_DEFAULT_SERVER=JacksonServer"
+PassEnvironment="JACK_DEFAULT_SERVER"
 ExecStart=jacktrip --jacktripserver --bindport 4464 --nojackportsconnect --udprt
 Restart=always
 RestartSec=5
