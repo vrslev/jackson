@@ -13,7 +13,7 @@ PyYAML = "6.0"
 fastapi = "0.79.0"
 uvicorn = {extras = ["standard"], version = "0.18.2"}
 httpx = "0.23.0"
-rich = "12.4.4"
+rich = "12.5.1"
 jack-server = "0.1.2"
 anyio = "3.6.1"
 uvloop = "0.16.0"
