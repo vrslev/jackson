@@ -35,6 +35,7 @@ build-backend = "poetry.core.masonry.api"
 [tool.pyright]
 ignore = [".venv"]
 typeCheckingMode = "strict"
+useLibraryCodeForTypes = true
 reportUnnecessaryTypeIgnoreComment = "warning"
 reportMissingTypeStubs = false
 reportPrivateUsage = false

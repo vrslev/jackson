@@ -68,7 +68,7 @@ jobs:
         run: npm install -g --no-package-lock --no-save pyright
 
       - name: Check types
-        run: pyright --lib
+        run: pyright
 
   test:
     runs-on: ubuntu-latest
