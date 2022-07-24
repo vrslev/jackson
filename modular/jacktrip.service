@@ -1,0 +1,20 @@
+[Unit]
+Description=Jackson-JackTrip
+
+[Service]
+Type=simple
+User=lev
+Group=audio
+IOSchedulingClass=realtime
+IOSchedulingPriority=0
+WorkingDirectory=/home/lev/jackson
+ExecStart=/bin/bash -c 'JACK_DEFAULT_SERVER=JacksonServer jacktrip --jacktripserver --bindport 4464 --nojackportsconnect --udprt'
+Restart=always
+RestartSec=5
+LimitMEMLOCK=infinity
+LimitRTPRIO=99
+LimitNOFILE=200000
+LimitNPROC=200000
+
+[Install]
+WantedBy=multi-user.target
