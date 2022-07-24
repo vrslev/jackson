@@ -1,6 +1,7 @@
+from collections.abc import Callable, Coroutine, Iterable
 from dataclasses import dataclass
 from functools import partial
-from typing import Any, Callable, Coroutine, Iterable, TypeVar
+from typing import Any, TypeVar
 
 import anyio
 import httpx

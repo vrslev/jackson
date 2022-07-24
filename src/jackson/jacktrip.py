@@ -1,9 +1,9 @@
 import contextlib
 import logging
 import os
+from collections.abc import AsyncGenerator, Callable
 from dataclasses import dataclass, field
 from ipaddress import IPv4Address
-from typing import AsyncGenerator, Callable
 
 import anyio
 from anyio.abc import ByteReceiveStream, Process

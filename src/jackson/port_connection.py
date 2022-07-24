@@ -1,4 +1,5 @@
-from typing import Iterable, Literal, NewType, cast
+from collections.abc import Iterable
+from typing import Literal, NewType, cast
 
 from pydantic import BaseModel
 
