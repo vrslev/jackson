@@ -10,7 +10,7 @@ python = "^3.10"
 pydantic = {extras = ["dotenv"], version = "1.9.2"}
 JACK-Client = "0.5.4"
 PyYAML = "6.0"
-fastapi = "0.79.1"
+fastapi = "0.81.0"
 uvicorn = {extras = ["standard"], version = "0.18.3"}
 httpx = "0.23.0"
 rich = "12.5.1"
