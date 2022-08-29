@@ -9,4 +9,4 @@ from jackson.connector_server import ServerPortConnector
 jack_client = jack.Client("Helper", no_start_server=True, servername="JacksonServer")
 connector = ServerPortConnector(jack_client)
 app = get_app(connector)
-uvicorn.run(cast(Any, app), host="0.0.0.0")
+uvicorn.run(cast(Any, app), host="0.0.0.0")  # pyright: ignore[reportUnknownMemberType]
